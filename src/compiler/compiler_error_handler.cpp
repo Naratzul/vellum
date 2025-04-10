@@ -14,7 +14,8 @@ void CompilerErrorHandler::errorAt(const Token& token,
 }
 
 void CompilerErrorHandler::printErrors() const {
-  std::ranges::for_each(errors, std::bind_front(&CompilerErrorHandler::printError, this));
+  std::ranges::for_each(
+      errors, std::bind_front(&CompilerErrorHandler::printError, this));
 }
 
 void CompilerErrorHandler::printError(const ErrorMessage& error) const {

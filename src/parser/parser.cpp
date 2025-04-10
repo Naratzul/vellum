@@ -62,16 +62,17 @@ std::unique_ptr<ast::Statement> Parser::script() {
     errorHandler->errorAt(current, "Expect a script's name after 'script'.");
   }
 
-  std::string_view scriptName = current.lexeme;
+  std::string_view scriptName = previous.lexeme;
 
   // TODO: check that scriptName == filename
 
   std::optional<std::string_view> parentScriptName;
   if (match(TokenType::COLON)) {
     if (!match(TokenType::IDENTIFIER)) {
-      errorHandler->errorAt(current, "Expect a parent script's name after ':'.");
+      errorHandler->errorAt(current,
+                            "Expect a parent script's name after ':'.");
     }
-    parentScriptName = current.lexeme;
+    parentScriptName = previous.lexeme;
   }
 
   return std::make_unique<ast::ScriptStatement>(scriptName, parentScriptName);

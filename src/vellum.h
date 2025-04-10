@@ -4,9 +4,7 @@
 
 namespace vellum {
 class Vellum {
-public:
+ public:
   void run(std::string_view inputFile);
-private:
-
 };
-}
+}  // namespace vellum

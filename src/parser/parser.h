@@ -21,7 +21,8 @@ struct ParserResult {
 
 class Parser {
  public:
-  Parser(std::unique_ptr<Lexer> lexer, std::shared_ptr<CompilerErrorHandler> errorHandler);
+  Parser(std::unique_ptr<Lexer> lexer,
+         std::shared_ptr<CompilerErrorHandler> errorHandler);
 
   ParserResult parse();
 

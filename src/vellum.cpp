@@ -1,6 +1,6 @@
-#include <ctime>
-
 #include "vellum.h"
+
+#include <ctime>
 
 #include "common/fs.h"
 #include "common/os.h"
@@ -10,10 +10,8 @@
 #include "parser/parser.h"
 #include "pex/pex_file.h"
 
-
 namespace vellum {
-void Vellum::run(std::string_view inputFile)
-{
+void Vellum::run(std::string_view inputFile) {
   const std::string& sourceCode = common::readFileContent(inputFile);
   auto lexer = std::make_unique<Lexer>(sourceCode);
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
@@ -37,4 +35,4 @@ void Vellum::run(std::string_view inputFile)
 
   pexFile.writeToFile(common::replaceExtension(inputFile, ".pex"));
 }
-}
+}  // namespace vellum

@@ -4,7 +4,7 @@ namespace vellum {
 namespace pex {
 
 PexWriter& operator<<(PexWriter& writer, const UserFlags& flags) {
-  writer << 0x00;
+  writer << (uint16_t)0;
   return writer;
 }
 }  // namespace pex

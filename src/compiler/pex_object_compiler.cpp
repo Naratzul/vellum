@@ -18,6 +18,9 @@ void PexObjectCompiler::visitScriptStatement(ast::ScriptStatement& statement) {
     object.setParentName(
         file.stringTable().lookup(statement.parentScriptName().value()));
   }
+
+  object.setDocumentationString(file.stringTable().lookup(""));
+  object.setAutoStateName(file.stringTable().lookup(""));
 }
 
 }  // namespace vellum

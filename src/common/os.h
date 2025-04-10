@@ -7,5 +7,5 @@ namespace common {
 
 std::string getUserName();
 std::string getComputerName();
-}
-}
+}  // namespace common
+}  // namespace vellum

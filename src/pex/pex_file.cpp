@@ -20,10 +20,10 @@ void PexFile::writeToFile(std::string_view path) const {
   writer << stringTable_;
 
   if (hasDebugInfo()) {
-    writer << 0x01;
+    writer << true;
     writer << header_.gameID;
   } else {
-    writer << 0x00;
+    writer << false;
   }
 
   writer << userFlags_;
