@@ -14,7 +14,7 @@ ParserResult Parser::parse() {
 
   ParserResult result;
 
-  while (!isEndOfFile()) {
+  while (!match(TokenType::END_OF_FILE)) {
     if (auto stmt = statement()) {
       result.statements.push_back(std::move(stmt));
     }
@@ -34,15 +34,11 @@ void Parser::advance() {
   }
 }
 
-bool Parser::isEndOfFile() const {
-  return current.type == TokenType::END_OF_FILE;
-}
-
 std::unique_ptr<ast::Statement> Parser::statement() {
   if (match(TokenType::SCRIPT)) {
     return script();
   }
-  return nullptr;
+  return expressionStatement();
 }
 
 bool Parser::match(TokenType type) {
@@ -56,6 +52,14 @@ bool Parser::match(TokenType type) {
 }
 
 bool Parser::check(TokenType type) const { return current.type == type; }
+
+void Parser::consume(TokenType type, std::string_view message) {
+  if (check(type)) {
+    advance();
+    return;
+  }
+  errorHandler->errorAt(current, message);
+}
 
 std::unique_ptr<ast::Statement> Parser::script() {
   if (!match(TokenType::IDENTIFIER)) {
@@ -75,7 +79,16 @@ std::unique_ptr<ast::Statement> Parser::script() {
     parentScriptName = previous.lexeme;
   }
 
+  if (!check(TokenType::END_OF_FILE) && previous.line == current.line) {
+    errorHandler->errorAt(current, "Unexpected token after script declaration");
+  }
+
   return std::make_unique<ast::ScriptStatement>(scriptName, parentScriptName);
+}
+
+std::unique_ptr<ast::Statement> Parser::expressionStatement() {
+  advance();
+  return nullptr;
 }
 
 }  // namespace vellum

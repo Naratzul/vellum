@@ -34,13 +34,14 @@ class Parser {
   Token current;
 
   void advance();
-  bool isEndOfFile() const;
 
   std::unique_ptr<ast::Statement> statement();
 
   bool match(TokenType type);
   bool check(TokenType type) const;
+  void consume(TokenType type, std::string_view message);
 
   std::unique_ptr<ast::Statement> script();
+  std::unique_ptr<ast::Statement> expressionStatement();
 };
 }  // namespace vellum
