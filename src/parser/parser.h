@@ -1,0 +1,45 @@
+#pragma once
+
+#include <memory>
+#include <vector>
+
+#include "ast/statement.h"
+#include "lexer/token.h"
+
+namespace vellum {
+
+class CompilerErrorHandler;
+class Lexer;
+
+struct ParserError {
+  std::string message;
+};
+
+struct ParserResult {
+  std::vector<std::unique_ptr<ast::Statement>> statements;
+};
+
+class Parser {
+ public:
+  Parser(std::unique_ptr<Lexer> lexer, std::shared_ptr<CompilerErrorHandler> errorHandler);
+
+  ParserResult parse();
+
+ private:
+  std::unique_ptr<Lexer> lexer;
+  std::shared_ptr<CompilerErrorHandler> errorHandler;
+
+  Token previous;
+  Token current;
+
+  void advance();
+  bool isEndOfFile() const;
+
+  std::unique_ptr<ast::Statement> statement();
+
+  bool match(TokenType type);
+  bool check(TokenType type) const;
+
+  std::unique_ptr<ast::Statement> script();
+};
+}  // namespace vellum

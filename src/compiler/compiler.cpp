@@ -1,0 +1,62 @@
+#include "compiler.h"
+
+#include <filesystem>
+
+#include "ast/statement.h"
+#include "compiler_error_handler.h"
+#include "pex/pex_file.h"
+#include "pex_object_compiler.h"
+
+namespace vellum {
+Compiler::Compiler(std::shared_ptr<CompilerErrorHandler> errorHandler)
+    : errorHandler(errorHandler) {}
+
+pex::PexFile Compiler::compile(
+    const ScriptMetadata& metadata,
+    const std::vector<std::unique_ptr<ast::Statement>>& statements) {
+  pex::PexFile file;
+  fillHeader(file.header(), metadata);
+
+  pex::PexObject object;
+  PexObjectCompiler objectCompiler(errorHandler, file, object);
+  for (const auto& statement : statements) {
+    statement->accept(objectCompiler);
+  }
+
+  file.objects().push_back(object);
+  return file;
+}
+
+void Compiler::fillHeader(pex::PexHeader& header,
+                          const ScriptMetadata& metadata) {
+  header.magic = pex::PEX_MAGIC_NUM;
+  setCompilerVersion(metadata.gameID, header.majorVersion, header.minorVersion);
+  header.sourceFile = metadata.sourceFile;
+  header.compilationTime = metadata.compilationTime;
+  header.userName = metadata.userName;
+  header.computerName = metadata.computerName;
+}
+
+void Compiler::setCompilerVersion(game::GameID gameID, uint8_t& major,
+                                  uint8_t& minor) const {
+  switch (gameID) {
+    case game::GameID::Skyrim:
+      major = 3;
+      minor = 2;
+      break;
+    case game::GameID::Fallout4:
+      major = 3;
+      minor = 9;
+      break;
+    case game::GameID::Fallout76:
+      major = 3;
+      minor = 15;
+      break;
+    case game::GameID::Starfield:
+      major = 3;
+      minor = 12;
+      break;
+  }
+}
+
+}  // namespace vellum

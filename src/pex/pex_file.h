@@ -1,0 +1,61 @@
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "common/binary_writer.h"
+#include "game/game_id.h"
+#include "pex_object.h"
+#include "pex_string.h"
+#include "pex_string_table.h"
+#include "pex_user_flag.h"
+
+namespace vellum {
+namespace pex {
+
+constexpr uint32_t PEX_MAGIC_NUM = 0xFA57C0DE;
+constexpr uint32_t PEX_MAGIC_NUM_BE = 0xDE57C0FA;
+
+#pragma pack(push, 1)
+struct PexHeader {
+  uint32_t magic = PEX_MAGIC_NUM;
+  uint8_t majorVersion = 3;
+  uint8_t minorVersion = 2;
+  game::GameID gameID = game::GameID::Skyrim;
+  uint64_t compilationTime = 0;
+  std::string sourceFile;
+  std::string userName;
+  std::string computerName;
+};
+#pragma pack(pop)
+
+class PexFile {
+ public:
+  using Objects = std::vector<PexObject>;
+
+  PexHeader& header() { return header_; }
+  const PexHeader& header() const { return header_; }
+
+  PexStringTable& stringTable() { return stringTable_; }
+  const PexStringTable& stringTable() const { return stringTable_; }
+
+  UserFlags& userFlags() { return userFlags_; }
+  const UserFlags& userFlags() const { return userFlags_; }
+
+  Objects& objects() { return objects_; }
+  const Objects& objects() const { return objects_; }
+
+  bool hasDebugInfo() const { return false; }
+
+  void writeToFile(std::string_view path) const;
+
+ private:
+  PexHeader header_;
+  PexStringTable stringTable_;
+  UserFlags userFlags_;
+  Objects objects_;
+
+  common::Endianness getEndianness() const;
+};
+};  // namespace pex
+};  // namespace vellum
