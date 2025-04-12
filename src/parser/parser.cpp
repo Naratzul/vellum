@@ -37,6 +37,8 @@ void Parser::advance() {
 std::unique_ptr<ast::Statement> Parser::statement() {
   if (match(TokenType::SCRIPT)) {
     return script();
+  } else if (match(TokenType::VAR)) {
+    return variableDeclaration();
   }
   return expressionStatement();
 }
@@ -50,6 +52,17 @@ bool Parser::match(TokenType type) {
 
   return true;
 }
+
+bool Parser::match(std::initializer_list<TokenType> types) {
+  for (auto type : types) {
+    if (check(type)) {
+      advance();
+      return true;
+    }
+  }
+  return false;
+}
+
 
 bool Parser::check(TokenType type) const { return current.type == type; }
 
@@ -86,9 +99,39 @@ std::unique_ptr<ast::Statement> Parser::script() {
   return std::make_unique<ast::ScriptStatement>(scriptName, parentScriptName);
 }
 
+std::unique_ptr<ast::Statement> Parser::variableDeclaration() {
+  consume(TokenType::IDENTIFIER, "Expect a variable name.");
+  const std::string_view name = previous.lexeme;
+
+  std::optional<std::string_view> typeName;
+  if (match(TokenType::COLON)) {
+    consume(TokenType::IDENTIFIER, "Expect a type name.");
+    typeName = previous.lexeme;
+  }
+
+  std::unique_ptr<ast::Expression> initializer;
+  if (match(TokenType::EQUAL)) {
+    initializer = expression();
+  }
+
+  return std::make_unique<ast::VariableDeclaration>(name, typeName,
+                                                    std::move(initializer));
+}
+
 std::unique_ptr<ast::Statement> Parser::expressionStatement() {
   advance();
   return nullptr;
+}
+
+std::unique_ptr<ast::Expression> Parser::expression() {
+  if (match({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
+             TokenType::TRUE, TokenType::STRING, TokenType::NIL})) {
+    return std::make_unique<ast::LiteralExpression>(previous.value);
+  }
+
+  errorHandler->errorAt(current, "Unsupported expression.");
+
+  return std::unique_ptr<ast::Expression>();
 }
 
 }  // namespace vellum

@@ -1,8 +1,12 @@
 #pragma once
 
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <vector>
+
+#include "ast/expression.h"
+#include "vellum/vellum_value.h"
 
 namespace vellum {
 
@@ -32,6 +36,31 @@ class ScriptStatement : public Statement {
  private:
   std::string_view scriptName_;
   std::optional<std::string_view> parentScriptName_;
+};
+
+class VariableDeclaration : public Statement {
+ public:
+  VariableDeclaration(std::string_view name,
+                      std::optional<std::string_view> typeName,
+                      std::unique_ptr<ast::Expression> initializer)
+      : name_(name),
+        typeName_(typeName),
+        initializer_(std::move(initializer)) {}
+
+  std::string_view name() const { return name_; }
+  std::optional<std::string_view> typeName() const { return typeName_; }
+  std::optional<std::string_view>& typeName() { return typeName_; }
+  const std::unique_ptr<ast::Expression>& initializer() { return initializer_; }
+
+  VellumValue getValue() const;
+
+ private:
+  std::string_view name_;
+  std::optional<std::string_view> typeName_;
+  std::unique_ptr<ast::Expression> initializer_;
+
+  // Inherited via Statement
+  void accept(StatementVisitor& visitor) override;
 };
 }  // namespace ast
 }  // namespace vellum

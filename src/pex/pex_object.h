@@ -3,18 +3,17 @@
 #include <vector>
 
 #include "pex_string.h"
+#include "pex_variable.h"
 #include "pex_writer.h"
 
 namespace vellum {
 namespace pex {
 
-class PexVariable {};
-
 class PexProperty {};
 
 class PexState {};
 
-class PexObject {
+class PexObject final {
  public:
   PexString getName() const { return name; }
   void setName(PexString name_) { name = name_; }

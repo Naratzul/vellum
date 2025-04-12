@@ -1,5 +1,7 @@
 #include "lexer.h"
 
+#include <charconv>
+
 namespace vellum {
 
 Lexer::Lexer(const std::string& source)
@@ -64,11 +66,12 @@ Token Lexer::scanToken() {
   return errorToken("Unexpected character.");
 }
 
-Token Lexer::makeToken(TokenType type) const {
+Token Lexer::makeToken(TokenType type, VellumValue value) const {
   Token token;
   token.type = type;
-  token.lexeme = std::string_view(start, current - start);
+  token.lexeme = currentLexeme();
   token.line = line;
+  token.value = value;
   return token;
 }
 
@@ -92,25 +95,40 @@ Token Lexer::string() {
 
   // the closing quote.
   advance();
-  return makeToken(TokenType::STRING);
+  return makeToken(TokenType::STRING, currentLexeme());
 }
 
 Token Lexer::number() {
   while (isDigit(peek())) advance();
 
+  bool isFloat = false;
+
   // look for a fractional part.
   if (peek() == '.' && isDigit(peekNext())) {
+    isFloat = true;
+
     // consume '.'.
     advance();
 
     while (isDigit(peek())) advance();
   }
 
-  return makeToken(TokenType::NUMBER);
+  return isFloat ? parseFloat() : parseInt();
 }
 
 Token Lexer::identifier() {
   while (isAlpha(peek()) || isDigit(peek())) advance();
+
+  const TokenType type = identifierType();
+  switch (type) {
+    case TokenType::FALSE:
+      return makeToken(type, false);
+    case TokenType::TRUE:
+      return makeToken(type, true);
+    default:
+      break;
+  }
+
   return makeToken(identifierType());
 }
 
@@ -229,5 +247,33 @@ bool Lexer::isDigit(char c) const { return c >= '0' && c <= '9'; }
 
 bool Lexer::isAlpha(char c) const {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+Token Lexer::parseInt() const {
+  const std::string_view lexeme = currentLexeme();
+  int32_t value;
+  auto [ptr, ec] =
+      std::from_chars(lexeme.data(), lexeme.data() + lexeme.size(), value);
+  if (ec == std::errc{} && ptr == lexeme.data() + lexeme.size()) {
+    return makeToken(TokenType::INT, value);
+  }
+
+  return errorToken("Could not parse a number.");
+}
+
+Token Lexer::parseFloat() const { 
+  const std::string_view lexeme = currentLexeme();
+  float value;
+  auto [ptr, ec] =
+      std::from_chars(lexeme.data(), lexeme.data() + lexeme.size(), value);
+  if (ec == std::errc{} && ptr == lexeme.data() + lexeme.size()) {
+    return makeToken(TokenType::FLOAT, value);
+  }
+
+  return errorToken("Could not parse a number.");
+}
+
+std::string_view Lexer::currentLexeme() const {
+  return std::string_view(start, current - start);
 }
 }  // namespace vellum

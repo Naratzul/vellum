@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include "vellum/vellum_value.h"
 
 namespace vellum {
 
@@ -30,7 +31,8 @@ enum class TokenType {
   // Literals.
   IDENTIFIER,
   STRING,
-  NUMBER,
+  INT,
+  FLOAT,
   // Keywords.
   AND,
   SCRIPT,
@@ -57,5 +59,6 @@ struct Token {
   TokenType type = TokenType::END_OF_FILE;
   std::string_view lexeme;
   int line = -1;
+  VellumValue value;
 };
 }  // namespace vellum

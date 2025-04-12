@@ -18,7 +18,6 @@ class PexObject;
 
 namespace ast {
 class Statement;
-class ScriptStatement;
 }  // namespace ast
 
 struct ScriptMetadata {

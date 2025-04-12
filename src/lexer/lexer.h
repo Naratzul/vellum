@@ -18,7 +18,7 @@ class Lexer {
   const char* current;
   int line;
 
-  Token makeToken(TokenType type) const;
+  Token makeToken(TokenType type, VellumValue value = VellumValue()) const;
   Token errorToken(std::string_view message) const;
   Token string();
   Token number();
@@ -38,5 +38,10 @@ class Lexer {
   bool isAtEnd() const;
   bool isDigit(char c) const;
   bool isAlpha(char c) const;
+
+  Token parseInt() const;
+  Token parseFloat() const;
+
+  std::string_view currentLexeme() const;
 };
 }  // namespace vellum

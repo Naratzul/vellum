@@ -9,6 +9,10 @@ PexWriter& vellum::pex::operator<<(PexWriter& writer, const PexObject& object) {
          << object.getAutoStateName();
 
   writer << (uint16_t)object.getVariables().size();
+  for (const PexVariable& var : object.getVariables()) {
+    writer << var;
+  }
+
   writer << (uint16_t)object.getProperties().size();
   writer << (uint16_t)object.getStates().size();
 

@@ -2,6 +2,7 @@
 
 #include <ctime>
 
+#include "analyze/semantic_analyzer.h"
 #include "common/fs.h"
 #include "common/os.h"
 #include "compiler/compiler.h"
@@ -17,7 +18,15 @@ void Vellum::run(std::string_view inputFile) {
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
 
   Parser parser(std::move(lexer), errorHandler);
-  const ParserResult parseResult = parser.parse();
+  ParserResult parseResult = parser.parse();
+  if (errorHandler->hadError()) {
+    errorHandler->printErrors();
+    return;
+  }
+
+  SemanticAnalyzer semantic(errorHandler);
+  const SemanticAnalyzeResult semanticResult =
+      semantic.analyze(std::move(parseResult.statements));
   if (errorHandler->hadError()) {
     errorHandler->printErrors();
     return;
@@ -31,7 +40,7 @@ void Vellum::run(std::string_view inputFile) {
   metadata.computerName = common::getComputerName();
 
   Compiler compiler(errorHandler);
-  pex::PexFile pexFile = compiler.compile(metadata, parseResult.statements);
+  pex::PexFile pexFile = compiler.compile(metadata, semanticResult.statements);
 
   pexFile.writeToFile(common::replaceExtension(inputFile, ".pex"));
 }

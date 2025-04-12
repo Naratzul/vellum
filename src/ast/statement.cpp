@@ -7,5 +7,16 @@ namespace ast {
 void ScriptStatement::accept(StatementVisitor& visitor) {
   visitor.visitScriptStatement(*this);
 }
+
+VellumValue VariableDeclaration::getValue() const { 
+  if (initializer_) {
+    return initializer_->produceValue();
+  }
+  return VellumValue();
+}
+
+void VariableDeclaration::accept(StatementVisitor& visitor) {
+  visitor.visitVariableDeclaration(*this);
+}
 }  // namespace ast
 }  // namespace vellum
