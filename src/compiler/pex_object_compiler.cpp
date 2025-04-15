@@ -1,7 +1,5 @@
 #include "pex_object_compiler.h"
 
-#include <charconv>
-
 #include "ast/statement.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
@@ -35,6 +33,10 @@ void PexObjectCompiler::visitVariableDeclaration(
 
   const pex::PexValue defaultValue = makeValueFromToken(statement.getValue());
   object.getVariables().emplace_back(name, typeName, defaultValue);
+}
+
+void PexObjectCompiler::visitFunctionDeclaration(ast::FunctionDeclaration& statement) {
+  
 }
 
 pex::PexValue PexObjectCompiler::makeValueFromToken(VellumValue value) {

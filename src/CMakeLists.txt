@@ -1,6 +1,5 @@
 ﻿cmake_minimum_required (VERSION 3.12)
 
-set(CMAKE_CXX_STANDARD 23)
 add_compile_options(-Wall)
 if (MSVC)
     add_compile_options(/W0)
@@ -9,8 +8,7 @@ else()
 endif()
 
 set(SOURCES 
-    main.cpp 
-    vellum.cpp
+    main.cpp
     
     analyze/semantic_analyzer.cpp
     ast/statement.cpp
@@ -31,7 +29,11 @@ set(SOURCES
     pex/pex_string_table.cpp
     pex/pex_user_flag.cpp
     pex/pex_variable.cpp
+
+    vellum/vellum.cpp
     )
 
 add_executable (${PROJECT_NAME} ${SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 23)

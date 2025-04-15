@@ -12,7 +12,7 @@ class CompilerErrorHandler;
 
 namespace pex {
 class PexFile;
-class PexHeader;
+struct PexHeader;
 class PexObject;
 }  // namespace pex
 

@@ -28,6 +28,7 @@ class SemanticAnalyzer : public ast::StatementVisitor {
 
   void visitScriptStatement(ast::ScriptStatement& statement) override;
   void visitVariableDeclaration(ast::VariableDeclaration& statement) override;
+  void visitFunctionDeclaration(ast::FunctionDeclaration& statement) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;

@@ -19,7 +19,7 @@ SemanticAnalyzeResult SemanticAnalyzer::analyze(
     statement->accept(*this);
   }
 
-  return SemanticAnalyzeResult(std::move(statements));
+  return SemanticAnalyzeResult{std::move(statements)};
 }
 
 void SemanticAnalyzer::visitScriptStatement(ast::ScriptStatement& statement) {}
@@ -41,5 +41,9 @@ void SemanticAnalyzer::visitVariableDeclaration(
       errorHandler->errorAt(Token(), "Variable type mismatch.");
     }
   }
+}
+
+void SemanticAnalyzer::visitFunctionDeclaration(ast::FunctionDeclaration& statement) {
+
 }
 }  // namespace vellum

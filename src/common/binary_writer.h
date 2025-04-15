@@ -33,7 +33,7 @@ inline T BinaryWriter::swapBytes(T value) {
 }
 
 template <typename T>
-inline BinaryWriter& BinaryWriter::operator<<(T value) {
+inline BinaryWriter& BinaryWriter::operator<<(T) {
   static_assert(std::is_same_v<T, void>,
                 "Unsupported type passed to BinaryWriter.");
   return *this;

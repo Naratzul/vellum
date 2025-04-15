@@ -2,6 +2,10 @@
 
 #include <charconv>
 
+#ifdef __APPLE__
+#include <cstdlib>
+#endif
+
 namespace vellum {
 
 Lexer::Lexer(const std::string& source)
@@ -43,7 +47,7 @@ Token Lexer::scanToken() {
     case '.':
       return makeToken(TokenType::DOT);
     case '-':
-      return makeToken(TokenType::MINUS);
+      return makeToken(match('>') ? TokenType::ARROW : TokenType::MINUS);
     case '+':
       return makeToken(TokenType::PLUS);
     case '/':
@@ -264,11 +268,16 @@ Token Lexer::parseInt() const {
 Token Lexer::parseFloat() const { 
   const std::string_view lexeme = currentLexeme();
   float value;
-  auto [ptr, ec] =
-      std::from_chars(lexeme.data(), lexeme.data() + lexeme.size(), value);
+#ifdef __APPLE__
+  value = strtof(lexeme.data(), nullptr);
+  return makeToken(TokenType::FLOAT, value);
+#else
+    auto [ptr, ec] =
+        std::from_chars(lexeme.data(), lexeme.data() + lexeme.size(), value);
   if (ec == std::errc{} && ptr == lexeme.data() + lexeme.size()) {
     return makeToken(TokenType::FLOAT, value);
   }
+#endif
 
   return errorToken("Could not parse a number.");
 }

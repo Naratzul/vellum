@@ -18,5 +18,9 @@ VellumValue VariableDeclaration::getValue() const {
 void VariableDeclaration::accept(StatementVisitor& visitor) {
   visitor.visitVariableDeclaration(*this);
 }
+
+void FunctionDeclaration::accept(StatementVisitor& visitor) {
+  visitor.visitFunctionDeclaration(*this);
+}
 }  // namespace ast
 }  // namespace vellum

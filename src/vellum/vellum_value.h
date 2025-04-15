@@ -23,6 +23,13 @@ inline constexpr std::string_view valueTypeToString(VellumValueType type) {
   return "Unknown type";
 }
 
+class VellumType {
+  public:
+    static VellumType resolved(VellumValueType type);
+    static VellumType unresolved(std::string_view typeName);
+  private:
+};
+
 class VellumValue {
  public:
   VellumValue() = default;
@@ -42,7 +49,7 @@ class VellumValue {
   }
 
  private:
-  VellumValueType type = VellumValueType::Nil;
   std::variant<std::monostate, int32_t, float, bool, std::string_view> value;
+  VellumValueType type = VellumValueType::Nil;
 };
 }  // namespace vellum

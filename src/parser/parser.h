@@ -12,10 +12,6 @@ namespace vellum {
 class CompilerErrorHandler;
 class Lexer;
 
-struct ParserError {
-  std::string message;
-};
-
 struct ParserResult {
   std::vector<std::unique_ptr<ast::Statement>> statements;
 };
@@ -46,6 +42,7 @@ class Parser {
 
   std::unique_ptr<ast::Statement> script();
   std::unique_ptr<ast::Statement> variableDeclaration();
+  std::unique_ptr<ast::Statement> functionDeclaration();
   std::unique_ptr<ast::Statement> expressionStatement();
 
   std::unique_ptr<ast::Expression> expression();
