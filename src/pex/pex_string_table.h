@@ -4,10 +4,12 @@
 #include <vector>
 
 #include "pex_string.h"
-#include "pex_writer.h"
 
 namespace vellum {
 namespace pex {
+
+class PexWriter;
+
 class PexStringTable {
  public:
   PexString lookup(std::string_view str);

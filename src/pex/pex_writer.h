@@ -19,11 +19,23 @@ class PexWriter final : public common::BinaryWriter {
 
   template <typename T>
   PexWriter& operator<<(T value);
+
+  template <typename T>
+  PexWriter& operator<<(const std::vector<T>& value);
 };
 
 template <typename T>
 inline PexWriter& PexWriter::operator<<(T value) {
   common::BinaryWriter::operator<<(std::forward<T>(value));
+  return *this;
+}
+
+template <typename T>
+inline PexWriter& PexWriter::operator<<(const std::vector<T>& value) {
+  *this << (uint16_t)value.size();
+  for (const auto& v : value) {
+    *this << v;
+  }
   return *this;
 }
 

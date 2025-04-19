@@ -1,5 +1,7 @@
 #include "pex_user_flag.h"
 
+#include "pex_writer.h"
+
 namespace vellum {
 namespace pex {
 

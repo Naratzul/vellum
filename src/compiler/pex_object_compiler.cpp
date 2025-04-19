@@ -3,47 +3,53 @@
 #include "ast/statement.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
+#include "pex/pex_function.h"
 #include "pex/pex_object.h"
+#include "pex/pex_state.h"
 
 namespace vellum {
 
 PexObjectCompiler::PexObjectCompiler(
     std::shared_ptr<CompilerErrorHandler> errorHandler, pex::PexFile& file,
     pex::PexObject& object)
-    : errorHandler(errorHandler), file(file), object(object) {}
+    : errorHandler(errorHandler), file(file), object(object) {
+  assert(object.getStates().empty());
+  pex::PexState rootState(file.getString(""));
+  object.getStates().push_back(std::move(rootState));
+}
 
 void PexObjectCompiler::visitScriptStatement(ast::ScriptStatement& statement) {
-  object.setName(file.stringTable().lookup(statement.scriptName()));
+  object.setName(file.getString(statement.scriptName()));
   if (statement.parentScriptName().has_value()) {
-    object.setParentName(
-        file.stringTable().lookup(statement.parentScriptName().value()));
+    object.setParentName(file.getString(statement.parentScriptName().value()));
   }
 
-  object.setDocumentationString(file.stringTable().lookup(""));
-  object.setAutoStateName(file.stringTable().lookup(""));
+  object.setDocumentationString(file.getString(""));
+  object.setAutoStateName(file.getString(""));
 }
 
 void PexObjectCompiler::visitVariableDeclaration(
     ast::VariableDeclaration& statement) {
-  const pex::PexString name = file.stringTable().lookup(statement.name());
+  const pex::PexString name = file.getString(statement.name());
 
   assert(statement.typeName().has_value());
-  const pex::PexString typeName =
-      file.stringTable().lookup(statement.typeName().value());
+  const pex::PexString typeName = file.getString(statement.typeName().value());
 
   const pex::PexValue defaultValue = makeValueFromToken(statement.getValue());
   object.getVariables().emplace_back(name, typeName, defaultValue);
 }
 
-void PexObjectCompiler::visitFunctionDeclaration(ast::FunctionDeclaration& statement) {
-  
+void PexObjectCompiler::visitFunctionDeclaration(
+    ast::FunctionDeclaration& statement) {
+  for (const auto& stmt : statement.body()) {
+    stmt->accept(*this);
+  }
 }
 
 pex::PexValue PexObjectCompiler::makeValueFromToken(VellumValue value) {
   switch (value.getType()) {
     case VellumValueType::String: {
-      const pex::PexString pexValue =
-          file.stringTable().lookup(value.asString());
+      const pex::PexString pexValue = file.getString(value.asString());
       return pex::PexValue(pexValue);
     }
     case VellumValueType::Int:

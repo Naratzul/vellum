@@ -25,7 +25,11 @@ set(SOURCES
     parser/parser.cpp
 
     pex/pex_file.cpp
+    pex/pex_function_parameter.cpp
+    pex/pex_function.cpp
+    pex/pex_instruction.cpp
     pex/pex_object.cpp
+    pex/pex_state.cpp
     pex/pex_string_table.cpp
     pex/pex_user_flag.cpp
     pex/pex_variable.cpp
@@ -35,5 +39,4 @@ set(SOURCES
 
 add_executable (${PROJECT_NAME} ${SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 23)

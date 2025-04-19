@@ -49,6 +49,10 @@ class PexFile {
 
   void writeToFile(std::string_view path) const;
 
+  PexString getString(std::string_view str) {
+    return stringTable().lookup(str);
+  }
+
  private:
   PexHeader header_;
   PexStringTable stringTable_;

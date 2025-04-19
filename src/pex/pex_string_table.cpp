@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "pex_writer.h"
+
 namespace vellum {
 namespace pex {
 PexString PexStringTable::lookup(std::string_view str) {

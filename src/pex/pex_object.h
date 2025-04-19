@@ -2,16 +2,15 @@
 
 #include <vector>
 
+#include "pex_state.h"
 #include "pex_string.h"
 #include "pex_variable.h"
-#include "pex_writer.h"
 
 namespace vellum {
 namespace pex {
 
+class PexWriter;
 class PexProperty {};
-
-class PexState {};
 
 class PexObject final {
  public:
@@ -41,6 +40,16 @@ class PexObject final {
 
   const std::vector<PexState>& getStates() const { return states; }
   std::vector<PexState>& getStates() { return states; }
+
+  const PexState& getRootState() const {
+    assert(!states.empty());
+    return states[0];
+  }
+
+  PexState& getRootState() {
+    assert(!states.empty());
+    return states[0];
+  }
 
  private:
   PexString name;
