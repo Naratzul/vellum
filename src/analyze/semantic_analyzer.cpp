@@ -2,7 +2,8 @@
 
 #include <cassert>
 
-#include "ast/statement.h"
+#include "ast/expression/expression.h"
+#include "ast/decl/declaration.h"
 #include "compiler/compiler_error_handler.h"
 
 namespace vellum {
@@ -14,18 +15,19 @@ SemanticAnalyzer::SemanticAnalyzer(
 }
 
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
-    std::vector<std::unique_ptr<ast::Statement>>&& statements) {
-  for (auto& statement : statements) {
-    statement->accept(*this);
+    std::vector<std::unique_ptr<ast::Declaration>>&& declarations) {
+  for (auto& declaration : declarations) {
+    declaration->accept(*this);
   }
 
-  return SemanticAnalyzeResult{std::move(statements)};
+  return SemanticAnalyzeResult{std::move(declarations)};
 }
 
-void SemanticAnalyzer::visitScriptStatement(ast::ScriptStatement& statement) {}
+void SemanticAnalyzer::visitScriptDeclaration(
+    ast::ScriptDeclaration& statement) {}
 
 void SemanticAnalyzer::visitVariableDeclaration(
-    ast::VariableDeclaration& statement) {
+    ast::GlobalVariableDeclaration& statement) {
   const VellumValue value = statement.getValue();
   if (statement.typeName().has_value()) {
     if (!builtinTypes.contains(std::string(statement.typeName().value()))) {
@@ -43,7 +45,6 @@ void SemanticAnalyzer::visitVariableDeclaration(
   }
 }
 
-void SemanticAnalyzer::visitFunctionDeclaration(ast::FunctionDeclaration& statement) {
-
-}
+void SemanticAnalyzer::visitFunctionDeclaration(
+    ast::FunctionDeclaration& statement) {}
 }  // namespace vellum

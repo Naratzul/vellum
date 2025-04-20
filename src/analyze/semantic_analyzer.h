@@ -5,30 +5,32 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ast/statement_visitor.h"
+#include "ast/decl/declaration_visitor.h"
 
 namespace vellum {
 
 class CompilerErrorHandler;
 
 namespace ast {
+class Declaration;
 class Statement;
 }  // namespace ast
 
 struct SemanticAnalyzeResult {
-  std::vector<std::unique_ptr<ast::Statement>> statements;
+  std::vector<std::unique_ptr<ast::Declaration>> declarations;
 };
 
-class SemanticAnalyzer : public ast::StatementVisitor {
+class SemanticAnalyzer : public ast::DeclarationVisitor {
  public:
   explicit SemanticAnalyzer(std::shared_ptr<CompilerErrorHandler> errorHandler);
 
   SemanticAnalyzeResult analyze(
-      std::vector<std::unique_ptr<ast::Statement>>&& statements);
+      std::vector<std::unique_ptr<ast::Declaration>>&& declarations);
 
-  void visitScriptStatement(ast::ScriptStatement& statement) override;
-  void visitVariableDeclaration(ast::VariableDeclaration& statement) override;
-  void visitFunctionDeclaration(ast::FunctionDeclaration& statement) override;
+  void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
+  void visitVariableDeclaration(
+      ast::GlobalVariableDeclaration& declaration) override;
+  void visitFunctionDeclaration(ast::FunctionDeclaration& declaration) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;

@@ -59,6 +59,7 @@ inline PexWriter& PexWriter::operator<<(PexValue value) {
   switch (value.getType()) {
     case PexValueType::None:
       break;
+    case PexValueType::Identifier:
     case PexValueType::String:
       *this << value.asString();
       break;

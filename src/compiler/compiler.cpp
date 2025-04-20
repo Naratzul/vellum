@@ -2,28 +2,26 @@
 
 #include <filesystem>
 
-#include "ast/statement.h"
+#include "ast/decl/declaration.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
 #include "pex_object_compiler.h"
 
 namespace vellum {
+
 Compiler::Compiler(std::shared_ptr<CompilerErrorHandler> errorHandler)
     : errorHandler(errorHandler) {}
 
 pex::PexFile Compiler::compile(
     const ScriptMetadata& metadata,
-    const std::vector<std::unique_ptr<ast::Statement>>& statements) {
+    const std::vector<std::unique_ptr<ast::Declaration>>& declarations) {
   pex::PexFile file;
   fillHeader(file.header(), metadata);
 
-  pex::PexObject object;
-  PexObjectCompiler objectCompiler(errorHandler, file, object);
-  for (const auto& statement : statements) {
-    statement->accept(objectCompiler);
-  }
+  PexObjectCompiler objectCompiler(errorHandler, file);
+  pex::PexObject object = objectCompiler.compile(declarations);
+  file.objects().push_back(std::move(object));
 
-  file.objects().push_back(object);
   return file;
 }
 

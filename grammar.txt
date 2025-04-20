@@ -1,0 +1,36 @@
+<script-file>    ::= <script-decl>
+
+<script-decl>    ::= "script" <identifier> (":" <identifier>)? <newline> <member>*
+<member>         ::= <global-var-decl> | <func-decl>
+
+<global-var-decl> ::= "var" <identifier> (":" <type>)? "=" <literal> <newline>
+
+<func-decl>      ::= "fun" <identifier> "(" <params>? ")" ("->" <type>)? <block>
+<params>         ::= <param> ("," <param>)*
+<param>          ::= <identifier> ":" <type>
+
+<block>          ::= "{" <statement>* "}"
+<statement>      ::= <local-var-decl> | <expr-stmt> | <return-stmt>
+
+<local-var-decl> ::= "var" <identifier> (":" <type>)? ("=" <expr>)? <newline>
+
+<expr-stmt>      ::= <expr> <newline>
+<return-stmt>    ::= "return" <expr> <newline>
+<expr>           ::= <literal>
+                   | <identifier>
+                   | <expr> <bin-op> <expr>
+                   | <unary-op> <expr>
+                   | <identifier> "(" <args>? ")"
+                   | "(" <expr> ")"
+
+<literal>        ::= <number> | <string> | "true" | "false"
+
+<identifier>     ::= <letter> (<letter> | <digit> | "_")*
+<type>           ::= "Int" | "Float" | "Bool" | "String"
+<string>         ::= '"' <any char except ">* '"'
+<number>         ::= <digit>+ ("." <digit>+)?
+<digit>          ::= [0-9]
+<letter>         ::= [a-zA-Z]
+<bin-op>         ::= "+" | "-" | "*" | "/" | "==" | "!=" | "<" | ">"
+<unary-op>       ::= "-" | "!"
+<newline>        ::= "\n" | ";"

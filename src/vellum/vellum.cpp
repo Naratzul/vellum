@@ -26,7 +26,7 @@ void Vellum::run(std::string_view inputFile) {
 
   SemanticAnalyzer semantic(errorHandler);
   const SemanticAnalyzeResult semanticResult =
-      semantic.analyze(std::move(parseResult.statements));
+      semantic.analyze(std::move(parseResult.declarations));
   if (errorHandler->hadError()) {
     errorHandler->printErrors();
     return;
@@ -40,7 +40,7 @@ void Vellum::run(std::string_view inputFile) {
   metadata.computerName = common::getComputerName();
 
   Compiler compiler(errorHandler);
-  pex::PexFile pexFile = compiler.compile(metadata, semanticResult.statements);
+  pex::PexFile pexFile = compiler.compile(metadata, semanticResult.declarations);
 
   pexFile.writeToFile(common::replaceExtension(inputFile, ".pex"));
 }

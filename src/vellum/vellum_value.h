@@ -5,12 +5,12 @@
 
 namespace vellum {
 
-enum class VellumValueType { Nil, Int, Float, Bool, String };
+enum class VellumValueType { None, Int, Float, Bool, String, Identifier };
 
 inline constexpr std::string_view valueTypeToString(VellumValueType type) {
   switch (type) {
-    case VellumValueType::Nil:
-      return "Nil";
+    case VellumValueType::None:
+      return "None";
     case VellumValueType::Int:
       return "Int";
     case VellumValueType::Float:
@@ -19,6 +19,8 @@ inline constexpr std::string_view valueTypeToString(VellumValueType type) {
       return "Bool";
     case VellumValueType::String:
       return "String";
+    case VellumValueType::Identifier:
+      return "Identifier";
   }
   return "Unknown type";
 }
@@ -50,6 +52,6 @@ class VellumValue {
 
  private:
   std::variant<std::monostate, int32_t, float, bool, std::string_view> value;
-  VellumValueType type = VellumValueType::Nil;
+  VellumValueType type = VellumValueType::None;
 };
 }  // namespace vellum

@@ -3,17 +3,21 @@
 #include <memory>
 #include <vector>
 
-#include "ast/expression.h"
-#include "ast/statement.h"
+#include "ast/decl/declaration.h"
 #include "lexer/token.h"
 
 namespace vellum {
+
+namespace ast {
+class Expression;
+class Statement;
+}  // namespace ast
 
 class CompilerErrorHandler;
 class Lexer;
 
 struct ParserResult {
-  std::vector<std::unique_ptr<ast::Statement>> statements;
+  std::vector<std::unique_ptr<ast::Declaration>> declarations;
 };
 
 class Parser {
@@ -32,7 +36,7 @@ class Parser {
 
   void advance();
 
-  std::unique_ptr<ast::Statement> statement();
+  std::unique_ptr<ast::Declaration> declaration();
 
   bool match(TokenType type);
   bool match(std::initializer_list<TokenType> types);
@@ -40,11 +44,13 @@ class Parser {
   bool check(TokenType type) const;
   void consume(TokenType type, std::string_view message);
 
-  std::unique_ptr<ast::Statement> script();
-  std::unique_ptr<ast::Statement> variableDeclaration();
-  std::unique_ptr<ast::Statement> functionDeclaration();
-  std::unique_ptr<ast::Statement> expressionStatement();
+  std::unique_ptr<ast::Declaration> scriptDeclaration();
+  std::unique_ptr<ast::Declaration> variableDeclaration();
+  std::unique_ptr<ast::Declaration> functionDeclaration();
 
+  std::unique_ptr<ast::Statement> statement();
+  std::unique_ptr<ast::Statement> expressionStatement();
   std::unique_ptr<ast::Expression> expression();
+  std::unique_ptr<ast::Expression> callExpression();
 };
 }  // namespace vellum

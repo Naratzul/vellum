@@ -24,7 +24,7 @@ enum class PexValueType : uint8_t {
 class PexValue {
  public:
   PexValue() = default;
-  PexValue(PexString value) : type(PexValueType::String), value(value) {}
+  PexValue(PexString value, PexValueType type = PexValueType::String) : type(type), value(value) {}
   PexValue(int32_t value) : type(PexValueType::Integer), value(value) {}
   PexValue(float value) : type(PexValueType::Float), value(value) {}
   PexValue(bool value) : type(PexValueType::Bool), value(value) {}
@@ -32,7 +32,7 @@ class PexValue {
   PexValueType getType() const { return type; }
 
   PexString asString() const {
-    assert(type == PexValueType::String);
+    //assert(type == PexValueType::String);
     return value.string;
   }
 

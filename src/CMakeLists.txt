@@ -11,13 +11,17 @@ set(SOURCES
     main.cpp
     
     analyze/semantic_analyzer.cpp
-    ast/statement.cpp
+
+    ast/decl/declaration.cpp
+    ast/expression/expression.cpp
+    ast/statement/statement.cpp
 
     common/fs.cpp
     common/os.cpp
     
     compiler/compiler.cpp
     compiler/compiler_error_handler.cpp
+    compiler/pex_function_compiler.cpp
     compiler/pex_object_compiler.cpp
     
     lexer/lexer.cpp

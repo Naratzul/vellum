@@ -17,6 +17,7 @@ PexWriter& operator<<(PexWriter& writer, const PexInstruction& instruction) {
       for (const auto& arg : instruction.getVariadicArgs()) {
         writer << arg;
       }
+      break;
     }
     default:
       assert(instruction.getVariadicArgs().empty());

@@ -12,7 +12,7 @@ namespace pex {
 class PexFunction {
  public:
   PexFunction(PexString name, PexString returnTypeName,
-              PexString documentationString, UserFlags userFlags,
+              PexString documentationString, uint32_t userFlags,
               std::vector<PexFunctionParameter> parameters,
               std::vector<PexFunctionParameter> localVariables,
               std::vector<PexInstruction> instructions)
@@ -27,7 +27,7 @@ class PexFunction {
   PexString getName() const { return name; }
   PexString getReturnTypeName() const { return returnTypeName; }
   PexString getDocumentationString() const { return documentationString; }
-  UserFlags getUserFlags() const { return userFlags; }
+  uint32_t getUserFlags() const { return userFlags; }
 
   const std::vector<PexFunctionParameter>& getParameters() const {
     return parameters;
@@ -45,7 +45,7 @@ class PexFunction {
   PexString name;
   PexString returnTypeName;
   PexString documentationString;
-  UserFlags userFlags;
+  uint32_t userFlags;
 
   std::vector<PexFunctionParameter> parameters;
   std::vector<PexFunctionParameter> localVariables;

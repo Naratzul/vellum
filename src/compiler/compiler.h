@@ -17,6 +17,7 @@ class PexObject;
 }  // namespace pex
 
 namespace ast {
+class Declaration;
 class Statement;
 }  // namespace ast
 
@@ -34,7 +35,7 @@ class Compiler {
 
   pex::PexFile compile(
       const ScriptMetadata& metadata,
-      const std::vector<std::unique_ptr<ast::Statement>>& statements);
+      const std::vector<std::unique_ptr<ast::Declaration>>& declarations);
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;

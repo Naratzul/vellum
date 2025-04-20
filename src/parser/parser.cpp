@@ -1,5 +1,7 @@
 #include "parser.h"
 
+#include "ast/expression/expression.h"
+#include "ast/statement/statement.h"
 #include "compiler/compiler_error_handler.h"
 #include "lexer/lexer.h"
 
@@ -15,8 +17,8 @@ ParserResult Parser::parse() {
   ParserResult result;
 
   while (!match(TokenType::END_OF_FILE)) {
-    if (auto stmt = statement()) {
-      result.statements.push_back(std::move(stmt));
+    if (auto decl = declaration()) {
+      result.declarations.push_back(std::move(decl));
     }
   }
 
@@ -34,15 +36,18 @@ void Parser::advance() {
   }
 }
 
-std::unique_ptr<ast::Statement> Parser::statement() {
+std::unique_ptr<ast::Declaration> Parser::declaration() {
   if (match(TokenType::SCRIPT)) {
-    return script();
+    return scriptDeclaration();
   } else if (match(TokenType::VAR)) {
     return variableDeclaration();
   } else if (match(TokenType::FUN)) {
     return functionDeclaration();
   }
-  return expressionStatement();
+
+  errorHandler->errorAt(current, "Unexpected declaraion.");
+
+  return nullptr;
 }
 
 bool Parser::match(TokenType type) {
@@ -65,7 +70,6 @@ bool Parser::match(std::initializer_list<TokenType> types) {
   return false;
 }
 
-
 bool Parser::check(TokenType type) const { return current.type == type; }
 
 void Parser::consume(TokenType type, std::string_view message) {
@@ -76,7 +80,7 @@ void Parser::consume(TokenType type, std::string_view message) {
   errorHandler->errorAt(current, message);
 }
 
-std::unique_ptr<ast::Statement> Parser::script() {
+std::unique_ptr<ast::Declaration> Parser::scriptDeclaration() {
   if (!match(TokenType::IDENTIFIER)) {
     errorHandler->errorAt(current, "Expect a script's name after 'script'.");
   }
@@ -98,10 +102,10 @@ std::unique_ptr<ast::Statement> Parser::script() {
     errorHandler->errorAt(current, "Unexpected token after script declaration");
   }
 
-  return std::make_unique<ast::ScriptStatement>(scriptName, parentScriptName);
+  return std::make_unique<ast::ScriptDeclaration>(scriptName, parentScriptName);
 }
 
-std::unique_ptr<ast::Statement> Parser::variableDeclaration() {
+std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
   consume(TokenType::IDENTIFIER, "Expect a variable name.");
   const std::string_view name = previous.lexeme;
 
@@ -116,20 +120,36 @@ std::unique_ptr<ast::Statement> Parser::variableDeclaration() {
     initializer = expression();
   }
 
-  return std::make_unique<ast::VariableDeclaration>(name, typeName,
-                                                    std::move(initializer));
+  return std::make_unique<ast::GlobalVariableDeclaration>(
+      name, typeName, std::move(initializer));
 }
 
-std::unique_ptr<ast::Statement> Parser::functionDeclaration() {
+std::unique_ptr<ast::Declaration> Parser::functionDeclaration() {
   consume(TokenType::IDENTIFIER, "Expect a function name.");
   const std::string_view name = previous.lexeme;
 
   consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
+
+  std::vector<ast::FunctionParameter> parameters;
+  if (!check(TokenType::RIGHT_PAREN)) {
+    do {
+      consume(TokenType::IDENTIFIER, "Expect a parameter name.");
+      std::string_view paramName = previous.lexeme;
+
+      consume(TokenType::COLON, "Expect ':' after parameter name.");
+      consume(TokenType::IDENTIFIER, "Expect a parameter type.");
+      std::string_view paramType = previous.lexeme;
+
+      parameters.emplace_back(paramName, paramType);
+    } while (match(TokenType::COMMA));
+  }
+
   consume(TokenType::RIGHT_PAREN, "Expect ')' after function declaration.");
 
   std::optional<std::string_view> returnTypeName;
   if (match(TokenType::ARROW)) {
-    consume(TokenType::IDENTIFIER, "Expect a function return type name after '->'.");
+    consume(TokenType::IDENTIFIER,
+            "Expect a function return type name after '->'.");
     returnTypeName = previous.lexeme;
   }
 
@@ -141,12 +161,18 @@ std::unique_ptr<ast::Statement> Parser::functionDeclaration() {
     body.push_back(std::move(statement()));
   }
 
-  return std::make_unique<ast::FunctionDeclaration>(name, returnTypeName, std::move(body));
+  consume(TokenType::RIGHT_BRACE, "Expect '}' after function body.");
+
+  return std::make_unique<ast::FunctionDeclaration>(
+      name, parameters, returnTypeName, std::move(body));
+}
+
+std::unique_ptr<ast::Statement> Parser::statement() {
+  return expressionStatement();
 }
 
 std::unique_ptr<ast::Statement> Parser::expressionStatement() {
-  advance();
-  return nullptr;
+  return std::make_unique<ast::ExpressionStatement>(expression());
 }
 
 std::unique_ptr<ast::Expression> Parser::expression() {
@@ -155,9 +181,38 @@ std::unique_ptr<ast::Expression> Parser::expression() {
     return std::make_unique<ast::LiteralExpression>(previous.value);
   }
 
+  if (match(TokenType::IDENTIFIER)) {
+    return callExpression();
+  }
+
   errorHandler->errorAt(current, "Unsupported expression.");
 
   return std::unique_ptr<ast::Expression>();
+}
+
+std::unique_ptr<ast::Expression> Parser::callExpression() {
+  std::string_view functionName = previous.lexeme;
+  std::optional<std::string_view> moduleName;
+
+  if (match(TokenType::DOT)) {
+    moduleName = functionName;
+
+    consume(TokenType::IDENTIFIER, "Expect a function name after '.'");
+    functionName = previous.lexeme;
+  }
+
+  std::vector<std::unique_ptr<ast::Expression>> arguments;
+
+  consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
+  if (!check(TokenType::RIGHT_PAREN)) {
+    do {
+      arguments.push_back(expression());
+    } while (match(TokenType::COMMA));
+  }
+
+  consume(TokenType::RIGHT_PAREN, "Expect ')' after function call.");
+
+  return std::make_unique<ast::CallExpression>(functionName, moduleName, std::move(arguments));
 }
 
 }  // namespace vellum
