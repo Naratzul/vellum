@@ -29,8 +29,16 @@ pex::PexFunction PexFunctionCompiler::compile(
                          : valueTypeToString(VellumValueType::None));
   pex::PexString documentationString = file.getString("");
 
-  return pex::PexFunction(name, returnTypeName, documentationString, 0, {},
-                          localVariables, instructions);
+  std::vector<pex::PexFunctionParameter> parameters;
+  parameters.reserve(func.getParameters().size());
+
+  for (const auto& param : func.getParameters()) {
+    parameters.emplace_back(file.getString(param.name),
+                            file.getString(param.type));
+  }
+
+  return pex::PexFunction(name, returnTypeName, documentationString, 0,
+                          parameters, localVariables, instructions);
 }
 
 void PexFunctionCompiler::visitExpressionStatement(
@@ -44,8 +52,10 @@ void PexFunctionCompiler::visitCallExpression(ast::CallExpression& expr) {
 
   if (expr.getModuleName().has_value()) {
     opcode = pex::PexOpCode::CallStatic;
-    args = {pex::PexValue(file.getString(expr.getModuleName().value()), pex::PexValueType::Identifier),
-            pex::PexValue(file.getString(expr.getFunctionName()), pex::PexValueType::Identifier),
+    args = {pex::PexValue(file.getString(expr.getModuleName().value()),
+                          pex::PexValueType::Identifier),
+            pex::PexValue(file.getString(expr.getFunctionName()),
+                          pex::PexValueType::Identifier),
             pex::PexValue(file.getString("::nonevar"),
                           pex::PexValueType::Identifier)};
   } else {

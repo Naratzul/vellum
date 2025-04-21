@@ -1,9 +1,11 @@
 #pragma once
 
+#include <format>
 #include <memory>
 #include <vector>
 
 #include "ast/decl/declaration.h"
+#include "compiler/compiler_error_handler.h"
 #include "lexer/token.h"
 
 namespace vellum {
@@ -19,6 +21,8 @@ class Lexer;
 struct ParserResult {
   std::vector<std::unique_ptr<ast::Declaration>> declarations;
 };
+
+enum class FunctionType { Function, Event };
 
 class Parser {
  public:
@@ -42,15 +46,27 @@ class Parser {
   bool match(std::initializer_list<TokenType> types);
 
   bool check(TokenType type) const;
-  void consume(TokenType type, std::string_view message);
+
+  template <typename... Args>
+  void consume(TokenType type, std::format_string<Args...> fmt, Args&&... args);
 
   std::unique_ptr<ast::Declaration> scriptDeclaration();
   std::unique_ptr<ast::Declaration> variableDeclaration();
-  std::unique_ptr<ast::Declaration> functionDeclaration();
+  std::unique_ptr<ast::Declaration> functionDeclaration(
+      FunctionType functionType);
 
   std::unique_ptr<ast::Statement> statement();
   std::unique_ptr<ast::Statement> expressionStatement();
   std::unique_ptr<ast::Expression> expression();
   std::unique_ptr<ast::Expression> callExpression();
 };
+template <typename... Args>
+inline void Parser::consume(TokenType type, std::format_string<Args...> fmt,
+                            Args&&... args) {
+  if (check(type)) {
+    advance();
+    return;
+  }
+  errorHandler->errorAt(current, std::format(fmt, std::forward<Args>(args)...));
+}
 }  // namespace vellum

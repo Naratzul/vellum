@@ -2,7 +2,6 @@
 
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
-#include "compiler/compiler_error_handler.h"
 #include "lexer/lexer.h"
 
 namespace vellum {
@@ -41,9 +40,10 @@ std::unique_ptr<ast::Declaration> Parser::declaration() {
     return scriptDeclaration();
   } else if (match(TokenType::VAR)) {
     return variableDeclaration();
-  }
-  else if (match({ TokenType::FUN, TokenType::EVENT })) {
-    return functionDeclaration();
+  } else if (match(TokenType::FUN)) {
+    return functionDeclaration(FunctionType::Function);
+  } else if (match(TokenType::EVENT)) {
+    return functionDeclaration(FunctionType::Event);
   }
 
   errorHandler->errorAt(current, "Unexpected declaraion.");
@@ -72,14 +72,6 @@ bool Parser::match(std::initializer_list<TokenType> types) {
 }
 
 bool Parser::check(TokenType type) const { return current.type == type; }
-
-void Parser::consume(TokenType type, std::string_view message) {
-  if (check(type)) {
-    advance();
-    return;
-  }
-  errorHandler->errorAt(current, message);
-}
 
 std::unique_ptr<ast::Declaration> Parser::scriptDeclaration() {
   if (!match(TokenType::IDENTIFIER)) {
@@ -125,11 +117,15 @@ std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
       name, typeName, std::move(initializer));
 }
 
-std::unique_ptr<ast::Declaration> Parser::functionDeclaration() {
-  consume(TokenType::IDENTIFIER, "Expect a function name.");
+std::unique_ptr<ast::Declaration> Parser::functionDeclaration(
+    FunctionType functionType) {
+  const std::string functionTypeName =
+      functionType == FunctionType::Function ? "function" : "event";
+
+  consume(TokenType::IDENTIFIER, "Expect a {} name.", functionTypeName);
   const std::string_view name = previous.lexeme;
 
-  consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
+  consume(TokenType::LEFT_PAREN, "Expect '(' after {} name.", functionTypeName);
 
   std::vector<ast::FunctionParameter> parameters;
   if (!check(TokenType::RIGHT_PAREN)) {
@@ -145,16 +141,18 @@ std::unique_ptr<ast::Declaration> Parser::functionDeclaration() {
     } while (match(TokenType::COMMA));
   }
 
-  consume(TokenType::RIGHT_PAREN, "Expect ')' after function declaration.");
+  consume(TokenType::RIGHT_PAREN, "Expect ')' after {} declaration.",
+          functionTypeName);
 
   std::optional<std::string_view> returnTypeName;
-  if (match(TokenType::ARROW)) {
+  if (functionType == FunctionType::Function && match(TokenType::ARROW)) {
     consume(TokenType::IDENTIFIER,
             "Expect a function return type name after '->'.");
     returnTypeName = previous.lexeme;
   }
 
-  consume(TokenType::LEFT_BRACE, "Expect '{' before function body.");
+  consume(TokenType::LEFT_BRACE, "Expect '{{' before {} body.",
+          functionTypeName);
 
   std::vector<std::unique_ptr<ast::Statement>> body;
 
@@ -162,7 +160,8 @@ std::unique_ptr<ast::Declaration> Parser::functionDeclaration() {
     body.push_back(std::move(statement()));
   }
 
-  consume(TokenType::RIGHT_BRACE, "Expect '}' after function body.");
+  consume(TokenType::RIGHT_BRACE, "Expect '}}' after {} body.",
+          functionTypeName);
 
   return std::make_unique<ast::FunctionDeclaration>(
       name, parameters, returnTypeName, std::move(body));
@@ -213,7 +212,8 @@ std::unique_ptr<ast::Expression> Parser::callExpression() {
 
   consume(TokenType::RIGHT_PAREN, "Expect ')' after function call.");
 
-  return std::make_unique<ast::CallExpression>(functionName, moduleName, std::move(arguments));
+  return std::make_unique<ast::CallExpression>(functionName, moduleName,
+                                               std::move(arguments));
 }
 
 }  // namespace vellum
