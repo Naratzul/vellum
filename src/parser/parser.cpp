@@ -41,7 +41,8 @@ std::unique_ptr<ast::Declaration> Parser::declaration() {
     return scriptDeclaration();
   } else if (match(TokenType::VAR)) {
     return variableDeclaration();
-  } else if (match(TokenType::FUN)) {
+  }
+  else if (match({ TokenType::FUN, TokenType::EVENT })) {
     return functionDeclaration();
   }
 

@@ -38,6 +38,7 @@ enum class TokenType {
   AND,
   SCRIPT,
   ELSE,
+  EVENT,
   FALSE,
   FOR,
   FUN,

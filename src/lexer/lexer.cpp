@@ -141,7 +141,14 @@ TokenType Lexer::identifierType() const {
     case 'a':
       return checkKeyword(1, 2, "nd", TokenType::AND);
     case 'e':
-      return checkKeyword(1, 3, "lse", TokenType::ELSE);
+       if (current - start > 1) {
+          switch (start[1]) {
+          case 'v':
+             return checkKeyword(2, 3, "ent", TokenType::EVENT);
+          case 'l':
+             return checkKeyword(2, 2, "se", TokenType::ELSE);
+         }
+       }
     case 'f':
       if (current - start > 1) {
         switch (start[1]) {
