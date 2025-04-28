@@ -4,6 +4,7 @@
 
 #include <cassert>
 
+#include "pex_identifier.h"
 #include "pex_string.h"
 
 namespace vellum {
@@ -24,7 +25,9 @@ enum class PexValueType : uint8_t {
 class PexValue {
  public:
   PexValue() = default;
-  PexValue(PexString value, PexValueType type = PexValueType::String) : type(type), value(value) {}
+  PexValue(PexString value) : type(PexValueType::String), value(value) {}
+  PexValue(PexIdentifier value)
+      : type(PexValueType::Identifier), value(value) {}
   PexValue(int32_t value) : type(PexValueType::Integer), value(value) {}
   PexValue(float value) : type(PexValueType::Float), value(value) {}
   PexValue(bool value) : type(PexValueType::Bool), value(value) {}
@@ -32,8 +35,13 @@ class PexValue {
   PexValueType getType() const { return type; }
 
   PexString asString() const {
-    //assert(type == PexValueType::String);
+    assert(type == PexValueType::String);
     return value.string;
+  }
+
+  PexIdentifier asIdentifier() const {
+    assert(type == PexValueType::Identifier);
+    return value.identifier;
   }
 
   int32_t asInt() const {
@@ -56,14 +64,16 @@ class PexValue {
 
   union Value {
     PexString string;
+    PexIdentifier identifier;
     int32_t intNum;
     float floatNum;
     bool boolean;
 
-    Value(){};
-    ~Value(){};
+    Value() {};
+    ~Value() {};
 
     Value(PexString value) : string(value) {}
+    Value(PexIdentifier value) : identifier(value) {}
     Value(int32_t value) : intNum(value) {}
     Value(float value) : floatNum(value) {}
   } value;

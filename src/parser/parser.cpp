@@ -157,7 +157,7 @@ std::unique_ptr<ast::Declaration> Parser::functionDeclaration(
   std::vector<std::unique_ptr<ast::Statement>> body;
 
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    body.push_back(std::move(statement()));
+    body.push_back(statement());
   }
 
   consume(TokenType::RIGHT_BRACE, "Expect '}}' after {} body.",

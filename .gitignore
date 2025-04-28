@@ -36,3 +36,4 @@
 build/
 cmake-build-debug/
 scripts/
+*.DS_Store

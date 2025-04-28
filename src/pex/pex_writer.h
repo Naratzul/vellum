@@ -60,6 +60,8 @@ inline PexWriter& PexWriter::operator<<(PexValue value) {
     case PexValueType::None:
       break;
     case PexValueType::Identifier:
+      *this << value.asIdentifier().getValue();
+      break;
     case PexValueType::String:
       *this << value.asString();
       break;
@@ -72,6 +74,8 @@ inline PexWriter& PexWriter::operator<<(PexValue value) {
     case PexValueType::Bool:
       *this << value.asBool();
       break;
+    default:
+      assert(false && "Unsupported pex value type");
   }
 
   return *this;

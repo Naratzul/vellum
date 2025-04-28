@@ -93,8 +93,8 @@ class FunctionDeclaration : public Declaration {
 
  private:
   std::string_view name;
-  std::optional<std::string_view> returnTypeName;
   std::vector<FunctionParameter> parameters;
+  std::optional<std::string_view> returnTypeName;
   std::vector<std::unique_ptr<Statement>> body;
 };
 }  // namespace ast

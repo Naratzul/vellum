@@ -59,23 +59,12 @@ void PexObjectCompiler::visitFunctionDeclaration(
 }
 
 pex::PexValue PexObjectCompiler::makeValueFromToken(VellumValue value) {
-  switch (value.getType()) {
-    case VellumValueType::String: {
-      const pex::PexString pexValue = file.getString(value.asString());
-      return pex::PexValue(pexValue);
-    }
-    case VellumValueType::Int:
-      return pex::PexValue(value.asInt());
-    case VellumValueType::Float:
-      return pex::PexValue(value.asFloat());
-    case VellumValueType::Bool:
-      return pex::PexValue(value.asBool());
-    case VellumValueType::None:
-      return pex::PexValue();
+  std::optional<pex::PexValue> pexValue = makePexValue(value, file);
+  if (!pexValue) {
+    errorHandler->errorAt(Token(), "Unexpected variable initializer type.");
+    return pex::PexValue();
   }
-
-  errorHandler->errorAt(Token(), "Unexpected variable initializer type.");
-  return pex::PexValue();
+  return pexValue.value();
 }
 
 }  // namespace vellum
