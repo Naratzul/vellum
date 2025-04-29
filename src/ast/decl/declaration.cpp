@@ -1,4 +1,5 @@
 #include "declaration.h"
+
 #include "declaration_visitor.h"
 
 namespace vellum {
@@ -20,6 +21,10 @@ void GlobalVariableDeclaration::accept(DeclarationVisitor& visitor) {
 
 void FunctionDeclaration::accept(DeclarationVisitor& visitor) {
   visitor.visitFunctionDeclaration(*this);
+}
+
+void PropertyDeclaration::accept(DeclarationVisitor& visitor) {
+  visitor.visitPropertyDeclaration(*this);
 }
 }  // namespace ast
 }  // namespace vellum

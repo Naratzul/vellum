@@ -141,14 +141,14 @@ TokenType Lexer::identifierType() const {
     case 'a':
       return checkKeyword(1, 2, "nd", TokenType::AND);
     case 'e':
-       if (current - start > 1) {
-          switch (start[1]) {
+      if (current - start > 1) {
+        switch (start[1]) {
           case 'v':
-             return checkKeyword(2, 3, "ent", TokenType::EVENT);
+            return checkKeyword(2, 3, "ent", TokenType::EVENT);
           case 'l':
-             return checkKeyword(2, 2, "se", TokenType::ELSE);
-         }
-       }
+            return checkKeyword(2, 2, "se", TokenType::ELSE);
+        }
+      }
     case 'f':
       if (current - start > 1) {
         switch (start[1]) {
@@ -161,6 +161,8 @@ TokenType Lexer::identifierType() const {
         }
       }
       break;
+    case 'g':
+      return checkKeyword(1, 2, "et", TokenType::GET);
     case 'i':
       return checkKeyword(1, 1, "f", TokenType::IF);
     case 'n':
@@ -174,6 +176,8 @@ TokenType Lexer::identifierType() const {
     case 's':
       if (current - start > 1) {
         switch (start[1]) {
+          case 'e':
+            return checkKeyword(2, 1, "t", TokenType::SET);
           case 'c':
             return checkKeyword(2, 4, "ript", TokenType::SCRIPT);
           case 'u':
@@ -272,15 +276,15 @@ Token Lexer::parseInt() const {
   return errorToken("Could not parse a number.");
 }
 
-Token Lexer::parseFloat() const { 
+Token Lexer::parseFloat() const {
   const std::string_view lexeme = currentLexeme();
   float value;
 #ifdef __APPLE__
   value = strtof(lexeme.data(), nullptr);
   return makeToken(TokenType::FLOAT, value);
 #else
-    auto [ptr, ec] =
-        std::from_chars(lexeme.data(), lexeme.data() + lexeme.size(), value);
+  auto [ptr, ec] =
+      std::from_chars(lexeme.data(), lexeme.data() + lexeme.size(), value);
   if (ec == std::errc{} && ptr == lexeme.data() + lexeme.size()) {
     return makeToken(TokenType::FLOAT, value);
   }

@@ -3,8 +3,24 @@
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
 #include "lexer/lexer.h"
+#include "vellum/vellum_value.h"
 
 namespace vellum {
+
+static std::string_view getFunctionTypeName(FunctionType type) {
+  switch (type) {
+    case FunctionType::Event:
+      return "event";
+    case FunctionType::Function:
+      return "function";
+    case FunctionType::Getter:
+      return "get";
+    case FunctionType::Setter:
+      return "set";
+    default:
+      assert(false && "Unknown function type");
+  }
+}
 
 Parser::Parser(std::unique_ptr<Lexer> lexer,
                std::shared_ptr<CompilerErrorHandler> errorHandler)
@@ -44,6 +60,8 @@ std::unique_ptr<ast::Declaration> Parser::declaration() {
     return functionDeclaration(FunctionType::Function);
   } else if (match(TokenType::EVENT)) {
     return functionDeclaration(FunctionType::Event);
+  } else if (match(TokenType::IDENTIFIER)) {
+    return propertyDeclaration();
   }
 
   errorHandler->errorAt(current, "Unexpected declaraion.");
@@ -151,10 +169,60 @@ std::unique_ptr<ast::Declaration> Parser::functionDeclaration(
     returnTypeName = previous.lexeme;
   }
 
+  return std::make_unique<ast::FunctionDeclaration>(
+      name, parameters, returnTypeName, functionBody(functionType));
+}
+
+std::unique_ptr<ast::Declaration> Parser::propertyDeclaration() {
+  const std::string_view name = previous.lexeme;
+  consume(TokenType::COLON, "Expect ':' after property name.");
+
+  consume(TokenType::IDENTIFIER, "Expect a property type name.");
+  const std::string_view typeName = previous.lexeme;
+
+  consume(TokenType::LEFT_BRACE, "Expect '{{' after property type.");
+
+  std::optional<ast::FunctionBody> getAccessor;
+  std::optional<ast::FunctionBody> setAccessor;
+
+  for (int i = 0; i < 2; ++i) {
+    if (match(TokenType::GET)) {
+      if (getAccessor.has_value()) {
+        errorHandler->errorAt(
+            previous, "Get accessor for property '{}' already declared.");
+        continue;
+      }
+      getAccessor = ast::FunctionBody();
+      if (check(TokenType::LEFT_BRACE)) {
+        getAccessor = functionBody(FunctionType::Getter);
+      }
+    } else if (match(TokenType::SET)) {
+      if (setAccessor.has_value()) {
+        errorHandler->errorAt(
+            previous, "Set accessor for property '{}' already declared.");
+        continue;
+      }
+      setAccessor = ast::FunctionBody();
+      if (check(TokenType::LEFT_BRACE)) {
+        setAccessor = functionBody(FunctionType::Setter);
+      }
+    }
+  }
+
+  consume(TokenType::RIGHT_BRACE, "Expect '}}' after property type.");
+
+  std::string_view documentationString = "";
+  return std::make_unique<ast::PropertyDeclaration>(
+      name, typeName, documentationString, std::move(getAccessor),
+      std::move(setAccessor), makeDefaultValue(typeFromString(typeName)));
+}
+
+ast::FunctionBody Parser::functionBody(FunctionType type) {
+  const std::string_view functionTypeName = getFunctionTypeName(type);
   consume(TokenType::LEFT_BRACE, "Expect '{{' before {} body.",
           functionTypeName);
 
-  std::vector<std::unique_ptr<ast::Statement>> body;
+  ast::FunctionBody body;
 
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
     body.push_back(statement());
@@ -163,8 +231,7 @@ std::unique_ptr<ast::Declaration> Parser::functionDeclaration(
   consume(TokenType::RIGHT_BRACE, "Expect '}}' after {} body.",
           functionTypeName);
 
-  return std::make_unique<ast::FunctionDeclaration>(
-      name, parameters, returnTypeName, std::move(body));
+  return body;
 }
 
 std::unique_ptr<ast::Statement> Parser::statement() {

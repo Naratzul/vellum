@@ -67,12 +67,14 @@ struct FunctionParameter {
   std::string_view type;
 };
 
+using FunctionBody = std::vector<std::unique_ptr<Statement>>;
+
 class FunctionDeclaration : public Declaration {
  public:
   FunctionDeclaration(std::string_view name,
                       std::vector<FunctionParameter> parameters,
                       std::optional<std::string_view> returnTypeName,
-                      std::vector<std::unique_ptr<Statement>> body)
+                      FunctionBody body)
       : name(name),
         parameters(std::move(parameters)),
         returnTypeName(returnTypeName),
@@ -85,9 +87,7 @@ class FunctionDeclaration : public Declaration {
   std::optional<std::string_view> getReturnTypeName() const {
     return returnTypeName;
   }
-  const std::vector<std::unique_ptr<Statement>>& getBody() const {
-    return body;
-  }
+  const FunctionBody& getBody() const { return body; }
 
   void accept(DeclarationVisitor& visitor) override;
 
@@ -95,7 +95,62 @@ class FunctionDeclaration : public Declaration {
   std::string_view name;
   std::vector<FunctionParameter> parameters;
   std::optional<std::string_view> returnTypeName;
-  std::vector<std::unique_ptr<Statement>> body;
+  FunctionBody body;
+};
+
+class PropertyDeclaration : public Declaration {
+ public:
+  PropertyDeclaration(std::string_view name, std::string_view typeName,
+                      std::string_view documentationString,
+                      std::optional<ast::FunctionBody> getAccessor,
+                      std::optional<ast::FunctionBody> setAccessor,
+                      VellumValue defaultValue)
+      : name(name),
+        typeName(typeName),
+        documentationString(documentationString),
+        getAccessor(std::move(getAccessor)),
+        setAccessor(std::move(setAccessor)),
+        defaultValue(defaultValue) {}
+
+  void accept(DeclarationVisitor& visitor) override;
+
+  bool isAutoProperty() const {
+    return getAccessor && setAccessor && getAccessor->empty() &&
+           setAccessor->empty();
+  }
+  bool isReadonly() const { return !setAccessor && getAccessor; }
+
+  std::string_view getName() const { return name; }
+  std::string_view getTypeName() const { return typeName; }
+  std::string_view getDocumentationString() const {
+    return documentationString;
+  }
+
+  const std::optional<ast::FunctionBody>& getGetAccessor() const {
+    return getAccessor;
+  }
+  std::optional<ast::FunctionBody> getGetAccessor() {
+    return std::move(getAccessor);
+  }
+
+  const std::optional<ast::FunctionBody>& getSetAccessor() const {
+    return setAccessor;
+  }
+  std::optional<ast::FunctionBody> getSetAccessor() {
+    return std::move(setAccessor);
+  }
+
+  VellumValue getDefaultValue() const { return defaultValue; }
+
+ private:
+  std::string_view name;
+  std::string_view typeName;
+  std::string_view documentationString;
+
+  std::optional<ast::FunctionBody> getAccessor;
+  std::optional<ast::FunctionBody> setAccessor;
+
+  VellumValue defaultValue;
 };
 }  // namespace ast
 }  // namespace vellum

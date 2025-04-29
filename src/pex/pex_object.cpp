@@ -12,7 +12,7 @@ PexWriter& operator<<(PexWriter& writer, const PexObject& object) {
 
   writer << object.getVariables();
 
-  writer << (uint16_t)object.getProperties().size();
+  writer << object.getProperties();
   writer << object.getStates();
 
   return writer;

@@ -79,6 +79,9 @@ class VellumValue {
   VellumValueType type = VellumValueType::None;
 };
 
+VellumValueType typeFromString(std::string_view name);
+VellumValue makeDefaultValue(VellumValueType type);
+
 std::optional<pex::PexValue> makePexValue(VellumValue value,
                                           pex::PexFile& file);
 }  // namespace vellum

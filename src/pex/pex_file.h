@@ -29,9 +29,15 @@ struct PexHeader {
 };
 #pragma pack(pop)
 
+struct PexUserFlagTableEntry {
+  PexString name;
+  uint8_t value;
+};
+
 class PexFile {
  public:
   using Objects = std::vector<PexObject>;
+  using PexUserFlagTable = std::vector<PexUserFlagTableEntry>;
 
   PexHeader& header() { return header_; }
   const PexHeader& header() const { return header_; }
@@ -39,8 +45,8 @@ class PexFile {
   PexStringTable& stringTable() { return stringTable_; }
   const PexStringTable& stringTable() const { return stringTable_; }
 
-  UserFlags& userFlags() { return userFlags_; }
-  const UserFlags& userFlags() const { return userFlags_; }
+  PexUserFlagTable& userFlags() { return userFlags_; }
+  const PexUserFlagTable& userFlags() const { return userFlags_; }
 
   Objects& objects() { return objects_; }
   const Objects& objects() const { return objects_; }
@@ -56,7 +62,7 @@ class PexFile {
  private:
   PexHeader header_;
   PexStringTable stringTable_;
-  UserFlags userFlags_;
+  PexUserFlagTable userFlags_;
   Objects objects_;
 
   common::Endianness getEndianness() const;

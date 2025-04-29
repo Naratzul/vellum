@@ -5,8 +5,9 @@
 namespace vellum {
 namespace pex {
 PexWriter& operator<<(PexWriter& writer, const PexFunction& fun) {
-  if (fun.getName().isValid()) {
-    writer << fun.getName();
+  if (auto name = fun.getName()) {
+    assert(name.value().isValid());
+    writer << name.value();
   }
   writer << fun.getReturnTypeName() << fun.getDocumentationString()
          << fun.getUserFlags();

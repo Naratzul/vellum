@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <vector>
 
 #include "pex_function_parameter.h"
@@ -11,8 +12,8 @@ namespace vellum {
 namespace pex {
 class PexFunction {
  public:
-  PexFunction(PexString name, PexString returnTypeName,
-              PexString documentationString, uint32_t userFlags,
+  PexFunction(std::optional<PexString> name, PexString returnTypeName,
+              PexString documentationString, PexUserFlags userFlags,
               std::vector<PexFunctionParameter> parameters,
               std::vector<PexFunctionParameter> localVariables,
               std::vector<PexInstruction> instructions)
@@ -24,10 +25,10 @@ class PexFunction {
         localVariables(std::move(localVariables)),
         instructions(std::move(instructions)) {}
 
-  PexString getName() const { return name; }
+  std::optional<PexString> getName() const { return name; }
   PexString getReturnTypeName() const { return returnTypeName; }
   PexString getDocumentationString() const { return documentationString; }
-  uint32_t getUserFlags() const { return userFlags; }
+  PexUserFlags getUserFlags() const { return PexUserFlags(); }
 
   const std::vector<PexFunctionParameter>& getParameters() const {
     return parameters;
@@ -42,10 +43,10 @@ class PexFunction {
   }
 
  private:
-  PexString name;
+  std::optional<PexString> name;
   PexString returnTypeName;
   PexString documentationString;
-  uint32_t userFlags;
+  PexUserFlags userFlags;
 
   std::vector<PexFunctionParameter> parameters;
   std::vector<PexFunctionParameter> localVariables;

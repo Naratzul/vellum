@@ -5,15 +5,17 @@ namespace vellum {
 namespace ast {
 
 class FunctionDeclaration;
-class ScriptDeclaration;
 class GlobalVariableDeclaration;
+class ScriptDeclaration;
+class PropertyDeclaration;
 
 class DeclarationVisitor {
  public:
-  virtual void visitScriptDeclaration(ScriptDeclaration& statement) = 0;
+  virtual void visitScriptDeclaration(ScriptDeclaration& declaration) = 0;
   virtual void visitVariableDeclaration(
-      GlobalVariableDeclaration& statement) = 0;
-  virtual void visitFunctionDeclaration(FunctionDeclaration& statement) = 0;
+      GlobalVariableDeclaration& declaration) = 0;
+  virtual void visitFunctionDeclaration(FunctionDeclaration& declaration) = 0;
+  virtual void visitPropertyDeclaration(PropertyDeclaration& declaration) = 0;
 };
 
 }  // namespace ast

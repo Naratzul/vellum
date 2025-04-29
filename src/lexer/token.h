@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -36,17 +37,19 @@ enum class TokenType {
   FLOAT,
   // Keywords.
   AND,
-  SCRIPT,
   ELSE,
   EVENT,
   FALSE,
   FOR,
   FUN,
+  GET,
   IF,
   NIL,
   OR,
   PRINT,
   RETURN,
+  SET,
+  SCRIPT,
   SUPER,
   THIS,
   TRUE,

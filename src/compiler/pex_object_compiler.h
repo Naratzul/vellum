@@ -27,11 +27,13 @@ class PexObjectCompiler : public ast::DeclarationVisitor {
                     pex::PexFile& file);
 
   pex::PexObject compile(
-      const std::vector<std::unique_ptr<ast::Declaration>>& statements);
+      const std::vector<std::unique_ptr<ast::Declaration>>& declarations);
 
-  void visitScriptDeclaration(ast::ScriptDeclaration& statement) override;
-  void visitVariableDeclaration(ast::GlobalVariableDeclaration& statement) override;
-  void visitFunctionDeclaration(ast::FunctionDeclaration& statement) override;
+  void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
+  void visitVariableDeclaration(
+      ast::GlobalVariableDeclaration& declaration) override;
+  void visitFunctionDeclaration(ast::FunctionDeclaration& declaration) override;
+  void visitPropertyDeclaration(ast::PropertyDeclaration& declaration) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;

@@ -33,6 +33,7 @@ set(SOURCES
     pex/pex_function.cpp
     pex/pex_instruction.cpp
     pex/pex_object.cpp
+    pex/pex_property.cpp
     pex/pex_state.cpp
     pex/pex_string_table.cpp
     pex/pex_user_flag.cpp

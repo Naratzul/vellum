@@ -26,12 +26,12 @@ void PexFile::writeToFile(std::string_view path) const {
     writer << false;
   }
 
-  writer << userFlags_;
-
-  writer << (uint16_t)objects_.size();
-  for (const PexObject& object : objects_) {
-    writer << object;
+  writer << (uint16_t)userFlags_.size();
+  for (const auto& entry : userFlags_) {
+    writer << entry.name << entry.value;
   }
+
+  writer << objects_;
 
   common::writeBinaryToFile(path, stream.str());
 }

@@ -3,6 +3,35 @@
 #include "pex/pex_file.h"
 
 namespace vellum {
+VellumValueType typeFromString(std::string_view name) {
+  if (name == "String") {
+    return VellumValueType::String;
+  } else if (name == "Int") {
+    return VellumValueType::Int;
+  } else if (name == "Float") {
+    return VellumValueType::Float;
+  } else if (name == "Bool") {
+    return VellumValueType::Bool;
+  }
+  return VellumValueType::None;
+}
+
+VellumValue makeDefaultValue(VellumValueType type) {
+  switch (type) {
+    case VellumValueType::String:
+      return VellumValue("");
+    case VellumValueType::Int:
+      return VellumValue(0);
+    case VellumValueType::Float:
+      return VellumValue(0.0f);
+    case VellumValueType::Bool:
+      return VellumValue(false);
+    case VellumValueType::Identifier:
+    case VellumValueType::None:
+      return VellumValue();
+  }
+}
+
 std::optional<pex::PexValue> makePexValue(VellumValue value,
                                           pex::PexFile& file) {
   switch (value.getType()) {

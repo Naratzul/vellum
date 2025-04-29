@@ -31,6 +31,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor {
   void visitVariableDeclaration(
       ast::GlobalVariableDeclaration& declaration) override;
   void visitFunctionDeclaration(ast::FunctionDeclaration& declaration) override;
+  void visitPropertyDeclaration(ast::PropertyDeclaration& declaration) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;

@@ -5,8 +5,8 @@
 namespace vellum {
 namespace pex {
 
-PexWriter& operator<<(PexWriter& writer, const UserFlags& flags) {
-  writer << (uint16_t)0;
+PexWriter& operator<<(PexWriter& writer, const PexUserFlags& flags) {
+  writer << flags.getValue();
   return writer;
 }
 }  // namespace pex

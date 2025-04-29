@@ -10,7 +10,8 @@ namespace vellum {
 
 void CompilerErrorHandler::errorAt(const Token& token,
                                    std::string_view message) {
-  errors.emplace_back(token, std::string(message));
+  // errors.emplace_back(token, std::string(message));
+  printError({token, std::string(message)});
 }
 
 void CompilerErrorHandler::printErrors() const {
@@ -35,7 +36,6 @@ void CompilerErrorHandler::printError(const ErrorMessage& error) const {
   stream << std::format(": {}", error.message);
 
   std::cerr << stream.str() << std::endl;
-  ;
 }
 
 }  // namespace vellum

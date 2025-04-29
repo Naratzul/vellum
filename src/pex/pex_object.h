@@ -2,15 +2,16 @@
 
 #include <vector>
 
+#include "pex_property.h"
 #include "pex_state.h"
 #include "pex_string.h"
+#include "pex_user_flag.h"
 #include "pex_variable.h"
 
 namespace vellum {
 namespace pex {
 
 class PexWriter;
-class PexProperty {};
 
 class PexObject final {
  public:
@@ -22,7 +23,7 @@ class PexObject final {
 
   // TODO: add object size calc
   uint32_t getObjectSize() const { return 0; }
-  uint32_t getUserFlags() const { return 0; }
+  PexUserFlags getUserFlags() const { return PexUserFlags(); }
 
   PexString getDocumentationString() const { return documentationString; }
   void setDocumentationString(PexString docString) {

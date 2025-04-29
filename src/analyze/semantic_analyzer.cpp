@@ -2,8 +2,8 @@
 
 #include <cassert>
 
-#include "ast/expression/expression.h"
 #include "ast/decl/declaration.h"
+#include "ast/expression/expression.h"
 #include "compiler/compiler_error_handler.h"
 
 namespace vellum {
@@ -47,4 +47,7 @@ void SemanticAnalyzer::visitVariableDeclaration(
 
 void SemanticAnalyzer::visitFunctionDeclaration(
     ast::FunctionDeclaration& statement) {}
+
+void SemanticAnalyzer::visitPropertyDeclaration(
+    ast::PropertyDeclaration& declaration) {}
 }  // namespace vellum

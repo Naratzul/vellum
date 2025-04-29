@@ -1,5 +1,6 @@
 #pragma once
 
+#include "pex_user_flag.h"
 #include "pex_value.h"
 
 namespace vellum {
@@ -15,13 +16,12 @@ class PexVariable final {
   PexString name() const { return name_; }
   PexString typeName() const { return typeName_; }
   PexValue defaultValue() const { return defaultValue_; }
-  uint32_t userFlags() const { return userFlags_; }
+  PexUserFlags userFlags() const { return PexUserFlags(); }
 
  private:
   PexString name_;
   PexString typeName_;
   PexValue defaultValue_;
-  uint32_t userFlags_ = 0;
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexVariable& var);

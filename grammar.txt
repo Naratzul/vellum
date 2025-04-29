@@ -1,9 +1,16 @@
 <script-file>    ::= <script-decl>
 
 <script-decl>    ::= "script" <identifier> (":" <identifier>)? <newline> <member>*
-<member>         ::= <global-var-decl> | <func-decl>
+<member>         ::= <global-var-decl> | <property-decl> | <func-decl>
 
 <global-var-decl> ::= "var" <identifier> (":" <type>)? "=" <literal> <newline>
+
+<property-decl>    ::= <identifier> ":" <type> <property-body> ("=" <literal>)? <newline>
+<property-body>    ::= "{" <property-accessor>+ "}"
+<property-accessor> ::= "get" ("{" <statement>* "}")?
+                      | "set" ("{" <statement>* "}")?
+                      | "get" "=>" <expr>
+                      | "set" "=>" <expr>
 
 <func-decl>      ::= "fun" <identifier> "(" <params>? ")" ("->" <type>)? <block>
 <params>         ::= <param> ("," <param>)*

@@ -22,7 +22,7 @@ struct ParserResult {
   std::vector<std::unique_ptr<ast::Declaration>> declarations;
 };
 
-enum class FunctionType { Function, Event };
+enum class FunctionType { Function, Event, Getter, Setter };
 
 class Parser {
  public:
@@ -54,6 +54,9 @@ class Parser {
   std::unique_ptr<ast::Declaration> variableDeclaration();
   std::unique_ptr<ast::Declaration> functionDeclaration(
       FunctionType functionType);
+  std::unique_ptr<ast::Declaration> propertyDeclaration();
+
+  ast::FunctionBody functionBody(FunctionType type);
 
   std::unique_ptr<ast::Statement> statement();
   std::unique_ptr<ast::Statement> expressionStatement();
