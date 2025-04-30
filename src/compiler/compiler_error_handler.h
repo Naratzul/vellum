@@ -10,18 +10,17 @@ namespace vellum {
 class CompilerErrorHandler {
  public:
   void errorAt(const Token& token, std::string_view message);
-  void printErrors() const;
 
-  bool hadError() const { return !errors.empty(); }
+  bool hadError() const { return hadError_; }
+
+  bool isPanicMode() const { return panicMode_; }
+  void enablePanicMode() { panicMode_ = true; }
+  void disablePanicMode() { panicMode_ = false; }
 
  private:
-  struct ErrorMessage {
-    Token token;
-    std::string message;
-  };
+  bool hadError_ = false;
+  bool panicMode_ = false;
 
-  std::vector<ErrorMessage> errors;
-
-  void printError(const ErrorMessage& error) const;
+  void printError(const Token& token, std::string_view message);
 };
 }  // namespace vellum

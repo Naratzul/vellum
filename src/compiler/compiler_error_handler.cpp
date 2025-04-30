@@ -10,31 +10,32 @@ namespace vellum {
 
 void CompilerErrorHandler::errorAt(const Token& token,
                                    std::string_view message) {
-  // errors.emplace_back(token, std::string(message));
-  printError({token, std::string(message)});
+  printError(token, message);
 }
 
-void CompilerErrorHandler::printErrors() const {
-  std::ranges::for_each(
-      errors, std::bind_front(&CompilerErrorHandler::printError, this));
-}
-
-void CompilerErrorHandler::printError(const ErrorMessage& error) const {
-  std::ostringstream stream;
-  stream << std::format("[line {}] Error", error.token.line);
-
-  if (error.token.type == TokenType::ERROR) {
+void CompilerErrorHandler::printError(const Token& token,
+                                      std::string_view message) {
+  if (isPanicMode()) {
     return;
   }
 
-  if (error.token.type == TokenType::END_OF_FILE) {
-    stream << " at end";
-  } else {
-    stream << std::format(" at {}", error.token.lexeme);
+  enablePanicMode();
+  hadError_ = true;
+
+  std::ostringstream stream;
+  stream << std::format("[line {}] Error", token.line);
+
+  if (token.type == TokenType::ERROR) {
+    return;
   }
 
-  stream << std::format(": {}", error.message);
+  if (token.type == TokenType::END_OF_FILE) {
+    stream << " at end";
+  } else {
+    stream << std::format(" at {}", token.lexeme);
+  }
 
+  stream << std::format(": {}", message);
   std::cerr << stream.str() << std::endl;
 }
 

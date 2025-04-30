@@ -35,6 +35,9 @@ ParserResult Parser::parse() {
     if (auto decl = declaration()) {
       result.declarations.push_back(std::move(decl));
     }
+    if (errorHandler->isPanicMode()) {
+      synchronize();
+    }
   }
 
   return result;
@@ -189,7 +192,9 @@ std::unique_ptr<ast::Declaration> Parser::propertyDeclaration() {
     if (match(TokenType::GET)) {
       if (getAccessor.has_value()) {
         errorHandler->errorAt(
-            previous, "Get accessor for property '{}' already declared.");
+            previous,
+            std::format("Get accessor for property '{}' already declared.",
+                        name));
         continue;
       }
       getAccessor = ast::FunctionBody();
@@ -199,7 +204,9 @@ std::unique_ptr<ast::Declaration> Parser::propertyDeclaration() {
     } else if (match(TokenType::SET)) {
       if (setAccessor.has_value()) {
         errorHandler->errorAt(
-            previous, "Set accessor for property '{}' already declared.");
+            previous,
+            std::format("Set accessor for property '{}' already declared.",
+                        name));
         continue;
       }
       setAccessor = ast::FunctionBody();
@@ -281,6 +288,26 @@ std::unique_ptr<ast::Expression> Parser::callExpression() {
 
   return std::make_unique<ast::CallExpression>(functionName, moduleName,
                                                std::move(arguments));
+}
+
+void Parser::synchronize() {
+  errorHandler->disablePanicMode();
+  while (!check(TokenType::END_OF_FILE)) {
+    switch (current.type) {
+      case TokenType::FUN:
+      case TokenType::IDENTIFIER:
+      case TokenType::VAR:
+      case TokenType::SCRIPT:
+      case TokenType::IF:
+      case TokenType::FOR:
+      case TokenType::WHILE:
+      case TokenType::RETURN:
+        return;
+      default:
+        break;
+    }
+    advance();
+  }
 }
 
 }  // namespace vellum

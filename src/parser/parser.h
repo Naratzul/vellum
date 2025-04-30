@@ -62,6 +62,8 @@ class Parser {
   std::unique_ptr<ast::Statement> expressionStatement();
   std::unique_ptr<ast::Expression> expression();
   std::unique_ptr<ast::Expression> callExpression();
+
+  void synchronize();
 };
 template <typename... Args>
 inline void Parser::consume(TokenType type, std::format_string<Args...> fmt,
