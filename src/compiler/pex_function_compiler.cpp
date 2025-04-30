@@ -22,7 +22,11 @@ pex::PexFunction PexFunctionCompiler::compile(
     statement->accept(*this);
   }
 
-  pex::PexString name = file.getString(func.getName());
+  std::optional<pex::PexString> name;
+  if (auto funcName = func.getName()) {
+    name = file.getString(funcName.value());
+  }
+
   pex::PexString returnTypeName =
       file.getString(func.getReturnTypeName().has_value()
                          ? func.getReturnTypeName().value()
@@ -44,6 +48,14 @@ pex::PexFunction PexFunctionCompiler::compile(
 void PexFunctionCompiler::visitExpressionStatement(
     ast::ExpressionStatement& statement) {
   statement.getExpression()->accept(*this);
+}
+
+void PexFunctionCompiler::visitReturnStatement(
+    ast::ReturnStatement& statement) {
+  const VellumValue value = statement.getExpression()->produceValue();
+  instructions.emplace_back(
+      pex::PexOpCode::Return,
+      std::vector<pex::PexValue>{makeValueFromToken(value)});
 }
 
 void PexFunctionCompiler::visitCallExpression(ast::CallExpression& expr) {

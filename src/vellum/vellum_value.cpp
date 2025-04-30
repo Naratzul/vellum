@@ -19,13 +19,13 @@ VellumValueType typeFromString(std::string_view name) {
 VellumValue makeDefaultValue(VellumValueType type) {
   switch (type) {
     case VellumValueType::String:
-      return VellumValue("");
+      return VellumValue(std::string_view(""));
     case VellumValueType::Int:
-      return VellumValue(0);
+      return VellumValue(int32_t(0));
     case VellumValueType::Float:
-      return VellumValue(0.0f);
+      return VellumValue(float(0.0f));
     case VellumValueType::Bool:
-      return VellumValue(false);
+      return VellumValue(bool(false));
     case VellumValueType::Identifier:
     case VellumValueType::None:
       return VellumValue();

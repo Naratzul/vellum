@@ -33,5 +33,20 @@ class ExpressionStatement : public Statement {
   std::unique_ptr<Expression> expression;
 };
 
+class ReturnStatement : public Statement {
+ public:
+  explicit ReturnStatement(std::unique_ptr<Expression> expression)
+      : expression(std::move(expression)) {}
+
+  const std::unique_ptr<Expression>& getExpression() const {
+    return expression;
+  }
+
+  void accept(StatementVisitor& visitor) override;
+
+ private:
+  std::unique_ptr<Expression> expression;
+};
+
 }  // namespace ast
 }  // namespace vellum

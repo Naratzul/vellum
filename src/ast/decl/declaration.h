@@ -71,7 +71,7 @@ using FunctionBody = std::vector<std::unique_ptr<Statement>>;
 
 class FunctionDeclaration : public Declaration {
  public:
-  FunctionDeclaration(std::string_view name,
+  FunctionDeclaration(std::optional<std::string_view> name,
                       std::vector<FunctionParameter> parameters,
                       std::optional<std::string_view> returnTypeName,
                       FunctionBody body)
@@ -80,7 +80,7 @@ class FunctionDeclaration : public Declaration {
         returnTypeName(returnTypeName),
         body(std::move(body)) {}
 
-  std::string_view getName() const { return name; }
+  std::optional<std::string_view> getName() const { return name; }
   const std::vector<FunctionParameter>& getParameters() const {
     return parameters;
   }
@@ -92,7 +92,7 @@ class FunctionDeclaration : public Declaration {
   void accept(DeclarationVisitor& visitor) override;
 
  private:
-  std::string_view name;
+  std::optional<std::string_view> name;
   std::vector<FunctionParameter> parameters;
   std::optional<std::string_view> returnTypeName;
   FunctionBody body;

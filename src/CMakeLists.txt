@@ -18,6 +18,7 @@ set(SOURCES
 
     common/fs.cpp
     common/os.cpp
+    common/string_set.cpp
     
     compiler/compiler.cpp
     compiler/compiler_error_handler.cpp

@@ -1,6 +1,7 @@
 #include "pex_object_compiler.h"
 
 #include "ast/decl/declaration.h"
+#include "common/string_set.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
 #include "pex/pex_function.h"
@@ -70,33 +71,39 @@ void PexObjectCompiler::visitPropertyDeclaration(
   std::optional<pex::PexFunction> getAccessorFunc;
   std::optional<pex::PexFunction> setAccessorFunc;
 
-  if (auto getAccessor = declaration.getGetAccessor(); !getAccessor->empty()) {
+  if (auto getAccessor = declaration.getGetAccessor();
+      !declaration.isAutoProperty()) {
     ast::FunctionBody body;
     if (!getAccessor->empty()) {
       body = std::move(getAccessor.value());
     } else {
-      // TODO add return statement to body
+      body.push_back(std::make_unique<ast::ReturnStatement>(
+          std::make_unique<ast::LiteralExpression>(
+              declaration.getDefaultValue())));
     }
 
-    ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
-                                      std::move(body));
+    ast::FunctionDeclaration funcDecl(
+        std::nullopt, {}, declaration.getTypeName(), std::move(body));
     getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(funcDecl);
   }
 
-  if (auto setAccessor = declaration.getSetAccessor();
-      !setAccessor.value().empty()) {
-    ast::FunctionDeclaration funcDecl({}, {},
-                                      valueTypeToString(VellumValueType::None),
-                                      std::move(setAccessor.value()));
-    setAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(funcDecl);
+  if (auto setAccessor = declaration.getSetAccessor()) {
+    if (!setAccessor.value().empty()) {
+      ast::FunctionDeclaration funcDecl(
+          {}, {}, valueTypeToString(VellumValueType::None),
+          std::move(setAccessor.value()));
+      setAccessorFunc =
+          PexFunctionCompiler(errorHandler, file).compile(funcDecl);
+    }
   }
 
   std::optional<pex::PexString> backedVariableName;
   if (declaration.isAutoProperty()) {
-    static const std::string varName =
-        "::" + std::string(declaration.getName()) + "_var";
-    pex::PexVariable backedVariable(file.getString(varName), typeName,
-                                    pex::PexValue());
+    const std::string_view varName = common::StringSet::insert(
+        "::" + std::string(declaration.getName()) + "_var");
+    pex::PexVariable backedVariable(
+        file.getString(varName), typeName,
+        makeValueFromToken(declaration.getDefaultValue()));
     backedVariableName = backedVariable.name();
     object.getVariables().push_back(backedVariable);
   }

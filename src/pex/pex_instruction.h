@@ -53,7 +53,7 @@ enum class PexOpCode : uint8_t {
 class PexInstruction {
  public:
   PexInstruction(PexOpCode code, std::vector<PexValue> args,
-                 std::vector<PexValue> variadicArgs)
+                 std::vector<PexValue> variadicArgs = {})
       : code(code),
         args(std::move(args)),
         variadicArgs(std::move(variadicArgs)) {}

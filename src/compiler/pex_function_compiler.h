@@ -24,7 +24,8 @@ namespace pex {
 class PexFunction;
 }
 
-class PexFunctionCompiler : public ast::StatementVisitor, public ast::ExpressionVisitor {
+class PexFunctionCompiler : public ast::StatementVisitor,
+                            public ast::ExpressionVisitor {
  public:
   PexFunctionCompiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
                       pex::PexFile& file);
@@ -32,6 +33,7 @@ class PexFunctionCompiler : public ast::StatementVisitor, public ast::Expression
   pex::PexFunction compile(const ast::FunctionDeclaration& func);
 
   void visitExpressionStatement(ast::ExpressionStatement& statement) override;
+  void visitReturnStatement(ast::ReturnStatement& statement) override;
 
   void visitCallExpression(ast::CallExpression& expr) override;
 
