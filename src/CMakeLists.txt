@@ -1,34 +1,17 @@
-﻿cmake_minimum_required (VERSION 3.12)
-
-add_compile_options(-Wall)
-if (MSVC)
-    add_compile_options(/W0)
-else()
-    add_compile_options(-Wextra)
-endif()
-
-set(SOURCES 
-    main.cpp
-    
+﻿add_library(vellum_compiler STATIC
     analyze/semantic_analyzer.cpp
-
     ast/decl/declaration.cpp
     ast/expression/expression.cpp
     ast/statement/statement.cpp
-
     common/fs.cpp
     common/os.cpp
     common/string_set.cpp
-    
     compiler/compiler.cpp
     compiler/compiler_error_handler.cpp
     compiler/pex_function_compiler.cpp
     compiler/pex_object_compiler.cpp
-    
     lexer/lexer.cpp
-    
     parser/parser.cpp
-
     pex/pex_file.cpp
     pex/pex_function_parameter.cpp
     pex/pex_function.cpp
@@ -39,11 +22,16 @@ set(SOURCES
     pex/pex_string_table.cpp
     pex/pex_user_flag.cpp
     pex/pex_variable.cpp
-
     vellum/vellum_value.cpp
     vellum/vellum.cpp
-    )
+)
 
-add_executable (${PROJECT_NAME} ${SOURCES})
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 23)
+target_compile_options(vellum_compiler PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W0>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra>
+)
+
+target_include_directories(vellum_compiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_executable(vellum main.cpp)
+target_link_libraries(vellum PRIVATE vellum_compiler)

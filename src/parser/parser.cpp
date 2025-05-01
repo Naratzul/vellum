@@ -242,7 +242,12 @@ ast::FunctionBody Parser::functionBody(FunctionType type) {
 }
 
 std::unique_ptr<ast::Statement> Parser::statement() {
-  return expressionStatement();
+  if (match(TokenType::RETURN)) {
+    return std::make_unique<ast::ReturnStatement>(expression());
+  }
+
+  errorHandler->errorAt(current, "Unexpected statement.");
+  return nullptr;
 }
 
 std::unique_ptr<ast::Statement> Parser::expressionStatement() {
