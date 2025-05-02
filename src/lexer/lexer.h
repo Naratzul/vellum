@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string>
 #include <string_view>
 
 #include "token.h"
@@ -9,7 +8,7 @@ namespace vellum {
 
 class Lexer {
  public:
-  explicit Lexer(const std::string& source);
+  explicit Lexer(std::string_view source);
 
   Token scanToken();
 

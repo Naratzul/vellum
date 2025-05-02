@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ostream>
 #include <string_view>
 
 #include "vellum/vellum_value.h"
@@ -66,4 +67,19 @@ struct Token {
   int line = -1;
   VellumValue value;
 };
+
+inline bool operator==(const Token& lhs, const Token& rhs) {
+  return lhs.type == rhs.type && lhs.line == rhs.line &&
+         lhs.lexeme == rhs.lexeme && lhs.value == rhs.value;
+}
+
+inline bool operator!=(const Token& lhs, const Token& rhs) {
+  return !(lhs == rhs);
+}
+
+inline std::ostream& operator<<(std::ostream& os, const Token& token) {
+  os << "{" << (int)token.type << "; " << token.lexeme << "; " << token.line
+     << "; " << token.value << "}";
+  return os;
+}
 }  // namespace vellum

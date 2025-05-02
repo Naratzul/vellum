@@ -3,6 +3,19 @@
 #include "pex/pex_file.h"
 
 namespace vellum {
+bool operator==(const VellumIdentifier& lhs, const VellumIdentifier& rhs) {
+  return lhs.getValue() == rhs.getValue();
+}
+
+bool operator!=(const VellumIdentifier& lhs, const VellumIdentifier& rhs) {
+  return !(lhs == rhs);
+}
+
+std::ostream& operator<<(std::ostream& os, const VellumIdentifier& id) {
+  os << id.getValue();
+  return os;
+}
+
 VellumValueType typeFromString(std::string_view name) {
   if (name == "String") {
     return VellumValueType::String;
@@ -52,6 +65,60 @@ std::optional<pex::PexValue> makePexValue(VellumValue value,
       return pex::PexValue();
   }
 
+  assert(false && "Unknown value type");
+
   return std::nullopt;
+}
+
+bool operator==(const VellumValue& lhs, const VellumValue& rhs) {
+  if (lhs.getType() != rhs.getType()) {
+    return false;
+  }
+
+  switch (lhs.getType()) {
+    case VellumValueType::Bool:
+      return lhs.asBool() == rhs.asBool();
+    case VellumValueType::Float:
+      return lhs.asFloat() == rhs.asFloat();
+    case VellumValueType::Identifier:
+      return lhs.asIdentifier() == rhs.asIdentifier();
+    case VellumValueType::Int:
+      return lhs.asInt() == rhs.asInt();
+    case VellumValueType::String:
+      return lhs.asString() == rhs.asString();
+    case VellumValueType::None:
+      return true;
+  }
+
+  assert(false && "Unknown value type");
+}
+
+bool operator!=(const VellumValue& lhs, const VellumValue& rhs) {
+  return !(lhs == rhs);
+}
+
+std::ostream& operator<<(std::ostream& os, const VellumValue& value) {
+  os << valueTypeToString(value.getType()) << ": ";
+  switch (value.getType()) {
+    case VellumValueType::Bool:
+      os << (value.asBool() ? "true" : "false");
+      break;
+    case VellumValueType::Float:
+      os << value.asFloat() << "f";
+      break;
+    case VellumValueType::Identifier:
+      os << value.asIdentifier();
+      break;
+    case VellumValueType::Int:
+      os << value.asInt();
+      break;
+    case VellumValueType::String:
+      os << "\"" << value.asString() << "\"";
+      break;
+    case VellumValueType::None:
+      os << "None";
+      break;
+  }
+  return os;
 }
 }  // namespace vellum

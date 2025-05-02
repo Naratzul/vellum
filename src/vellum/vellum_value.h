@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <ostream>
 #include <string_view>
 #include <variant>
 
@@ -49,6 +50,10 @@ class VellumIdentifier {
   std::string_view value;
 };
 
+bool operator==(const VellumIdentifier& lhs, const VellumIdentifier& rhs);
+bool operator!=(const VellumIdentifier& lhs, const VellumIdentifier& rhs);
+std::ostream& operator<<(std::ostream& os, const VellumIdentifier& id);
+
 class VellumValue {
  public:
   VellumValue() = default;
@@ -84,4 +89,8 @@ VellumValue makeDefaultValue(VellumValueType type);
 
 std::optional<pex::PexValue> makePexValue(VellumValue value,
                                           pex::PexFile& file);
+
+bool operator==(const VellumValue& lhs, const VellumValue& rhs);
+bool operator!=(const VellumValue& lhs, const VellumValue& rhs);
+std::ostream& operator<<(std::ostream& os, const VellumValue& value);
 }  // namespace vellum

@@ -8,7 +8,7 @@
 
 namespace vellum {
 
-Lexer::Lexer(const std::string& source)
+Lexer::Lexer(std::string_view source)
     : start(source.data()), current(source.data()), line(1) {}
 
 Token Lexer::scanToken() {
@@ -129,11 +129,13 @@ Token Lexer::identifier() {
       return makeToken(type, false);
     case TokenType::TRUE:
       return makeToken(type, true);
+    case TokenType::IDENTIFIER:
+      return makeToken(type, VellumIdentifier(currentLexeme()));
     default:
       break;
   }
 
-  return makeToken(identifierType());
+  return makeToken(type);
 }
 
 TokenType Lexer::identifierType() const {
