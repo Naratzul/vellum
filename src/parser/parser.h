@@ -6,7 +6,7 @@
 
 #include "ast/decl/declaration.h"
 #include "compiler/compiler_error_handler.h"
-#include "lexer/token.h"
+#include "lexer/ilexer.h"
 
 namespace vellum {
 
@@ -16,7 +16,6 @@ class Statement;
 }  // namespace ast
 
 class CompilerErrorHandler;
-class Lexer;
 
 struct ParserResult {
   std::vector<std::unique_ptr<ast::Declaration>> declarations;
@@ -26,13 +25,13 @@ enum class FunctionType { Function, Event, Getter, Setter };
 
 class Parser {
  public:
-  Parser(std::unique_ptr<Lexer> lexer,
+  Parser(std::unique_ptr<ILexer> lexer,
          std::shared_ptr<CompilerErrorHandler> errorHandler);
 
   ParserResult parse();
 
  private:
-  std::unique_ptr<Lexer> lexer;
+  std::unique_ptr<ILexer> lexer;
   std::shared_ptr<CompilerErrorHandler> errorHandler;
 
   Token previous;

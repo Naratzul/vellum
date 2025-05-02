@@ -18,7 +18,11 @@ class Declaration {
  public:
   virtual ~Declaration() = default;
   virtual void accept(DeclarationVisitor& visitor) = 0;
+  virtual bool equals(const Declaration& other) const = 0;
 };
+
+bool operator==(const Declaration& lhs, const Declaration& rhs);
+bool operator!=(const Declaration& lhs, const Declaration& rhs);
 
 class ScriptDeclaration : public Declaration {
  public:
@@ -32,6 +36,7 @@ class ScriptDeclaration : public Declaration {
   }
 
   void accept(DeclarationVisitor& visitor) override;
+  bool equals(const Declaration& other) const override;
 
  private:
   std::string_view scriptName_;
@@ -50,11 +55,14 @@ class GlobalVariableDeclaration : public Declaration {
   std::string_view name() const { return name_; }
   std::optional<std::string_view> typeName() const { return typeName_; }
   std::optional<std::string_view>& typeName() { return typeName_; }
-  const std::unique_ptr<Expression>& initializer() { return initializer_; }
+  const std::unique_ptr<Expression>& initializer() const {
+    return initializer_;
+  }
 
   VellumValue getValue() const;
 
   void accept(DeclarationVisitor& visitor) override;
+  bool equals(const Declaration& other) const override;
 
  private:
   std::string_view name_;
@@ -66,6 +74,9 @@ struct FunctionParameter {
   std::string_view name;
   std::string_view type;
 };
+
+bool operator==(const FunctionParameter& lhs, const FunctionParameter& rhs);
+bool operator!=(const FunctionParameter& lhs, const FunctionParameter& rhs);
 
 using FunctionBody = std::vector<std::unique_ptr<Statement>>;
 
@@ -90,6 +101,7 @@ class FunctionDeclaration : public Declaration {
   const FunctionBody& getBody() const { return body; }
 
   void accept(DeclarationVisitor& visitor) override;
+  bool equals(const Declaration& other) const override;
 
  private:
   std::optional<std::string_view> name;
@@ -113,6 +125,7 @@ class PropertyDeclaration : public Declaration {
         defaultValue(defaultValue) {}
 
   void accept(DeclarationVisitor& visitor) override;
+  bool equals(const Declaration& other) const override;
 
   bool isAutoProperty() const {
     return getAccessor && setAccessor && getAccessor->empty() &&

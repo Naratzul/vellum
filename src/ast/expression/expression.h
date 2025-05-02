@@ -17,7 +17,11 @@ class Expression {
 
   virtual VellumValue produceValue() const = 0;
   virtual void accept(ExpressionVisitor& visitor) = 0;
+  virtual bool equals(const Expression& other) const = 0;
 };
+
+bool operator==(const Expression& lhs, const Expression& rhs);
+bool operator!=(const Expression& lhs, const Expression& rhs);
 
 class LiteralExpression : public Expression {
  public:
@@ -26,6 +30,7 @@ class LiteralExpression : public Expression {
   VellumValue produceValue() const override { return value; }
 
   void accept(ExpressionVisitor& visitor) override;
+  bool equals(const Expression& other) const override;
 
  private:
   VellumValue value;
@@ -49,6 +54,7 @@ class CallExpression : public Expression {
   VellumValue produceValue() const override { return VellumValue(); }
 
   void accept(ExpressionVisitor& visitor) override;
+  bool equals(const Expression& other) const override;
 
  private:
   std::string_view functionName;

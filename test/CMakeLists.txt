@@ -8,7 +8,11 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests
+    unit/mock/mock_lexer.cpp
+
     unit/lexer_tests.cpp
+    unit/parser_tests.cpp
+    unit/utils.cpp
 )
 
 target_link_libraries(tests PRIVATE

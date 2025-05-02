@@ -2,15 +2,15 @@
 
 #include <string_view>
 
-#include "token.h"
+#include "ilexer.h"
 
 namespace vellum {
 
-class Lexer {
+class Lexer : public ILexer {
  public:
   explicit Lexer(std::string_view source);
 
-  Token scanToken();
+  Token scanToken() override;
 
  private:
   const char* start;

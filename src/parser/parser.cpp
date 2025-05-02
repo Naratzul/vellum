@@ -2,7 +2,6 @@
 
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
-#include "lexer/lexer.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -22,7 +21,7 @@ static std::string_view getFunctionTypeName(FunctionType type) {
   }
 }
 
-Parser::Parser(std::unique_ptr<Lexer> lexer,
+Parser::Parser(std::unique_ptr<ILexer> lexer,
                std::shared_ptr<CompilerErrorHandler> errorHandler)
     : lexer(std::move(lexer)), errorHandler(errorHandler) {}
 
