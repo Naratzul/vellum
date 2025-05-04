@@ -46,15 +46,15 @@ class ScriptDeclaration : public Declaration {
 class GlobalVariableDeclaration : public Declaration {
  public:
   GlobalVariableDeclaration(std::string_view name,
-                            std::optional<std::string_view> typeName,
+                            std::optional<VellumType> typeName,
                             std::unique_ptr<Expression> initializer)
       : name_(name),
         typeName_(typeName),
         initializer_(std::move(initializer)) {}
 
   std::string_view name() const { return name_; }
-  std::optional<std::string_view> typeName() const { return typeName_; }
-  std::optional<std::string_view>& typeName() { return typeName_; }
+  std::optional<VellumType> typeName() const { return typeName_; }
+  std::optional<VellumType>& typeName() { return typeName_; }
   const std::unique_ptr<Expression>& initializer() const {
     return initializer_;
   }
@@ -66,7 +66,7 @@ class GlobalVariableDeclaration : public Declaration {
 
  private:
   std::string_view name_;
-  std::optional<std::string_view> typeName_;
+  std::optional<VellumType> typeName_;
   std::unique_ptr<Expression> initializer_;
 };
 

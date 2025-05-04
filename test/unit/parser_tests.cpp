@@ -1,8 +1,8 @@
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_all.hpp>
 #include <memory>
 #include <vector>
 
-#include "catch2/catch_test_macros.hpp"
-#include "catch2/matchers/catch_matchers_all.hpp"
 #include "mock/mock_lexer.h"
 #include "parser/parser.h"
 #include "utils.h"
@@ -48,7 +48,7 @@ TEST_CASE("ParserGlobalVarDeclarationTest") {
   REQUIRE(result.declarations.size() == 1);
 
   ast::GlobalVariableDeclaration expected(
-      "number", "Int",
+      "number", VellumType::unresolved("Int"),
       std::make_unique<ast::LiteralExpression>(VellumValue(42)));
   CHECK(expected == *result.declarations[0]);
 }

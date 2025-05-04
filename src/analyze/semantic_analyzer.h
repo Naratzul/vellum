@@ -1,17 +1,17 @@
 #pragma once
 
 #include <memory>
-#include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "ast/decl/declaration_visitor.h"
+#include "vellum/vellum_type.h"
 
 namespace vellum {
 
 class CompilerErrorHandler;
 
 namespace ast {
+class Expression;
 class Declaration;
 class Statement;
 }  // namespace ast
@@ -35,6 +35,11 @@ class SemanticAnalyzer : public ast::DeclarationVisitor {
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;
-  std::unordered_set<std::string> builtinTypes;
+
+  VellumType resolveType(VellumType unresolvedType) const;
+  VellumType deduceType(const std::unique_ptr<ast::Expression>& init) const;
+
+  VellumValueType resolveValueType(std::string_view rawType) const;
+  VellumIdentifier resolveObjectType(std::string_view rawType) const;
 };
 }  // namespace vellum

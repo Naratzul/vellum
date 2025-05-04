@@ -3,32 +3,6 @@
 #include "pex/pex_file.h"
 
 namespace vellum {
-bool operator==(const VellumIdentifier& lhs, const VellumIdentifier& rhs) {
-  return lhs.getValue() == rhs.getValue();
-}
-
-bool operator!=(const VellumIdentifier& lhs, const VellumIdentifier& rhs) {
-  return !(lhs == rhs);
-}
-
-std::ostream& operator<<(std::ostream& os, const VellumIdentifier& id) {
-  os << id.getValue();
-  return os;
-}
-
-VellumValueType typeFromString(std::string_view name) {
-  if (name == "String") {
-    return VellumValueType::String;
-  } else if (name == "Int") {
-    return VellumValueType::Int;
-  } else if (name == "Float") {
-    return VellumValueType::Float;
-  } else if (name == "Bool") {
-    return VellumValueType::Bool;
-  }
-  return VellumValueType::None;
-}
-
 VellumValue makeDefaultValue(VellumValueType type) {
   switch (type) {
     case VellumValueType::String:

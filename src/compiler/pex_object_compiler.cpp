@@ -47,7 +47,7 @@ void PexObjectCompiler::visitVariableDeclaration(
 
   assert(declaration.typeName().has_value());
   const pex::PexString typeName =
-      file.getString(declaration.typeName().value());
+      file.getString(declaration.typeName().value().toString());
 
   const pex::PexValue defaultValue = makeValueFromToken(declaration.getValue());
   object.getVariables().emplace_back(name, typeName, defaultValue);

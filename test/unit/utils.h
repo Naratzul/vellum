@@ -1,7 +1,9 @@
 #pragma once
 
-#include "lexer/ilexer.h"
 #include <memory>
+#include <vector>
+
+#include "lexer/ilexer.h"
 
 namespace vellum {
 Token makeToken(TokenType type, int line, std::string_view lexeme,

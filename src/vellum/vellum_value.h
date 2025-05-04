@@ -6,53 +6,13 @@
 #include <variant>
 
 #include "pex/pex_value.h"
+#include "vellum_type.h"
 
 namespace vellum {
 
 namespace pex {
 class PexFile;
 }
-
-enum class VellumValueType { None, Int, Float, Bool, String, Identifier };
-
-inline constexpr std::string_view valueTypeToString(VellumValueType type) {
-  switch (type) {
-    case VellumValueType::None:
-      return "None";
-    case VellumValueType::Int:
-      return "Int";
-    case VellumValueType::Float:
-      return "Float";
-    case VellumValueType::Bool:
-      return "Bool";
-    case VellumValueType::String:
-      return "String";
-    case VellumValueType::Identifier:
-      return "Identifier";
-  }
-  return "Unknown type";
-}
-
-class VellumType {
- public:
-  static VellumType resolved(VellumValueType type);
-  static VellumType unresolved(std::string_view typeName);
-
- private:
-};
-
-class VellumIdentifier {
- public:
-  explicit VellumIdentifier(std::string_view value) : value(value) {}
-  std::string_view getValue() const { return value; }
-
- private:
-  std::string_view value;
-};
-
-bool operator==(const VellumIdentifier& lhs, const VellumIdentifier& rhs);
-bool operator!=(const VellumIdentifier& lhs, const VellumIdentifier& rhs);
-std::ostream& operator<<(std::ostream& os, const VellumIdentifier& id);
 
 class VellumValue {
  public:
@@ -84,7 +44,6 @@ class VellumValue {
   VellumValueType type = VellumValueType::None;
 };
 
-VellumValueType typeFromString(std::string_view name);
 VellumValue makeDefaultValue(VellumValueType type);
 
 std::optional<pex::PexValue> makePexValue(VellumValue value,

@@ -12,6 +12,7 @@ add_executable(tests
 
     unit/lexer_tests.cpp
     unit/parser_tests.cpp
+    unit/semantic_tests.cpp
     unit/utils.cpp
 )
 

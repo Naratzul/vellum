@@ -122,15 +122,20 @@ std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
   consume(TokenType::IDENTIFIER, "Expect a variable name.");
   const std::string_view name = previous.lexeme;
 
-  std::optional<std::string_view> typeName;
+  std::optional<VellumType> typeName;
   if (match(TokenType::COLON)) {
     consume(TokenType::IDENTIFIER, "Expect a type name.");
-    typeName = previous.lexeme;
+    typeName = VellumType::unresolved(previous.lexeme);
   }
 
   std::unique_ptr<ast::Expression> initializer;
   if (match(TokenType::EQUAL)) {
     initializer = expression();
+  }
+
+  if (!typeName && !initializer) {
+    errorHandler->errorAt(current, "Type annotation is missing.");
+    return nullptr;
   }
 
   return std::make_unique<ast::GlobalVariableDeclaration>(
@@ -220,7 +225,7 @@ std::unique_ptr<ast::Declaration> Parser::propertyDeclaration() {
   std::string_view documentationString = "";
   return std::make_unique<ast::PropertyDeclaration>(
       name, typeName, documentationString, std::move(getAccessor),
-      std::move(setAccessor), makeDefaultValue(typeFromString(typeName)));
+      std::move(setAccessor), VellumValue());  // TODO: fix default value
 }
 
 ast::FunctionBody Parser::functionBody(FunctionType type) {

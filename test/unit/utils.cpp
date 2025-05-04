@@ -1,7 +1,5 @@
 #include "utils.h"
 
-#include <vector>
-
 namespace vellum {
 Token makeToken(TokenType type, int line, std::string_view lexeme,
                 VellumValue value) {
