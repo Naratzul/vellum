@@ -64,7 +64,8 @@ void PexObjectCompiler::visitFunctionDeclaration(
 void PexObjectCompiler::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
   const pex::PexString name = file.getString(declaration.getName());
-  const pex::PexString typeName = file.getString(declaration.getTypeName());
+  const pex::PexString typeName =
+      file.getString(declaration.getTypeName().toString());
   const pex::PexString documentationString =
       file.getString(declaration.getDocumentationString());
 
@@ -82,15 +83,15 @@ void PexObjectCompiler::visitPropertyDeclaration(
               declaration.getDefaultValue())));
     }
 
-    ast::FunctionDeclaration funcDecl(
-        std::nullopt, {}, declaration.getTypeName(), std::move(body));
+    ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
+                                      std::move(body));
     getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(funcDecl);
   }
 
   if (auto setAccessor = declaration.getSetAccessor()) {
     if (!setAccessor.value().empty()) {
       ast::FunctionDeclaration funcDecl(
-          {}, {}, valueTypeToString(VellumValueType::None),
+          {}, {}, VellumType::literal(VellumValueType::None),
           std::move(setAccessor.value()));
       setAccessorFunc =
           PexFunctionCompiler(errorHandler, file).compile(funcDecl);

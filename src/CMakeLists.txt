@@ -21,6 +21,7 @@
     pex/pex_state.cpp
     pex/pex_string_table.cpp
     pex/pex_user_flag.cpp
+    pex/pex_value.cpp
     pex/pex_variable.cpp
 
     vellum/vellum_type.cpp

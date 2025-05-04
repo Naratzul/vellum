@@ -17,6 +17,7 @@ class PexUserFlags {
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexUserFlags& flags);
-
+bool operator==(const PexUserFlags& lhs, const PexUserFlags& rhs);
+bool operator!=(const PexUserFlags& lhs, const PexUserFlags& rhs);
 }  // namespace pex
 }  // namespace vellum

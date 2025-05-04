@@ -25,5 +25,7 @@ class PexVariable final {
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexVariable& var);
+bool operator==(const PexVariable& lhs, const PexVariable& rhs);
+bool operator!=(const PexVariable& lhs, const PexVariable& rhs);
 }  // namespace pex
 }  // namespace vellum

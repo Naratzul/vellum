@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(tests
     unit/mock/mock_lexer.cpp
 
+    unit/compiler_tests.cpp
     unit/lexer_tests.cpp
     unit/parser_tests.cpp
     unit/semantic_tests.cpp

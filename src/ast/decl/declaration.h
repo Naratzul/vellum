@@ -72,7 +72,7 @@ class GlobalVariableDeclaration : public Declaration {
 
 struct FunctionParameter {
   std::string_view name;
-  std::string_view type;
+  VellumType type;
 };
 
 bool operator==(const FunctionParameter& lhs, const FunctionParameter& rhs);
@@ -84,8 +84,7 @@ class FunctionDeclaration : public Declaration {
  public:
   FunctionDeclaration(std::optional<std::string_view> name,
                       std::vector<FunctionParameter> parameters,
-                      std::optional<std::string_view> returnTypeName,
-                      FunctionBody body)
+                      VellumType returnTypeName, FunctionBody body)
       : name(name),
         parameters(std::move(parameters)),
         returnTypeName(returnTypeName),
@@ -95,9 +94,9 @@ class FunctionDeclaration : public Declaration {
   const std::vector<FunctionParameter>& getParameters() const {
     return parameters;
   }
-  std::optional<std::string_view> getReturnTypeName() const {
-    return returnTypeName;
-  }
+  std::vector<FunctionParameter>& getParameters() { return parameters; }
+  const VellumType& getReturnTypeName() const { return returnTypeName; }
+  VellumType& getReturnTypeName() { return returnTypeName; }
   const FunctionBody& getBody() const { return body; }
 
   void accept(DeclarationVisitor& visitor) override;
@@ -106,13 +105,13 @@ class FunctionDeclaration : public Declaration {
  private:
   std::optional<std::string_view> name;
   std::vector<FunctionParameter> parameters;
-  std::optional<std::string_view> returnTypeName;
+  VellumType returnTypeName;
   FunctionBody body;
 };
 
 class PropertyDeclaration : public Declaration {
  public:
-  PropertyDeclaration(std::string_view name, std::string_view typeName,
+  PropertyDeclaration(std::string_view name, VellumType typeName,
                       std::string_view documentationString,
                       std::optional<ast::FunctionBody> getAccessor,
                       std::optional<ast::FunctionBody> setAccessor,
@@ -134,7 +133,8 @@ class PropertyDeclaration : public Declaration {
   bool isReadonly() const { return !setAccessor && getAccessor; }
 
   std::string_view getName() const { return name; }
-  std::string_view getTypeName() const { return typeName; }
+  VellumType& getTypeName() { return typeName; }
+  const VellumType& getTypeName() const { return typeName; }
   std::string_view getDocumentationString() const {
     return documentationString;
   }
@@ -157,7 +157,7 @@ class PropertyDeclaration : public Declaration {
 
  private:
   std::string_view name;
-  std::string_view typeName;
+  VellumType typeName;
   std::string_view documentationString;
 
   std::optional<ast::FunctionBody> getAccessor;

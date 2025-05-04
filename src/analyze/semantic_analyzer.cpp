@@ -52,10 +52,25 @@ void SemanticAnalyzer::visitVariableDeclaration(
 }
 
 void SemanticAnalyzer::visitFunctionDeclaration(
-    ast::FunctionDeclaration& statement) {}
+    ast::FunctionDeclaration& declaration) {
+  for (auto& param : declaration.getParameters()) {
+    if (!param.type.isResolved()) {
+      param.type = resolveType(param.type);
+    }
+  }
+
+  if (!declaration.getReturnTypeName().isResolved()) {
+    declaration.getReturnTypeName() =
+        resolveType(declaration.getReturnTypeName());
+  }
+}
 
 void SemanticAnalyzer::visitPropertyDeclaration(
-    ast::PropertyDeclaration& declaration) {}
+    ast::PropertyDeclaration& declaration) {
+  if (!declaration.getTypeName().isResolved()) {
+    declaration.getTypeName() = resolveType(declaration.getTypeName());
+  }
+}
 
 VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {
   assert(!unresolvedType.isResolved());
@@ -83,6 +98,7 @@ VellumValueType SemanticAnalyzer::resolveValueType(
     std::string_view rawType) const {
   return typeFromString(rawType).value();
 }
+
 VellumIdentifier SemanticAnalyzer::resolveObjectType(
     std::string_view rawType) const {
   return VellumIdentifier(rawType);

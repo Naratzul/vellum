@@ -162,18 +162,18 @@ std::unique_ptr<ast::Declaration> Parser::functionDeclaration(
       consume(TokenType::IDENTIFIER, "Expect a parameter type.");
       std::string_view paramType = previous.lexeme;
 
-      parameters.emplace_back(paramName, paramType);
+      parameters.emplace_back(paramName, VellumType::unresolved(paramType));
     } while (match(TokenType::COMMA));
   }
 
   consume(TokenType::RIGHT_PAREN, "Expect ')' after {} declaration.",
           functionTypeName);
 
-  std::optional<std::string_view> returnTypeName;
+  auto returnTypeName = VellumType::literal(VellumValueType::None);
   if (functionType == FunctionType::Function && match(TokenType::ARROW)) {
     consume(TokenType::IDENTIFIER,
             "Expect a function return type name after '->'.");
-    returnTypeName = previous.lexeme;
+    returnTypeName = VellumType::unresolved(previous.lexeme);
   }
 
   return std::make_unique<ast::FunctionDeclaration>(
@@ -185,7 +185,7 @@ std::unique_ptr<ast::Declaration> Parser::propertyDeclaration() {
   consume(TokenType::COLON, "Expect ':' after property name.");
 
   consume(TokenType::IDENTIFIER, "Expect a property type name.");
-  const std::string_view typeName = previous.lexeme;
+  const auto typeName = VellumType::unresolved(previous.lexeme);
 
   consume(TokenType::LEFT_BRACE, "Expect '{{' after property type.");
 

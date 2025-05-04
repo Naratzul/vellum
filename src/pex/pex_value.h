@@ -78,5 +78,8 @@ class PexValue {
     Value(float value) : floatNum(value) {}
   } value;
 };
+
+bool operator==(const PexValue& lhs, const PexValue& rhs);
+bool operator!=(const PexValue& lhs, const PexValue& rhs);
 }  // namespace pex
 }  // namespace vellum

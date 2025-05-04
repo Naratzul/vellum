@@ -28,17 +28,16 @@ pex::PexFunction PexFunctionCompiler::compile(
   }
 
   pex::PexString returnTypeName =
-      file.getString(func.getReturnTypeName().has_value()
-                         ? func.getReturnTypeName().value()
-                         : valueTypeToString(VellumValueType::None));
+      file.getString(func.getReturnTypeName().toString());
   pex::PexString documentationString = file.getString("");
 
   std::vector<pex::PexFunctionParameter> parameters;
   parameters.reserve(func.getParameters().size());
 
   for (const auto& param : func.getParameters()) {
+    assert(param.type.isResolved());
     parameters.emplace_back(file.getString(param.name),
-                            file.getString(param.type));
+                            file.getString(param.type.toString()));
   }
 
   return pex::PexFunction(name, returnTypeName, documentationString, 0,
