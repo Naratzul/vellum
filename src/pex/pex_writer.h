@@ -74,6 +74,8 @@ inline PexWriter& PexWriter::operator<<(PexValue value) {
     case PexValueType::Bool:
       *this << value.asBool();
       break;
+    case PexValueType::TemporaryVar:
+      break;
     default:
       assert(false && "Unsupported pex value type");
   }

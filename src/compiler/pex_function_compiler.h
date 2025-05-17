@@ -25,7 +25,7 @@ class PexFunction;
 }
 
 class PexFunctionCompiler : public ast::StatementVisitor,
-                            public ast::ExpressionVisitor {
+                            public ast::ExpressionVisitorConst {
  public:
   PexFunctionCompiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
                       pex::PexFile& file);
@@ -35,7 +35,8 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   void visitExpressionStatement(ast::ExpressionStatement& statement) override;
   void visitReturnStatement(ast::ReturnStatement& statement) override;
 
-  void visitCallExpression(ast::CallExpression& expr) override;
+  void visitCallExpression(const ast::CallExpression& expr) override;
+  void visitGetExpression(const ast::GetExpression& expr) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;
@@ -43,7 +44,10 @@ class PexFunctionCompiler : public ast::StatementVisitor,
 
   std::vector<pex::PexFunctionParameter> localVariables;
   std::vector<pex::PexInstruction> instructions;
+  int tempVarCount = 0;
 
   pex::PexValue makeValueFromToken(VellumValue value);
+
+  pex::PexTemporaryVariable makeTempVar(const pex::PexString& typeName);
 };
 }  // namespace vellum

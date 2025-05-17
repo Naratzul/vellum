@@ -70,7 +70,8 @@ Token Lexer::scanToken() {
   return errorToken("Unexpected character.");
 }
 
-Token Lexer::makeToken(TokenType type, VellumValue value) const {
+Token Lexer::makeToken(TokenType type,
+                       std::optional<VellumLiteral> value) const {
   Token token;
   token.type = type;
   token.lexeme = currentLexeme();
@@ -130,7 +131,7 @@ Token Lexer::identifier() {
     case TokenType::TRUE:
       return makeToken(type, true);
     case TokenType::IDENTIFIER:
-      return makeToken(type, VellumIdentifier(currentLexeme()));
+      return makeToken(type);
     default:
       break;
   }

@@ -80,7 +80,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
     } else {
       body.push_back(std::make_unique<ast::ReturnStatement>(
           std::make_unique<ast::LiteralExpression>(
-              declaration.getDefaultValue())));
+              declaration.getDefaultValue().asLiteral())));
     }
 
     ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
@@ -90,9 +90,8 @@ void PexObjectCompiler::visitPropertyDeclaration(
 
   if (auto setAccessor = declaration.getSetAccessor()) {
     if (!setAccessor.value().empty()) {
-      ast::FunctionDeclaration funcDecl(
-          {}, {}, VellumType::literal(VellumValueType::None),
-          std::move(setAccessor.value()));
+      ast::FunctionDeclaration funcDecl({}, {}, VellumType::none(),
+                                        std::move(setAccessor.value()));
       setAccessorFunc =
           PexFunctionCompiler(errorHandler, file).compile(funcDecl);
     }

@@ -131,6 +131,12 @@ std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
   std::unique_ptr<ast::Expression> initializer;
   if (match(TokenType::EQUAL)) {
     initializer = expression();
+    if (initializer && !initializer->isLiteralExpression()) {
+      errorHandler->errorAt(
+          current,
+          "Script variables can only be initialized with literal value.");
+      return nullptr;
+    }
   }
 
   if (!typeName && !initializer) {
@@ -169,7 +175,7 @@ std::unique_ptr<ast::Declaration> Parser::functionDeclaration(
   consume(TokenType::RIGHT_PAREN, "Expect ')' after {} declaration.",
           functionTypeName);
 
-  auto returnTypeName = VellumType::literal(VellumValueType::None);
+  auto returnTypeName = VellumType::none();
   if (functionType == FunctionType::Function && match(TokenType::ARROW)) {
     consume(TokenType::IDENTIFIER,
             "Expect a function return type name after '->'.");
@@ -250,8 +256,7 @@ std::unique_ptr<ast::Statement> Parser::statement() {
     return std::make_unique<ast::ReturnStatement>(expression());
   }
 
-  errorHandler->errorAt(current, "Unexpected statement.");
-  return nullptr;
+  return expressionStatement();
 }
 
 std::unique_ptr<ast::Statement> Parser::expressionStatement() {
@@ -259,31 +264,25 @@ std::unique_ptr<ast::Statement> Parser::expressionStatement() {
 }
 
 std::unique_ptr<ast::Expression> Parser::expression() {
-  if (match({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
-             TokenType::TRUE, TokenType::STRING, TokenType::NIL})) {
-    return std::make_unique<ast::LiteralExpression>(previous.value);
+  auto expr = primaryExpression();
+
+  while (true) {
+    if (match(TokenType::LEFT_PAREN)) {
+      expr = callExpression(std::move(expr));
+    } else if (match(TokenType::DOT)) {
+      consume(TokenType::IDENTIFIER, "Expect a property name after '.'");
+      expr = std::make_unique<ast::GetExpression>(
+          std::move(expr), VellumIdentifier(previous.lexeme));
+    } else {
+      break;
+    }
   }
 
-  if (match(TokenType::IDENTIFIER)) {
-    return callExpression();
-  }
-
-  errorHandler->errorAt(current, "Unsupported expression.");
-
-  return std::unique_ptr<ast::Expression>();
+  return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::callExpression() {
-  std::string_view functionName = previous.lexeme;
-  std::optional<std::string_view> moduleName;
-
-  if (match(TokenType::DOT)) {
-    moduleName = functionName;
-
-    consume(TokenType::IDENTIFIER, "Expect a function name after '.'");
-    functionName = previous.lexeme;
-  }
-
+std::unique_ptr<ast::Expression> Parser::callExpression(
+    std::unique_ptr<ast::Expression> callee) {
   std::vector<std::unique_ptr<ast::Expression>> arguments;
 
   consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
@@ -295,8 +294,23 @@ std::unique_ptr<ast::Expression> Parser::callExpression() {
 
   consume(TokenType::RIGHT_PAREN, "Expect ')' after function call.");
 
-  return std::make_unique<ast::CallExpression>(functionName, moduleName,
+  return std::make_unique<ast::CallExpression>(std::move(callee),
                                                std::move(arguments));
+}
+
+std::unique_ptr<ast::Expression> Parser::primaryExpression() {
+  if (match({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
+             TokenType::TRUE, TokenType::STRING, TokenType::NIL})) {
+    return std::make_unique<ast::LiteralExpression>(*previous.value);
+  }
+
+  if (match(TokenType::IDENTIFIER)) {
+    return std::make_unique<ast::IdentifierExpression>(
+        VellumIdentifier(previous.lexeme));
+  }
+
+  errorHandler->errorAt(current, "Unexpected expression.");
+  return nullptr;
 }
 
 void Parser::synchronize() {

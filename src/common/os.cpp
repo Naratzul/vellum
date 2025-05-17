@@ -26,9 +26,12 @@ std::string getComputerName() {
   }
   return buf;
 }
+void debugBreak() {}
 #else
 std::string getUserName() { return std::string(); }
 std::string getComputerName() { return std::string(); }
+
+void debugBreak() { __builtin_trap(); }
 #endif
 }  // namespace common
 }  // namespace vellum

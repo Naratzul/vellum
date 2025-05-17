@@ -1,12 +1,16 @@
 #pragma once
 
+#include <cassert>
 #include <optional>
 #include <ostream>
 #include <string_view>
 #include <variant>
 
 #include "pex/pex_value.h"
-#include "vellum_type.h"
+#include "vellum_function.h"
+#include "vellum_identifier.h"
+#include "vellum_literal.h"
+#include "vellum_property.h"
 
 namespace vellum {
 
@@ -14,40 +18,56 @@ namespace pex {
 class PexFile;
 }
 
+enum class VellumValueType {
+  None,
+  Literal,
+  Identifier,
+  PropertyAccess,
+  Function
+};
+
 class VellumValue {
  public:
   VellumValue() = default;
-  VellumValue(int32_t value) : value(value), type(VellumValueType::Int) {};
-  VellumValue(float value) : value(value), type(VellumValueType::Float) {};
-  VellumValue(bool value) : value(value), type(VellumValueType::Bool) {};
-  VellumValue(std::string_view value)
-      : value(value), type(VellumValueType::String) {};
+  VellumValue(VellumLiteral value)
+      : value(value), type(VellumValueType::Literal) {};
   VellumValue(VellumIdentifier value)
-      : value(value), type(VellumValueType::Identifier) {}
+      : value(value), type(VellumValueType::Identifier) {};
+  VellumValue(VellumPropertyAccess value)
+      : value(value), type(VellumValueType::PropertyAccess) {};
+  VellumValue(VellumFunction value)
+      : value(value), type(VellumValueType::Function) {};
 
   VellumValueType getType() const { return type; }
 
-  int32_t asInt() const { return std::get<int32_t>(value); }
-  float asFloat() const { return std::get<float>(value); }
-  bool asBool() const { return std::get<bool>(value); }
-  std::string_view asString() const {
-    return std::get<std::string_view>(value);
+  VellumLiteral asLiteral() const {
+    assert(type == VellumValueType::Literal);
+    return std::get<VellumLiteral>(value);
   }
+
   VellumIdentifier asIdentifier() const {
+    assert(type == VellumValueType::Identifier);
     return std::get<VellumIdentifier>(value);
   }
 
+  VellumPropertyAccess asPropertyAccess() const {
+    assert(type == VellumValueType::PropertyAccess);
+    return std::get<VellumPropertyAccess>(value);
+  }
+
+  VellumFunction asFunction() const {
+    assert(type == VellumValueType::Function);
+    return std::get<VellumFunction>(value);
+  }
+
  private:
-  std::variant<std::monostate, int32_t, float, bool, std::string_view,
-               VellumIdentifier>
+  std::variant<std::monostate, VellumLiteral, VellumIdentifier,
+               VellumPropertyAccess, VellumFunction>
       value;
   VellumValueType type = VellumValueType::None;
 };
 
-VellumValue makeDefaultValue(VellumValueType type);
-
-std::optional<pex::PexValue> makePexValue(VellumValue value,
-                                          pex::PexFile& file);
+pex::PexValue makePexValue(VellumValue value, pex::PexFile& file);
 
 bool operator==(const VellumValue& lhs, const VellumValue& rhs);
 bool operator!=(const VellumValue& lhs, const VellumValue& rhs);

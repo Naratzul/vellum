@@ -3,45 +3,20 @@
 #include "pex/pex_file.h"
 
 namespace vellum {
-VellumValue makeDefaultValue(VellumValueType type) {
-  switch (type) {
-    case VellumValueType::String:
-      return VellumValue(std::string_view(""));
-    case VellumValueType::Int:
-      return VellumValue(int32_t(0));
-    case VellumValueType::Float:
-      return VellumValue(float(0.0f));
-    case VellumValueType::Bool:
-      return VellumValue(bool(false));
-    case VellumValueType::Identifier:
-    case VellumValueType::None:
-      return VellumValue();
-  }
-}
 
-std::optional<pex::PexValue> makePexValue(VellumValue value,
-                                          pex::PexFile& file) {
+pex::PexValue makePexValue(VellumValue value, pex::PexFile& file) {
   switch (value.getType()) {
-    case VellumValueType::String: {
-      const pex::PexString pexValue = file.getString(value.asString());
-      return pex::PexValue(pexValue);
-    }
+    case VellumValueType::None:
+      return pex::PexValue();
     case VellumValueType::Identifier:
       return pex::PexValue(
           pex::PexIdentifier(file.getString(value.asIdentifier().getValue())));
-    case VellumValueType::Int:
-      return pex::PexValue(value.asInt());
-    case VellumValueType::Float:
-      return pex::PexValue(value.asFloat());
-    case VellumValueType::Bool:
-      return pex::PexValue(value.asBool());
-    case VellumValueType::None:
-      return pex::PexValue();
+    case VellumValueType::Literal:
+      return makePexValue(value.asLiteral(), file);
   }
 
   assert(false && "Unknown value type");
-
-  return std::nullopt;
+  return pex::PexValue();
 }
 
 bool operator==(const VellumValue& lhs, const VellumValue& rhs) {
@@ -50,18 +25,16 @@ bool operator==(const VellumValue& lhs, const VellumValue& rhs) {
   }
 
   switch (lhs.getType()) {
-    case VellumValueType::Bool:
-      return lhs.asBool() == rhs.asBool();
-    case VellumValueType::Float:
-      return lhs.asFloat() == rhs.asFloat();
+    case VellumValueType::Function:
+      return lhs.asFunction() == rhs.asFunction();
     case VellumValueType::Identifier:
       return lhs.asIdentifier() == rhs.asIdentifier();
-    case VellumValueType::Int:
-      return lhs.asInt() == rhs.asInt();
-    case VellumValueType::String:
-      return lhs.asString() == rhs.asString();
+    case VellumValueType::Literal:
+      return lhs.asLiteral() == rhs.asLiteral();
     case VellumValueType::None:
       return true;
+    case VellumValueType::PropertyAccess:
+      return lhs.asPropertyAccess() == rhs.asPropertyAccess();
   }
 
   assert(false && "Unknown value type");
@@ -71,26 +44,37 @@ bool operator!=(const VellumValue& lhs, const VellumValue& rhs) {
   return !(lhs == rhs);
 }
 
+static std::string_view valueTypeToString(VellumValueType type) {
+  switch (type) {
+    case VellumValueType::Function:
+      return "Function";
+    case VellumValueType::Identifier:
+      return "Identifier";
+    case VellumValueType::Literal:
+      return "Literal";
+    case VellumValueType::None:
+      return "None";
+    case VellumValueType::PropertyAccess:
+      return "PropertyAccess";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, const VellumValue& value) {
   os << valueTypeToString(value.getType()) << ": ";
   switch (value.getType()) {
-    case VellumValueType::Bool:
-      os << (value.asBool() ? "true" : "false");
-      break;
-    case VellumValueType::Float:
-      os << value.asFloat() << "f";
-      break;
+    case VellumValueType::Function:
+      os << value.asFunction();
     case VellumValueType::Identifier:
       os << value.asIdentifier();
       break;
-    case VellumValueType::Int:
-      os << value.asInt();
-      break;
-    case VellumValueType::String:
-      os << "\"" << value.asString() << "\"";
+    case VellumValueType::Literal:
+      os << value.asLiteral();
       break;
     case VellumValueType::None:
       os << "None";
+      break;
+    case VellumValueType::PropertyAccess:
+      os << value.asPropertyAccess();
       break;
   }
   return os;

@@ -63,6 +63,10 @@ void SemanticAnalyzer::visitFunctionDeclaration(
     declaration.getReturnTypeName() =
         resolveType(declaration.getReturnTypeName());
   }
+
+  for (auto& statement : declaration.getBody()) {
+    statement->accept(*this);
+  }
 }
 
 void SemanticAnalyzer::visitPropertyDeclaration(
@@ -72,13 +76,48 @@ void SemanticAnalyzer::visitPropertyDeclaration(
   }
 }
 
+void SemanticAnalyzer::visitExpressionStatement(
+    ast::ExpressionStatement& statement) {
+  statement.getExpression()->accept(*this);
+}
+
+void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
+  statement.getExpression()->accept(*this);
+}
+
+void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
+  expr.getCallee()->accept(*this);
+  const VellumValue callee = expr.getCallee()->produceValue();
+
+  switch (callee.getType()) {
+    case VellumValueType::Identifier:
+      expr.setFunction(VellumFunction(VellumIdentifier("self"),
+                                      callee.asIdentifier(), false));
+      break;
+    case VellumValueType::PropertyAccess:
+      expr.setFunction(VellumFunction(callee.asPropertyAccess().getObject(),
+                                      callee.asPropertyAccess().getProperty(),
+                                      false));
+      break;
+    default:
+      assert(false && "Unknown callee type");
+      break;
+  }
+
+  for (auto& arg : expr.getArguments()) {
+    arg->accept(*this);
+  }
+}
+
+void SemanticAnalyzer::visitGetExpression(ast::GetExpression& expr) {}
+
 VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {
   assert(!unresolvedType.isResolved());
   const std::string_view rawType = unresolvedType.asRawType();
   assert(!rawType.empty());
 
   VellumType type = VellumType::unresolved("");
-  if (typeFromString(unresolvedType.asRawType()).has_value()) {
+  if (literalTypeFromString(unresolvedType.asRawType()).has_value()) {
     type = VellumType::literal(resolveValueType(unresolvedType.asRawType()));
   } else {
     type =
@@ -91,12 +130,12 @@ VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {
 VellumType SemanticAnalyzer::deduceType(
     const std::unique_ptr<ast::Expression>& init) const {
   assert(init);
-  return VellumType::literal(init->produceValue().getType());
+  return init->getType();
 }
 
-VellumValueType SemanticAnalyzer::resolveValueType(
+VellumLiteralType SemanticAnalyzer::resolveValueType(
     std::string_view rawType) const {
-  return typeFromString(rawType).value();
+  return literalTypeFromString(rawType).value();
 }
 
 VellumIdentifier SemanticAnalyzer::resolveObjectType(

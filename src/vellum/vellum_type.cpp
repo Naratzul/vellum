@@ -3,18 +3,6 @@
 #include <cassert>
 
 namespace vellum {
-bool operator==(const VellumIdentifier& lhs, const VellumIdentifier& rhs) {
-  return lhs.getValue() == rhs.getValue();
-}
-
-bool operator!=(const VellumIdentifier& lhs, const VellumIdentifier& rhs) {
-  return !(lhs == rhs);
-}
-
-std::ostream& operator<<(std::ostream& os, const VellumIdentifier& id) {
-  os << id.getValue();
-  return os;
-}
 
 bool operator==(const VellumType& lhs, const VellumType& rhs) {
   if (lhs.getState() != rhs.getState()) {
@@ -37,40 +25,16 @@ bool operator!=(const VellumType& lhs, const VellumType& rhs) {
   return !(lhs == rhs);
 }
 
-std::string_view valueTypeToString(VellumValueType type) {
-  switch (type) {
-    case VellumValueType::None:
-      return "None";
-    case VellumValueType::Int:
-      return "Int";
-    case VellumValueType::Float:
-      return "Float";
-    case VellumValueType::Bool:
-      return "Bool";
-    case VellumValueType::String:
-      return "String";
-    case VellumValueType::Identifier:
-      return "Identifier";
-  }
-  return "Unknown type";
+std::ostream& operator<<(std::ostream& os, const VellumType& value) {
+  os << value.toString();
+  return os;
 }
 
-std::optional<VellumValueType> typeFromString(std::string_view name) {
-  if (name == "String") {
-    return VellumValueType::String;
-  } else if (name == "Int") {
-    return VellumValueType::Int;
-  } else if (name == "Float") {
-    return VellumValueType::Float;
-  } else if (name == "Bool") {
-    return VellumValueType::Bool;
-  }
-  return std::nullopt;
-}
-
-VellumType VellumType::literal(VellumValueType type) {
+VellumType VellumType::literal(VellumLiteralType type) {
   return VellumType(type);
 }
+
+VellumType VellumType::none() { return VellumType(); }
 
 VellumType VellumType::identifier(VellumIdentifier identifier) {
   return VellumType(identifier);
@@ -85,9 +49,9 @@ std::string_view VellumType::asRawType() const {
   return std::get<std::string_view>(type);
 }
 
-VellumValueType VellumType::asLiteralType() const {
+VellumLiteralType VellumType::asLiteralType() const {
   assert(state == VellumTypeState::Literal);
-  return std::get<VellumValueType>(type);
+  return std::get<VellumLiteralType>(type);
 }
 
 VellumIdentifier VellumType::asIdentifier() const {
@@ -100,7 +64,7 @@ std::string_view VellumType::toString() const {
     case VellumTypeState::Identifier:
       return asIdentifier().toString();
     case VellumTypeState::Literal:
-      return valueTypeToString(asLiteralType());
+      return literalTypeToString(asLiteralType());
     case VellumTypeState::Unresolved:
       return asRawType();
   }
@@ -109,7 +73,7 @@ std::string_view VellumType::toString() const {
 VellumType::VellumType(std::string_view type)
     : state(VellumTypeState::Unresolved), type(type) {}
 
-VellumType::VellumType(VellumValueType type)
+VellumType::VellumType(VellumLiteralType type)
     : state(VellumTypeState::Literal), type(type) {}
 
 VellumType::VellumType(VellumIdentifier type)

@@ -17,7 +17,8 @@ class Lexer : public ILexer {
   const char* current;
   int line;
 
-  Token makeToken(TokenType type, VellumValue value = VellumValue()) const;
+  Token makeToken(TokenType type,
+                  std::optional<VellumLiteral> value = std::nullopt) const;
   Token errorToken(std::string_view message) const;
   Token string();
   Token number();

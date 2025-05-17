@@ -1,5 +1,6 @@
 #include "declaration.h"
 
+#include "ast/expression/expression_visitor.h"
 #include "declaration_visitor.h"
 
 namespace vellum {

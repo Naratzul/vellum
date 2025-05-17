@@ -1,23 +1,32 @@
 #pragma once
 
+#include <cassert>
 #include <memory>
 #include <optional>
 #include <vector>
 
+#include "vellum/vellum_type.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
 namespace ast {
 
 class ExpressionVisitor;
+class ExpressionVisitorConst;
 
 class Expression {
  public:
   virtual ~Expression() = default;
+  virtual bool equals(const Expression& other) const = 0;
 
   virtual VellumValue produceValue() const = 0;
-  virtual void accept(ExpressionVisitor& visitor) = 0;
-  virtual bool equals(const Expression& other) const = 0;
+  virtual VellumType getType() const = 0;
+
+  virtual void accept(ExpressionVisitor& visitor) {}
+  virtual void accept(ExpressionVisitorConst& visitor) const {}
+
+  virtual bool isLiteralExpression() const { return false; }
+  virtual bool isIdentifierExpression() const { return false; }
 };
 
 bool operator==(const Expression& lhs, const Expression& rhs);
@@ -25,41 +34,93 @@ bool operator!=(const Expression& lhs, const Expression& rhs);
 
 class LiteralExpression : public Expression {
  public:
-  explicit LiteralExpression(VellumValue value) : value(value) {}
+  explicit LiteralExpression(VellumLiteral literal) : literal(literal) {}
 
-  VellumValue produceValue() const override { return value; }
-
-  void accept(ExpressionVisitor& visitor) override;
+  VellumLiteral getLiteral() const { return literal; }
   bool equals(const Expression& other) const override;
 
+  VellumValue produceValue() const override { return VellumValue(literal); }
+  VellumType getType() const override {
+    return VellumType::literal(literal.getType());
+  }
+
+  bool isLiteralExpression() const override { return true; }
+
  private:
-  VellumValue value;
+  VellumLiteral literal;
+};
+
+class IdentifierExpression : public Expression {
+ public:
+  explicit IdentifierExpression(VellumIdentifier identifier)
+      : identifier(identifier), type(VellumType::unresolved()) {}
+
+  VellumIdentifier getIdentifier() const { return identifier; }
+  bool equals(const Expression& other) const override;
+
+  VellumValue produceValue() const override { return VellumValue(identifier); }
+  VellumType getType() const override { return type; }
+
+  void setType(VellumIdentifier typeName) {
+    type = VellumType::identifier(typeName);
+  }
+
+ private:
+  VellumIdentifier identifier;
+  VellumType type;
 };
 
 class CallExpression : public Expression {
  public:
-  CallExpression(std::string_view functionName,
-                 std::optional<std::string_view> moduleName,
+  CallExpression(std::unique_ptr<Expression> callee,
                  std::vector<std::unique_ptr<Expression>> arguments)
-      : functionName(functionName),
-        moduleName(moduleName),
-        arguments(std::move(arguments)) {}
+      : callee(std::move(callee)), arguments(std::move(arguments)) {}
 
-  std::string_view getFunctionName() const { return functionName; }
-  std::optional<std::string_view> getModuleName() const { return moduleName; }
+  const std::unique_ptr<Expression>& getCallee() const { return callee; }
+
   const std::vector<std::unique_ptr<Expression>>& getArguments() const {
     return arguments;
   }
 
-  VellumValue produceValue() const override { return VellumValue(); }
+  VellumType getType() const override { return function->getReturnType(); }
+  VellumValue produceValue() const override { return function.value(); }
+
+  void setFunction(VellumFunction function_) { function = function_; }
 
   void accept(ExpressionVisitor& visitor) override;
+  void accept(ExpressionVisitorConst& visitor) const override;
   bool equals(const Expression& other) const override;
 
  private:
-  std::string_view functionName;
-  std::optional<std::string_view> moduleName;
+  std::unique_ptr<Expression> callee;
   std::vector<std::unique_ptr<Expression>> arguments;
+  std::optional<VellumFunction> function;
+};
+
+class GetExpression : public Expression {
+ public:
+  GetExpression(std::unique_ptr<Expression> object, VellumIdentifier property)
+      : object(std::move(object)),
+        property(property),
+        propertyType(VellumType::unresolved()) {}
+
+  const std::unique_ptr<Expression>& getObject() const { return object; }
+  VellumIdentifier getProperty() const { return property; }
+
+  bool equals(const Expression& other) const override;
+
+  VellumValue produceValue() const override;
+
+  VellumType getType() const override { return propertyType; }
+
+  void setType(VellumIdentifier typeName) {
+    propertyType = VellumType::identifier(typeName);
+  }
+
+ private:
+  std::unique_ptr<Expression> object;
+  VellumIdentifier property;
+  VellumType propertyType;
 };
 
 }  // namespace ast

@@ -4,6 +4,7 @@
 
 #include <cassert>
 
+#include "pex_function_parameter.h"
 #include "pex_identifier.h"
 #include "pex_string.h"
 
@@ -22,12 +23,16 @@ enum class PexValueType : uint8_t {
   Invalid = 50
 };
 
+using PexTemporaryVariable = PexFunctionParameter;
+
 class PexValue {
  public:
   PexValue() = default;
   PexValue(PexString value) : type(PexValueType::String), value(value) {}
   PexValue(PexIdentifier value)
       : type(PexValueType::Identifier), value(value) {}
+  PexValue(PexTemporaryVariable value)
+      : type(PexValueType::TemporaryVar), value(value) {}
   PexValue(int32_t value) : type(PexValueType::Integer), value(value) {}
   PexValue(float value) : type(PexValueType::Float), value(value) {}
   PexValue(bool value) : type(PexValueType::Bool), value(value) {}
@@ -42,6 +47,11 @@ class PexValue {
   PexIdentifier asIdentifier() const {
     assert(type == PexValueType::Identifier);
     return value.identifier;
+  }
+
+  PexTemporaryVariable asTempVar() const {
+    assert(type == PexValueType::TemporaryVar);
+    return value.tempVar;
   }
 
   int32_t asInt() const {
@@ -65,6 +75,7 @@ class PexValue {
   union Value {
     PexString string;
     PexIdentifier identifier;
+    PexTemporaryVariable tempVar;
     int32_t intNum;
     float floatNum;
     bool boolean;
@@ -74,6 +85,7 @@ class PexValue {
 
     Value(PexString value) : string(value) {}
     Value(PexIdentifier value) : identifier(value) {}
+    Value(PexTemporaryVariable value) : tempVar(value) {}
     Value(int32_t value) : intNum(value) {}
     Value(float value) : floatNum(value) {}
   } value;

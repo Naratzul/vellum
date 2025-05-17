@@ -24,6 +24,10 @@
     pex/pex_value.cpp
     pex/pex_variable.cpp
 
+    vellum/vellum_function.cpp
+    vellum/vellum_identifier.cpp
+    vellum/vellum_literal.cpp
+    vellum/vellum_property.cpp
     vellum/vellum_type.cpp
     vellum/vellum_value.cpp
     vellum/vellum.cpp

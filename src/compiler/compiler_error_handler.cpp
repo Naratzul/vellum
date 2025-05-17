@@ -6,6 +6,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "common/os.h"
+
 namespace vellum {
 
 void CompilerErrorHandler::errorAt(const Token& token,
@@ -37,6 +39,8 @@ void CompilerErrorHandler::printError(const Token& token,
 
   stream << std::format(": {}", message);
   std::cerr << stream.str() << std::endl;
+
+  common::debugBreak();
 }
 
 }  // namespace vellum
