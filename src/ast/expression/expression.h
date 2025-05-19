@@ -24,7 +24,7 @@ class Expression {
   virtual VellumType getType() const = 0;
 
   virtual void accept(ExpressionVisitor& visitor) {}
-  virtual pex::PexValue compile(ExpressionCompiler& compiler) const {}
+  virtual pex::PexValue compile(ExpressionCompiler& compiler) const = 0;
 
   virtual bool isLiteralExpression() const { return false; }
   virtual bool isIdentifierExpression() const { return false; }

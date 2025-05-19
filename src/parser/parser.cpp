@@ -30,7 +30,7 @@ ParserResult Parser::parse() {
 
   ParserResult result;
 
-  while (!match(TokenType::END_OF_FILE)) {
+  while (!check(TokenType::END_OF_FILE)) {
     if (auto decl = declaration()) {
       result.declarations.push_back(std::move(decl));
     }

@@ -10,9 +10,9 @@ using namespace vellum;
 TEST_CASE("LexerScriptTest") {
   std::vector<Token> expected{
       makeToken(TokenType::SCRIPT, 1, "script"),
-      makeToken(TokenType::IDENTIFIER, 1, "name", VellumIdentifier("name")),
+      makeToken(TokenType::IDENTIFIER, 1, "name"),
       makeToken(TokenType::COLON, 1, ":"),
-      makeToken(TokenType::IDENTIFIER, 1, "parent", VellumIdentifier("parent")),
+      makeToken(TokenType::IDENTIFIER, 1, "parent"),
   };
 
   std::string_view source = "script name : parent";
@@ -23,11 +23,11 @@ TEST_CASE("LexerScriptTest") {
 TEST_CASE("LexerVarDeclarationTest") {
   std::vector<Token> expected{
       makeToken(TokenType::VAR, 1, "var"),
-      makeToken(TokenType::IDENTIFIER, 1, "number", VellumIdentifier("number")),
+      makeToken(TokenType::IDENTIFIER, 1, "number"),
       makeToken(TokenType::COLON, 1, ":"),
-      makeToken(TokenType::IDENTIFIER, 1, "Int", VellumIdentifier("Int")),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
       makeToken(TokenType::EQUAL, 1, "="),
-      makeToken(TokenType::INT, 1, "42", VellumValue(42))};
+      makeToken(TokenType::INT, 1, "42", VellumLiteral(42))};
 
   std::string_view source = "var number: Int = 42";
   CHECK_THAT(scanTokens(std::make_unique<Lexer>(source)),

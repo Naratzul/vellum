@@ -14,8 +14,8 @@ using namespace vellum;
 TEST_CASE("CompileGlobalVarTest") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   ast.emplace_back(std::make_unique<ast::GlobalVariableDeclaration>(
-      "number", VellumType::literal(VellumValueType::Int),
-      std::make_unique<ast::LiteralExpression>(VellumValue(42))));
+      "number", VellumType::literal(VellumLiteralType::Int),
+      std::make_unique<ast::LiteralExpression>(VellumLiteral(42))));
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
   pex::PexFile file =

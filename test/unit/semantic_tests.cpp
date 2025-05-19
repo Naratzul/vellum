@@ -14,7 +14,7 @@ TEST_CASE("SemanticGlobalVarTest") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   ast.emplace_back(std::make_unique<ast::GlobalVariableDeclaration>(
       "number", VellumType::unresolved("Int"),
-      std::make_unique<ast::LiteralExpression>(VellumValue(42))));
+      std::make_unique<ast::LiteralExpression>(VellumLiteral(42))));
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
   const auto result = SemanticAnalyzer(errorHandler).analyze(std::move(ast));
@@ -23,8 +23,8 @@ TEST_CASE("SemanticGlobalVarTest") {
   REQUIRE(result.declarations.size() == 1);
 
   ast::GlobalVariableDeclaration expected(
-      "number", VellumType::literal(VellumValueType::Int),
-      std::make_unique<ast::LiteralExpression>(VellumValue(42)));
+      "number", VellumType::literal(VellumLiteralType::Int),
+      std::make_unique<ast::LiteralExpression>(VellumLiteral(42)));
 
   CHECK(expected == *result.declarations[0]);
 }
@@ -42,7 +42,7 @@ TEST_CASE("SemanticAutoPropertyTest") {
   REQUIRE(result.declarations.size() == 1);
 
   ast::PropertyDeclaration expected(
-      "MyProperty", VellumType::literal(VellumValueType::String), "",
+      "MyProperty", VellumType::literal(VellumLiteralType::String), "",
       std::nullopt, std::nullopt, VellumValue());
   CHECK(expected == *result.declarations[0]);
 }
@@ -61,6 +61,6 @@ TEST_CASE("SemanticFunctionTest") {
   REQUIRE(result.declarations.size() == 1);
 
   ast::FunctionDeclaration expected(
-      "foo", {}, VellumType::literal(VellumValueType::Bool), {});
+      "foo", {}, VellumType::literal(VellumLiteralType::Bool), {});
   CHECK(expected == *result.declarations[0]);
 }

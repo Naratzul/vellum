@@ -29,7 +29,7 @@ void CallExpression::accept(ExpressionVisitor& visitor) {
 }
 
 pex::PexValue CallExpression::compile(ExpressionCompiler& compiler) const {
-  compiler.compile(*this);
+  return compiler.compile(*this);
 }
 
 bool CallExpression::equals(const Expression& other_) const {

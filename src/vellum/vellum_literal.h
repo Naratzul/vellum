@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <ostream>
 #include <string_view>
 #include <variant>
@@ -16,11 +17,11 @@ enum class VellumLiteralType { Int, Float, Bool, String };
 
 class VellumLiteral {
  public:
-  VellumLiteral(int32_t value) : value(value), type(VellumLiteralType::Int) {};
-  VellumLiteral(float value) : value(value), type(VellumLiteralType::Float) {};
-  VellumLiteral(bool value) : value(value), type(VellumLiteralType::Bool) {};
+  VellumLiteral(int32_t value) : value(value), type(VellumLiteralType::Int){};
+  VellumLiteral(float value) : value(value), type(VellumLiteralType::Float){};
+  VellumLiteral(bool value) : value(value), type(VellumLiteralType::Bool){};
   VellumLiteral(std::string_view value)
-      : value(value), type(VellumLiteralType::String) {};
+      : value(value), type(VellumLiteralType::String){};
 
   VellumLiteralType getType() const { return type; }
 

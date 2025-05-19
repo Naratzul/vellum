@@ -1,5 +1,7 @@
 #include "pex_function_compiler.h"
 
+#include <array>
+
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"

@@ -12,9 +12,9 @@ using namespace vellum;
 TEST_CASE("ParserScriptDeclarationTest") {
   std::vector<Token> tokens{
       makeToken(TokenType::SCRIPT, 1, "script"),
-      makeToken(TokenType::IDENTIFIER, 1, "name", VellumIdentifier("name")),
+      makeToken(TokenType::IDENTIFIER, 1, "name"),
       makeToken(TokenType::COLON, 1, ":"),
-      makeToken(TokenType::IDENTIFIER, 1, "parent", VellumIdentifier("parent")),
+      makeToken(TokenType::IDENTIFIER, 1, "parent"),
       makeToken(TokenType::END_OF_FILE, 1, "")};
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
@@ -32,11 +32,11 @@ TEST_CASE("ParserScriptDeclarationTest") {
 TEST_CASE("ParserGlobalVarDeclarationTest") {
   std::vector<Token> tokens{
       makeToken(TokenType::VAR, 1, "var"),
-      makeToken(TokenType::IDENTIFIER, 1, "number", VellumIdentifier("number")),
+      makeToken(TokenType::IDENTIFIER, 1, "number"),
       makeToken(TokenType::COLON, 1, ":"),
-      makeToken(TokenType::IDENTIFIER, 1, "Int", VellumIdentifier("Int")),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
       makeToken(TokenType::EQUAL, 1, "="),
-      makeToken(TokenType::INT, 1, "42", VellumValue(42)),
+      makeToken(TokenType::INT, 1, "42", VellumLiteral(42)),
       makeToken(TokenType::END_OF_FILE, 1, "")};
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
@@ -49,6 +49,6 @@ TEST_CASE("ParserGlobalVarDeclarationTest") {
 
   ast::GlobalVariableDeclaration expected(
       "number", VellumType::unresolved("Int"),
-      std::make_unique<ast::LiteralExpression>(VellumValue(42)));
+      std::make_unique<ast::LiteralExpression>(VellumLiteral(42)));
   CHECK(expected == *result.declarations[0]);
 }
