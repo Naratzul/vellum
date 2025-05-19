@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vellum/vellum_value.h"
+#include "pex/pex_value.h"
 
 namespace vellum {
 
@@ -17,10 +17,12 @@ class ExpressionVisitor {
   virtual void visitGetExpression(ast::GetExpression& expr) = 0;
 };
 
-class ExpressionVisitorConst {
+class ExpressionCompiler {
  public:
-  virtual void visitCallExpression(const ast::CallExpression& expr) = 0;
-  virtual void visitGetExpression(const ast::GetExpression& expr) = 0;
+  virtual pex::PexValue compile(const ast::LiteralExpression& expr) = 0;
+  virtual pex::PexValue compile(const ast::IdentifierExpression& expr) = 0;
+  virtual pex::PexValue compile(const ast::CallExpression& expr) = 0;
+  virtual pex::PexValue compile(const ast::GetExpression& expr) = 0;
 };
 
 }  // namespace ast

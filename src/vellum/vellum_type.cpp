@@ -16,6 +16,8 @@ bool operator==(const VellumType& lhs, const VellumType& rhs) {
       return lhs.asIdentifier() == rhs.asIdentifier();
     case VellumTypeState::Literal:
       return lhs.asLiteralType() == rhs.asLiteralType();
+    case VellumTypeState::None:
+      return true;
     default:
       assert(false && "Unknown vellum type state.");
   }
@@ -67,6 +69,8 @@ std::string_view VellumType::toString() const {
       return literalTypeToString(asLiteralType());
     case VellumTypeState::Unresolved:
       return asRawType();
+    case VellumTypeState::None:
+      return "None";
   }
 }
 

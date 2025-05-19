@@ -10,17 +10,26 @@ bool LiteralExpression::equals(const Expression& other_) const {
   return literal == other.literal;
 }
 
+pex::PexValue LiteralExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
 bool IdentifierExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const IdentifierExpression&>(other_);
   return identifier == other.identifier;
+}
+
+pex::PexValue IdentifierExpression::compile(
+    ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
 }
 
 void CallExpression::accept(ExpressionVisitor& visitor) {
   visitor.visitCallExpression(*this);
 }
 
-void CallExpression::accept(ExpressionVisitorConst& visitor) const {
-  visitor.visitCallExpression(*this);
+pex::PexValue CallExpression::compile(ExpressionCompiler& compiler) const {
+  compiler.compile(*this);
 }
 
 bool CallExpression::equals(const Expression& other_) const {
@@ -39,6 +48,10 @@ VellumValue GetExpression::produceValue() const {
   const VellumValue objectValue = object->produceValue();
   assert(objectValue.getType() == VellumValueType::Identifier);
   return VellumPropertyAccess(objectValue.asIdentifier(), property);
+}
+
+pex::PexValue GetExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
 }
 
 bool operator==(const Expression& lhs, const Expression& rhs) {

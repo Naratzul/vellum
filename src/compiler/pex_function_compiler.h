@@ -25,7 +25,7 @@ class PexFunction;
 }
 
 class PexFunctionCompiler : public ast::StatementVisitor,
-                            public ast::ExpressionVisitorConst {
+                            public ast::ExpressionCompiler {
  public:
   PexFunctionCompiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
                       pex::PexFile& file);
@@ -35,8 +35,10 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   void visitExpressionStatement(ast::ExpressionStatement& statement) override;
   void visitReturnStatement(ast::ReturnStatement& statement) override;
 
-  void visitCallExpression(const ast::CallExpression& expr) override;
-  void visitGetExpression(const ast::GetExpression& expr) override;
+  pex::PexValue compile(const ast::LiteralExpression& expr) override;
+  pex::PexValue compile(const ast::IdentifierExpression& expr) override;
+  pex::PexValue compile(const ast::CallExpression& expr) override;
+  pex::PexValue compile(const ast::GetExpression& expr) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;

@@ -47,46 +47,62 @@ pex::PexFunction PexFunctionCompiler::compile(
 
 void PexFunctionCompiler::visitExpressionStatement(
     ast::ExpressionStatement& statement) {
-  statement.getExpression()->accept(*this);
+  statement.getExpression()->compile(*this);
 }
 
 void PexFunctionCompiler::visitReturnStatement(
     ast::ReturnStatement& statement) {
-  const VellumValue value = statement.getExpression()->produceValue();
   instructions.emplace_back(
       pex::PexOpCode::Return,
-      std::vector<pex::PexValue>{makeValueFromToken(value)});
+      std::vector<pex::PexValue>{statement.getExpression()->compile(*this)});
 }
 
-void PexFunctionCompiler::visitCallExpression(const ast::CallExpression& expr) {
+pex::PexValue PexFunctionCompiler::compile(const ast::LiteralExpression& expr) {
+  return makePexValue(expr.getLiteral(), file);
+}
+
+pex::PexValue PexFunctionCompiler::compile(
+    const ast::IdentifierExpression& expr) {
+  return makePexValue(expr.getIdentifier(), file);
+}
+
+pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
   const VellumFunction function = expr.produceValue().asFunction();
 
   pex::PexOpCode opcode;
   std::vector<pex::PexValue> args;
+
+  const pex::PexValue retVal =
+      function.getReturnType() == VellumType::none()
+          ? pex::PexIdentifier(file.getString("::nonevar"))
+          : pex::PexValue(makeTempVar(
+                file.getString(function.getReturnType().toString())));
 
   if (function.isStatic()) {
     opcode = pex::PexOpCode::CallStatic;
     args = {
         pex::PexIdentifier(file.getString(function.getObject().getValue())),
         pex::PexIdentifier(file.getString(function.getFunction().getValue())),
-        pex::PexIdentifier(file.getString("::nonevar"))};
+        retVal};
   } else {
     opcode = pex::PexOpCode::CallMethod;
     args = {file.getString(function.getFunction().getValue()),
-            file.getString(function.getObject().getValue()), pex::PexValue()};
+            file.getString(function.getObject().getValue()), retVal};
   }
 
   std::vector<pex::PexValue> variadicArgs;
   variadicArgs.reserve(expr.getArguments().size());
 
   for (const auto& arg : expr.getArguments()) {
-    variadicArgs.push_back(makeValueFromToken(arg->produceValue()));
+    variadicArgs.push_back(arg->compile(*this));
   }
 
   instructions.emplace_back(opcode, std::move(args), std::move(variadicArgs));
+
+  return retVal;
 }
 
-void PexFunctionCompiler::visitGetExpression(const ast::GetExpression& expr) {
+pex::PexValue PexFunctionCompiler::compile(const ast::GetExpression& expr) {
   const VellumPropertyAccess property = expr.produceValue().asPropertyAccess();
   const pex::PexValue retVal =
       makeTempVar(file.getString(expr.getType().toString()));
@@ -96,6 +112,8 @@ void PexFunctionCompiler::visitGetExpression(const ast::GetExpression& expr) {
       file.getString(property.getObject().getValue()), retVal};
 
   instructions.emplace_back(pex::PexOpCode::PropGet, args);
+
+  return retVal;
 }
 
 pex::PexValue PexFunctionCompiler::makeValueFromToken(VellumValue value) {

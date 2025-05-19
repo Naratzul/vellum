@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include "pex/pex_value.h"
 #include "vellum/vellum_type.h"
 #include "vellum/vellum_value.h"
 
@@ -12,7 +13,7 @@ namespace vellum {
 namespace ast {
 
 class ExpressionVisitor;
-class ExpressionVisitorConst;
+class ExpressionCompiler;
 
 class Expression {
  public:
@@ -23,7 +24,7 @@ class Expression {
   virtual VellumType getType() const = 0;
 
   virtual void accept(ExpressionVisitor& visitor) {}
-  virtual void accept(ExpressionVisitorConst& visitor) const {}
+  virtual pex::PexValue compile(ExpressionCompiler& compiler) const {}
 
   virtual bool isLiteralExpression() const { return false; }
   virtual bool isIdentifierExpression() const { return false; }
@@ -43,6 +44,8 @@ class LiteralExpression : public Expression {
   VellumType getType() const override {
     return VellumType::literal(literal.getType());
   }
+
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
   bool isLiteralExpression() const override { return true; }
 
@@ -64,6 +67,8 @@ class IdentifierExpression : public Expression {
   void setType(VellumIdentifier typeName) {
     type = VellumType::identifier(typeName);
   }
+  
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
  private:
   VellumIdentifier identifier;
@@ -88,7 +93,7 @@ class CallExpression : public Expression {
   void setFunction(VellumFunction function_) { function = function_; }
 
   void accept(ExpressionVisitor& visitor) override;
-  void accept(ExpressionVisitorConst& visitor) const override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
   bool equals(const Expression& other) const override;
 
  private:
@@ -116,6 +121,8 @@ class GetExpression : public Expression {
   void setType(VellumIdentifier typeName) {
     propertyType = VellumType::identifier(typeName);
   }
+
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
  private:
   std::unique_ptr<Expression> object;
