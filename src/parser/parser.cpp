@@ -2,6 +2,7 @@
 
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
+#include "compiler/resolver.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -38,6 +39,8 @@ ParserResult Parser::parse() {
       synchronize();
     }
   }
+
+  result.resolver = resolver;
 
   return result;
 }
@@ -114,6 +117,9 @@ std::unique_ptr<ast::Declaration> Parser::scriptDeclaration() {
   if (!check(TokenType::END_OF_FILE) && previous.line == current.line) {
     errorHandler->errorAt(current, "Unexpected token after script declaration");
   }
+
+  resolver =
+      std::make_shared<Resolver>(VellumObject(VellumIdentifier(scriptName)));
 
   return std::make_unique<ast::ScriptDeclaration>(scriptName, parentScriptName);
 }
@@ -285,7 +291,6 @@ std::unique_ptr<ast::Expression> Parser::callExpression(
     std::unique_ptr<ast::Expression> callee) {
   std::vector<std::unique_ptr<ast::Expression>> arguments;
 
-  consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
   if (!check(TokenType::RIGHT_PAREN)) {
     do {
       arguments.push_back(expression());

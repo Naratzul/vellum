@@ -15,9 +15,10 @@ class Expression;
 class Statement;
 }  // namespace ast
 
-class CompilerErrorHandler;
+class Resolver;
 
 struct ParserResult {
+  std::shared_ptr<Resolver> resolver;
   std::vector<std::unique_ptr<ast::Declaration>> declarations;
 };
 
@@ -33,6 +34,7 @@ class Parser {
  private:
   std::unique_ptr<ILexer> lexer;
   std::shared_ptr<CompilerErrorHandler> errorHandler;
+  std::shared_ptr<Resolver> resolver;
 
   Token previous;
   Token current;

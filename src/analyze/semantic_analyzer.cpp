@@ -6,12 +6,16 @@
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
 #include "compiler/compiler_error_handler.h"
+#include "compiler/resolver.h"
 
 namespace vellum {
 
 SemanticAnalyzer::SemanticAnalyzer(
-    std::shared_ptr<CompilerErrorHandler> errorHandler)
-    : errorHandler(errorHandler) {}
+    std::shared_ptr<CompilerErrorHandler> errorHandler,
+    std::shared_ptr<Resolver> resolver)
+    : errorHandler(errorHandler), resolver(resolver) {
+  assert(resolver);
+}
 
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
     std::vector<std::unique_ptr<ast::Declaration>>&& declarations) {
@@ -49,14 +53,21 @@ void SemanticAnalyzer::visitVariableDeclaration(
                       annotatedType->toString(), deducedType->toString()));
     }
   }
+
+  resolver->addVariable(VellumVariable(VellumIdentifier(statement.name()),
+                                       statement.typeName().value()));
 }
 
 void SemanticAnalyzer::visitFunctionDeclaration(
     ast::FunctionDeclaration& declaration) {
+  std::vector<VellumVariable> parameters;
+  parameters.reserve(declaration.getParameters().size());
+
   for (auto& param : declaration.getParameters()) {
     if (!param.type.isResolved()) {
       param.type = resolveType(param.type);
     }
+    parameters.emplace_back(VellumIdentifier(param.name), param.type);
   }
 
   if (!declaration.getReturnTypeName().isResolved()) {
@@ -67,6 +78,10 @@ void SemanticAnalyzer::visitFunctionDeclaration(
   for (auto& statement : declaration.getBody()) {
     statement->accept(*this);
   }
+
+  resolver->addFunction(
+      VellumFunction(VellumIdentifier(declaration.getName().value()),
+                     declaration.getReturnTypeName(), std::move(parameters)));
 }
 
 void SemanticAnalyzer::visitPropertyDeclaration(
@@ -74,6 +89,9 @@ void SemanticAnalyzer::visitPropertyDeclaration(
   if (!declaration.getTypeName().isResolved()) {
     declaration.getTypeName() = resolveType(declaration.getTypeName());
   }
+
+  resolver->addProperty(VellumProperty(VellumIdentifier(declaration.getName()),
+                                       declaration.getTypeName()));
 }
 
 void SemanticAnalyzer::visitExpressionStatement(
@@ -85,19 +103,50 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
   statement.getExpression()->accept(*this);
 }
 
+void SemanticAnalyzer::visitIdentifierExpression(
+    ast::IdentifierExpression& expr) {
+
+  // TODO: hack for testing, need to remove it
+  if (expr.getIdentifier() == VellumIdentifier("Debug")) {
+    return;
+  }
+
+  const auto value = resolver->resolveIdentifier(expr.getIdentifier());
+  if (!value) {
+    errorHandler->errorAt(Token(),
+                          std::format("Undefined identifier '{}'",
+                                      expr.getIdentifier().toString()));
+    return;
+  }
+
+  switch (value->getType()) {
+    case VellumValueType::Property:
+      expr.setType(value->asProperty().getType());
+      break;
+    case VellumValueType::Variable:
+      expr.setType(value->asVariable().getType());
+      break;
+    case VellumValueType::Function:
+      expr.setType(value->asFunction().getReturnType());
+      break;
+    default:
+      assert(false && "Unsuported identifier type");
+  }
+}
+
 void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   expr.getCallee()->accept(*this);
   const VellumValue callee = expr.getCallee()->produceValue();
 
   switch (callee.getType()) {
     case VellumValueType::Identifier:
-      expr.setFunction(VellumFunction(VellumIdentifier("self"),
-                                      callee.asIdentifier(), false));
+      expr.setFunctionCall(VellumFunctionCall(VellumIdentifier("self"),
+                                              callee.asIdentifier(), false));
       break;
     case VellumValueType::PropertyAccess:
-      expr.setFunction(VellumFunction(callee.asPropertyAccess().getObject(),
-                                      callee.asPropertyAccess().getProperty(),
-                                      false));
+      expr.setFunctionCall(
+          VellumFunctionCall(callee.asPropertyAccess().getObject(),
+                             callee.asPropertyAccess().getProperty(), true));
       break;
     default:
       assert(false && "Unknown callee type");
@@ -109,7 +158,33 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   }
 }
 
-void SemanticAnalyzer::visitGetExpression(ast::GetExpression& expr) {}
+void SemanticAnalyzer::visitGetExpression(ast::GetExpression& expr) {
+  expr.getObject()->accept(*this);
+
+  const VellumIdentifier object =
+      expr.getObject()->produceValue().asIdentifier();
+
+  const auto property = resolver->resolveProperty(object, expr.getProperty());
+  if (!property) {
+    errorHandler->errorAt(Token(), std::format("Undefined property '{}'.",
+                                               expr.getProperty().toString()));
+    return;
+  }
+
+  switch (property->getType()) {
+    case VellumValueType::Property:
+      expr.setType(property->asProperty().getType());
+      break;
+    case VellumValueType::Function:
+      expr.setType(property->asFunction().getReturnType());
+      break;
+    default:
+      errorHandler->errorAt(Token(),
+                            std::format("Property '{}' is not accessible.",
+                                        expr.getProperty().toString()));
+      break;
+  }
+}
 
 VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {
   assert(!unresolvedType.isResolved());

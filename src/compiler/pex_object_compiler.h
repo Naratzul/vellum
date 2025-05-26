@@ -16,6 +16,7 @@ class Statement;
 }  // namespace ast
 
 class CompilerErrorHandler;
+class Resolver;
 
 namespace pex {
 class PexFile;
@@ -24,6 +25,7 @@ class PexFile;
 class PexObjectCompiler : public ast::DeclarationVisitor {
  public:
   PexObjectCompiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
+                    std::shared_ptr<Resolver> resolver,
                     pex::PexFile& file);
 
   pex::PexObject compile(
@@ -37,6 +39,7 @@ class PexObjectCompiler : public ast::DeclarationVisitor {
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;
+  std::shared_ptr<Resolver> resolver;
   pex::PexFile& file;
   pex::PexObject object;
 

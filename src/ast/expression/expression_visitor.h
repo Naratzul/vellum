@@ -8,11 +8,13 @@ namespace ast {
 
 class CallExpression;
 class GetExpression;
+class IdentifierExpression;
 class LiteralExpression;
 class IdentifierExpression;
 
 class ExpressionVisitor {
  public:
+  virtual void visitIdentifierExpression(ast::IdentifierExpression& expr) = 0;
   virtual void visitCallExpression(ast::CallExpression& expr) = 0;
   virtual void visitGetExpression(ast::GetExpression& expr) = 0;
 };

@@ -6,6 +6,7 @@
 #include "analyze/semantic_analyzer.h"
 #include "ast/decl/declaration.h"
 #include "compiler/compiler_error_handler.h"
+#include "compiler/resolver.h"
 #include "utils.h"
 
 using namespace vellum;
@@ -17,7 +18,10 @@ TEST_CASE("SemanticGlobalVarTest") {
       std::make_unique<ast::LiteralExpression>(VellumLiteral(42))));
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  const auto result = SemanticAnalyzer(errorHandler).analyze(std::move(ast));
+  auto resolver =
+      std::make_shared<Resolver>(VellumObject(VellumIdentifier("TestScript")));
+  const auto result =
+      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
@@ -36,7 +40,10 @@ TEST_CASE("SemanticAutoPropertyTest") {
       std::nullopt, VellumValue()));
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  const auto result = SemanticAnalyzer(errorHandler).analyze(std::move(ast));
+  auto resolver =
+      std::make_shared<Resolver>(VellumObject(VellumIdentifier("TestScript")));
+  const auto result =
+      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
@@ -55,7 +62,10 @@ TEST_CASE("SemanticFunctionTest") {
       std::vector<std::unique_ptr<ast::Statement>>{}));
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  const auto result = SemanticAnalyzer(errorHandler).analyze(std::move(ast));
+  auto resolver =
+      std::make_shared<Resolver>(VellumObject(VellumIdentifier("TestScript")));
+  const auto result =
+      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);

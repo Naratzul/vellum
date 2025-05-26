@@ -64,10 +64,9 @@ class IdentifierExpression : public Expression {
   VellumValue produceValue() const override { return VellumValue(identifier); }
   VellumType getType() const override { return type; }
 
-  void setType(VellumIdentifier typeName) {
-    type = VellumType::identifier(typeName);
-  }
-  
+  void setType(VellumType type_) { type = type_; }
+
+  void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
  private:
@@ -79,7 +78,9 @@ class CallExpression : public Expression {
  public:
   CallExpression(std::unique_ptr<Expression> callee,
                  std::vector<std::unique_ptr<Expression>> arguments)
-      : callee(std::move(callee)), arguments(std::move(arguments)) {}
+      : callee(std::move(callee)),
+        arguments(std::move(arguments)),
+        type(VellumType::none()) {}
 
   const std::unique_ptr<Expression>& getCallee() const { return callee; }
 
@@ -87,10 +88,13 @@ class CallExpression : public Expression {
     return arguments;
   }
 
-  VellumType getType() const override { return function->getReturnType(); }
+  VellumType getType() const override { return type; }
+  void setType(VellumType type_) { type = type_; }
+
   VellumValue produceValue() const override { return function.value(); }
 
-  void setFunction(VellumFunction function_) { function = function_; }
+  void setFunctionCall(VellumFunctionCall function_) { function = function_; }
+  std::optional<VellumFunctionCall> getFunctionCall() const { return function; }
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
@@ -99,7 +103,8 @@ class CallExpression : public Expression {
  private:
   std::unique_ptr<Expression> callee;
   std::vector<std::unique_ptr<Expression>> arguments;
-  std::optional<VellumFunction> function;
+  std::optional<VellumFunctionCall> function;
+  VellumType type;
 };
 
 class GetExpression : public Expression {
@@ -118,10 +123,9 @@ class GetExpression : public Expression {
 
   VellumType getType() const override { return propertyType; }
 
-  void setType(VellumIdentifier typeName) {
-    propertyType = VellumType::identifier(typeName);
-  }
+  void setType(VellumType typeName) { propertyType = typeName; }
 
+  virtual void accept(ExpressionVisitor& visitor);
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
  private:

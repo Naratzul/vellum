@@ -11,6 +11,7 @@
 namespace vellum {
 
 class CompilerErrorHandler;
+class Resolver;
 
 namespace ast {
 class Expression;
@@ -26,7 +27,8 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
                          public ast::StatementVisitor,
                          public ast::ExpressionVisitor {
  public:
-  explicit SemanticAnalyzer(std::shared_ptr<CompilerErrorHandler> errorHandler);
+  SemanticAnalyzer(std::shared_ptr<CompilerErrorHandler> errorHandler,
+                            std::shared_ptr<Resolver> resolver);
 
   SemanticAnalyzeResult analyze(
       std::vector<std::unique_ptr<ast::Declaration>>&& declarations);
@@ -39,11 +41,14 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
 
   void visitExpressionStatement(ast::ExpressionStatement& statement) override;
   void visitReturnStatement(ast::ReturnStatement& statement) override;
+
+  void visitIdentifierExpression(ast::IdentifierExpression& expr) override;
   void visitCallExpression(ast::CallExpression& expr) override;
   void visitGetExpression(ast::GetExpression& expr) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;
+  std::shared_ptr<Resolver> resolver;
 
   VellumType resolveType(VellumType unresolvedType) const;
   VellumType deduceType(const std::unique_ptr<ast::Expression>& init) const;

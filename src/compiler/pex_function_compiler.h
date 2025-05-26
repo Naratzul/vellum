@@ -13,6 +13,7 @@
 namespace vellum {
 
 class CompilerErrorHandler;
+class Resolver;
 
 namespace ast {
 class CallExpression;
@@ -28,7 +29,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
                             public ast::ExpressionCompiler {
  public:
   PexFunctionCompiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
-                      pex::PexFile& file);
+                      std::shared_ptr<Resolver> resolver, pex::PexFile& file);
 
   pex::PexFunction compile(const ast::FunctionDeclaration& func);
 
@@ -42,6 +43,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;
+  std::shared_ptr<Resolver> resolver;
   pex::PexFile& file;
 
   std::vector<pex::PexFunctionParameter> localVariables;
@@ -51,5 +53,6 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue makeValueFromToken(VellumValue value);
 
   pex::PexTemporaryVariable makeTempVar(const pex::PexString& typeName);
+  pex::PexIdentifier getNoneVar();
 };
 }  // namespace vellum

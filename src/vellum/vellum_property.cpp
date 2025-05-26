@@ -16,4 +16,17 @@ std::ostream& operator<<(std::ostream& os, const VellumPropertyAccess& value) {
   os << value.getObject() << "." << value.getProperty();
   return os;
 }
+
+bool operator==(const VellumProperty& lhs, const VellumProperty& rhs) {
+  return lhs.getName() == rhs.getName() && lhs.getType() == rhs.getType();
+}
+
+bool operator!=(const VellumProperty& lhs, const VellumProperty& rhs) {
+  return !(lhs == rhs);
+}
+
+std::ostream& operator<<(std::ostream& os, const VellumProperty& value) {
+  os << value.getName() << ": " << value.getType();
+  return os;
+}
 }  // namespace vellum

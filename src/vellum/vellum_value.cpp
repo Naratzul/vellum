@@ -64,6 +64,7 @@ std::ostream& operator<<(std::ostream& os, const VellumValue& value) {
   switch (value.getType()) {
     case VellumValueType::Function:
       os << value.asFunction();
+      break;
     case VellumValueType::Identifier:
       os << value.asIdentifier();
       break;

@@ -10,12 +10,11 @@
 using namespace vellum;
 
 TEST_CASE("ParserScriptDeclarationTest") {
-  std::vector<Token> tokens{
-      makeToken(TokenType::SCRIPT, 1, "script"),
-      makeToken(TokenType::IDENTIFIER, 1, "name"),
-      makeToken(TokenType::COLON, 1, ":"),
-      makeToken(TokenType::IDENTIFIER, 1, "parent"),
-      makeToken(TokenType::END_OF_FILE, 1, "")};
+  std::vector<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                            makeToken(TokenType::IDENTIFIER, 1, "name"),
+                            makeToken(TokenType::COLON, 1, ":"),
+                            makeToken(TokenType::IDENTIFIER, 1, "parent"),
+                            makeToken(TokenType::END_OF_FILE, 1, "")};
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
   const auto result =

@@ -11,6 +11,7 @@
 #include "vellum_identifier.h"
 #include "vellum_literal.h"
 #include "vellum_property.h"
+#include "vellum_variable.h"
 
 namespace vellum {
 
@@ -20,25 +21,44 @@ class PexFile;
 
 enum class VellumValueType {
   None,
-  Literal,
+  Function,
+  FunctionCall,
   Identifier,
+  Literal,
+  Property,
   PropertyAccess,
-  Function
+  Variable
 };
 
 class VellumValue {
  public:
   VellumValue() = default;
-  VellumValue(VellumLiteral value)
-      : value(value), type(VellumValueType::Literal) {};
-  VellumValue(VellumIdentifier value)
-      : value(value), type(VellumValueType::Identifier) {};
-  VellumValue(VellumPropertyAccess value)
-      : value(value), type(VellumValueType::PropertyAccess) {};
   VellumValue(VellumFunction value)
-      : value(value), type(VellumValueType::Function) {};
+      : value(value), type(VellumValueType::Function){};
+  VellumValue(VellumFunctionCall value)
+      : value(value), type(VellumValueType::FunctionCall){};
+  VellumValue(VellumLiteral value)
+      : value(value), type(VellumValueType::Literal){};
+  VellumValue(VellumIdentifier value)
+      : value(value), type(VellumValueType::Identifier){};
+  VellumValue(VellumProperty value)
+      : value(value), type(VellumValueType::Property){};
+  VellumValue(VellumPropertyAccess value)
+      : value(value), type(VellumValueType::PropertyAccess){};
+  VellumValue(VellumVariable value)
+      : value(value), type(VellumValueType::Variable){};
 
   VellumValueType getType() const { return type; }
+
+  VellumFunction asFunction() const {
+    assert(type == VellumValueType::Function);
+    return std::get<VellumFunction>(value);
+  }
+
+  VellumFunctionCall asFunctionCall() const {
+    assert(type == VellumValueType::FunctionCall);
+    return std::get<VellumFunctionCall>(value);
+  }
 
   VellumLiteral asLiteral() const {
     assert(type == VellumValueType::Literal);
@@ -50,19 +70,25 @@ class VellumValue {
     return std::get<VellumIdentifier>(value);
   }
 
+  VellumProperty asProperty() const {
+    assert(type == VellumValueType::Property);
+    return std::get<VellumProperty>(value);
+  }
+
   VellumPropertyAccess asPropertyAccess() const {
     assert(type == VellumValueType::PropertyAccess);
     return std::get<VellumPropertyAccess>(value);
   }
 
-  VellumFunction asFunction() const {
-    assert(type == VellumValueType::Function);
-    return std::get<VellumFunction>(value);
+  VellumVariable asVariable() const {
+    assert(type == VellumValueType::Variable);
+    return std::get<VellumVariable>(value);
   }
 
  private:
-  std::variant<std::monostate, VellumLiteral, VellumIdentifier,
-               VellumPropertyAccess, VellumFunction>
+  std::variant<std::monostate, VellumFunction, VellumFunctionCall,
+               VellumLiteral, VellumIdentifier, VellumProperty,
+               VellumPropertyAccess, VellumVariable>
       value;
   VellumValueType type = VellumValueType::None;
 };

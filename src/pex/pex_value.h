@@ -80,8 +80,8 @@ class PexValue {
     float floatNum;
     bool boolean;
 
-    Value() {};
-    ~Value() {};
+    Value() : boolean(false){};
+    ~Value(){};
 
     Value(PexString value) : string(value) {}
     Value(PexIdentifier value) : identifier(value) {}

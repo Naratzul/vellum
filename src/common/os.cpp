@@ -1,6 +1,7 @@
 #ifdef WIN32
 #include <Windows.h>
 #include <lmcons.h>
+#include <debugapi.h>
 #endif
 
 #include "os.h"
@@ -26,7 +27,7 @@ std::string getComputerName() {
   }
   return buf;
 }
-void debugBreak() {}
+void debugBreak() { DebugBreak(); }
 #else
 std::string getUserName() { return std::string(); }
 std::string getComputerName() { return std::string(); }

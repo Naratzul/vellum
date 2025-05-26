@@ -5,8 +5,10 @@
 #include "analyze/semantic_analyzer.h"
 #include "common/fs.h"
 #include "common/os.h"
+#include "common/string_set.h"
 #include "compiler/compiler.h"
 #include "compiler/compiler_error_handler.h"
+#include "compiler/resolver.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "pex/pex_file.h"
@@ -23,7 +25,15 @@ void Vellum::run(std::string_view inputFile) {
     return;
   }
 
-  SemanticAnalyzer semantic(errorHandler);
+  VellumObject debug(VellumIdentifier(("Debug")));
+  debug.addFunction(VellumFunction(
+      VellumIdentifier("messageBox"), VellumType::none(),
+      {VellumVariable(VellumIdentifier("message"),
+                      VellumType::literal(VellumLiteralType::String))}));
+
+  parseResult.resolver->importObject(debug);
+
+  SemanticAnalyzer semantic(errorHandler, parseResult.resolver);
   const SemanticAnalyzeResult semanticResult =
       semantic.analyze(std::move(parseResult.declarations));
   if (errorHandler->hadError()) {
@@ -37,7 +47,7 @@ void Vellum::run(std::string_view inputFile) {
   metadata.userName = common::getUserName();
   metadata.computerName = common::getComputerName();
 
-  Compiler compiler(errorHandler);
+  Compiler compiler(errorHandler, parseResult.resolver);
   pex::PexFile pexFile =
       compiler.compile(metadata, semanticResult.declarations);
 

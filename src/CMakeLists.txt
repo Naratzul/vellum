@@ -10,6 +10,7 @@
     compiler/compiler_error_handler.cpp
     compiler/pex_function_compiler.cpp
     compiler/pex_object_compiler.cpp
+    compiler/resolver.cpp
     lexer/lexer.cpp
     parser/parser.cpp
     pex/pex_file.cpp
@@ -27,9 +28,11 @@
     vellum/vellum_function.cpp
     vellum/vellum_identifier.cpp
     vellum/vellum_literal.cpp
+    vellum/vellum_object.cpp
     vellum/vellum_property.cpp
     vellum/vellum_type.cpp
     vellum/vellum_value.cpp
+    vellum/vellum_variable.cpp
     vellum/vellum.cpp
 )
 

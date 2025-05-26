@@ -19,6 +19,10 @@ bool IdentifierExpression::equals(const Expression& other_) const {
   return identifier == other.identifier;
 }
 
+void IdentifierExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitIdentifierExpression(*this);
+}
+
 pex::PexValue IdentifierExpression::compile(
     ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
@@ -48,6 +52,10 @@ VellumValue GetExpression::produceValue() const {
   const VellumValue objectValue = object->produceValue();
   assert(objectValue.getType() == VellumValueType::Identifier);
   return VellumPropertyAccess(objectValue.asIdentifier(), property);
+}
+
+void GetExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitGetExpression(*this);
 }
 
 pex::PexValue GetExpression::compile(ExpressionCompiler& compiler) const {

@@ -9,6 +9,7 @@
 namespace vellum {
 
 class CompilerErrorHandler;
+class Resolver;
 
 namespace pex {
 class PexFile;
@@ -31,7 +32,8 @@ struct ScriptMetadata {
 
 class Compiler {
  public:
-  explicit Compiler(std::shared_ptr<CompilerErrorHandler> errorHandler);
+  Compiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
+           std::shared_ptr<Resolver> resolver);
 
   pex::PexFile compile(
       const ScriptMetadata& metadata,
@@ -39,6 +41,7 @@ class Compiler {
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;
+  std::shared_ptr<Resolver> resolver;
 
   void fillHeader(pex::PexHeader& header, const ScriptMetadata& metadata);
   void setCompilerVersion(game::GameID gameID, uint8_t& major,
