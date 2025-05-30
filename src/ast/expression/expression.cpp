@@ -69,5 +69,23 @@ bool operator==(const Expression& lhs, const Expression& rhs) {
 bool operator!=(const Expression& lhs, const Expression& rhs) {
   return !(lhs == rhs);
 }
+
+bool AssignExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const AssignExpression&>(other_);
+  return getName() == other.getName() && getType() == other.getType() &&
+         getValue() == other.getValue();
+}
+
+void AssignExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitAssignExpression(*this);
+}
+
+pex::PexValue AssignExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
+IdentifierExpression& Expression::asIdentifier() {
+  return static_cast<IdentifierExpression&>(*this);
+}
 }  // namespace ast
 }  // namespace vellum

@@ -35,6 +35,8 @@ class Resolver {
   std::optional<VellumFunction> resolveFunction(
       VellumIdentifier object, VellumIdentifier function) const;
 
+  std::optional<VellumVariable> resolveVariable(VellumIdentifier name) const;
+
  private:
   VellumObject object;
 

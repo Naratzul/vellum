@@ -15,6 +15,8 @@ namespace ast {
 class ExpressionVisitor;
 class ExpressionCompiler;
 
+class IdentifierExpression;
+
 class Expression {
  public:
   virtual ~Expression() = default;
@@ -28,6 +30,9 @@ class Expression {
 
   virtual bool isLiteralExpression() const { return false; }
   virtual bool isIdentifierExpression() const { return false; }
+  virtual bool isPropertyGetExpression() const { return false; }
+
+  IdentifierExpression& asIdentifier();
 };
 
 bool operator==(const Expression& lhs, const Expression& rhs);
@@ -69,6 +74,8 @@ class IdentifierExpression : public Expression {
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
+  bool isIdentifierExpression() const override { return true; }
+
  private:
   VellumIdentifier identifier;
   VellumType type;
@@ -107,6 +114,29 @@ class CallExpression : public Expression {
   VellumType type;
 };
 
+class AssignExpression : public Expression {
+ public:
+  AssignExpression(VellumIdentifier name, std::unique_ptr<Expression> value)
+      : name(name), value(std::move(value)), type(VellumType::none()) {}
+
+  bool equals(const Expression& other) const override;
+
+  VellumValue produceValue() const override { return value->produceValue(); }
+  VellumType getType() const override { return type; }
+  void setType(VellumType type_) { type = type_; }
+
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  VellumIdentifier getName() const { return name; }
+  const std::unique_ptr<Expression>& getValue() const { return value; }
+
+ private:
+  VellumIdentifier name;
+  std::unique_ptr<Expression> value;
+  VellumType type;
+};
+
 class GetExpression : public Expression {
  public:
   GetExpression(std::unique_ptr<Expression> object, VellumIdentifier property)
@@ -127,6 +157,8 @@ class GetExpression : public Expression {
 
   virtual void accept(ExpressionVisitor& visitor);
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  virtual bool isPropertyGetExpression() const { return true; }
 
  private:
   std::unique_ptr<Expression> object;

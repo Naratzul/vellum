@@ -37,4 +37,9 @@ std::optional<VellumFunction> Resolver::resolveFunction(
   return std::nullopt;
 }
 
+std::optional<VellumVariable> Resolver::resolveVariable(
+    VellumIdentifier name) const {
+  return object.findVariable(name);
+}
+
 }  // namespace vellum

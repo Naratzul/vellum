@@ -40,6 +40,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::IdentifierExpression& expr) override;
   pex::PexValue compile(const ast::CallExpression& expr) override;
   pex::PexValue compile(const ast::GetExpression& expr) override;
+  pex::PexValue compile(const ast::AssignExpression& expr) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;

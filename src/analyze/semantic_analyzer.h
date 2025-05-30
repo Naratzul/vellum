@@ -28,7 +28,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
                          public ast::ExpressionVisitor {
  public:
   SemanticAnalyzer(std::shared_ptr<CompilerErrorHandler> errorHandler,
-                            std::shared_ptr<Resolver> resolver);
+                   std::shared_ptr<Resolver> resolver);
 
   SemanticAnalyzeResult analyze(
       std::vector<std::unique_ptr<ast::Declaration>>&& declarations);
@@ -45,6 +45,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   void visitIdentifierExpression(ast::IdentifierExpression& expr) override;
   void visitCallExpression(ast::CallExpression& expr) override;
   void visitGetExpression(ast::GetExpression& expr) override;
+  void visitAssignExpression(ast::AssignExpression& expr) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;

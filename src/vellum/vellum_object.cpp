@@ -35,4 +35,15 @@ std::optional<VellumFunction> VellumObject::findFunction(
   return std::nullopt;
 }
 
+std::optional<VellumVariable> VellumObject::findVariable(
+    VellumIdentifier identifier) const {
+  for (const auto& member : variables) {
+    if (member.getName() == identifier) {
+      return member;
+    }
+  }
+
+  return std::nullopt;
+}
+
 }  // namespace vellum

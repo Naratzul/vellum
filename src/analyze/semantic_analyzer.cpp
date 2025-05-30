@@ -105,7 +105,6 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
 
 void SemanticAnalyzer::visitIdentifierExpression(
     ast::IdentifierExpression& expr) {
-
   // TODO: hack for testing, need to remove it
   if (expr.getIdentifier() == VellumIdentifier("Debug")) {
     return;
@@ -183,6 +182,28 @@ void SemanticAnalyzer::visitGetExpression(ast::GetExpression& expr) {
                             std::format("Property '{}' is not accessible.",
                                         expr.getProperty().toString()));
       break;
+  }
+}
+
+void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
+  const auto variable = resolver->resolveVariable(expr.getName());
+  if (!variable) {
+    errorHandler->errorAt(Token(), std::format("Undefined variable '{}'.",
+                                               expr.getName().toString()));
+    return;
+  }
+
+  expr.setType(variable->getType());
+  expr.getValue()->accept(*this);
+
+  if (expr.getType() != expr.getValue()->getType()) {
+    errorHandler->errorAt(
+        Token(),
+        std::format("Can't assign a value of type '{}' to a variable '{}' of "
+                    "type '{}'.",
+                    expr.getValue()->getType().toString(),
+                    expr.getName().toString(), expr.getType().toString()));
+    return;
   }
 }
 

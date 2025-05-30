@@ -270,6 +270,26 @@ std::unique_ptr<ast::Statement> Parser::expressionStatement() {
 }
 
 std::unique_ptr<ast::Expression> Parser::expression() {
+  return assignExpression();
+}
+
+std::unique_ptr<ast::Expression> Parser::assignExpression() {
+  auto expr = callOrGetExpression();
+
+  if (match(TokenType::EQUAL)) {
+    if (expr->isIdentifierExpression()) {
+      return std::make_unique<ast::AssignExpression>(
+          expr->asIdentifier().getIdentifier(), expression());
+    } else if (expr->isPropertyGetExpression()) {
+    } else {
+      errorHandler->errorAt(previous, "Invalid assignment target.");
+    }
+  }
+
+  return expr;
+}
+
+std::unique_ptr<ast::Expression> Parser::callOrGetExpression() {
   auto expr = primaryExpression();
 
   while (true) {

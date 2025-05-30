@@ -36,6 +36,7 @@ class VellumObject {
   std::optional<VellumValue> findIdentifier(VellumIdentifier identifier) const;
   std::optional<VellumValue> findProperty(VellumIdentifier identifier) const;
   std::optional<VellumFunction> findFunction(VellumIdentifier identifier) const;
+  std::optional<VellumVariable> findVariable(VellumIdentifier identifier) const;
 
  private:
   VellumIdentifier name;
