@@ -44,7 +44,8 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
 
   void visitIdentifierExpression(ast::IdentifierExpression& expr) override;
   void visitCallExpression(ast::CallExpression& expr) override;
-  void visitGetExpression(ast::GetExpression& expr) override;
+  void visitPropertyGetExpression(ast::PropertyGetExpression& expr) override;
+  void visitPropertySetExpression(ast::PropertySetExpression& expr) override;
   void visitAssignExpression(ast::AssignExpression& expr) override;
 
  private:

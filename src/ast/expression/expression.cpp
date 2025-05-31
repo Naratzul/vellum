@@ -42,23 +42,24 @@ bool CallExpression::equals(const Expression& other_) const {
          getArguments() == other.getArguments();
 }
 
-bool GetExpression::equals(const Expression& other_) const {
-  auto& other = static_cast<const GetExpression&>(other_);
+bool PropertyGetExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const PropertyGetExpression&>(other_);
   return getObject()->equals(*other.getObject()) &&
          getProperty() == other.getProperty();
 }
 
-VellumValue GetExpression::produceValue() const {
+VellumValue PropertyGetExpression::produceValue() const {
   const VellumValue objectValue = object->produceValue();
   assert(objectValue.getType() == VellumValueType::Identifier);
   return VellumPropertyAccess(objectValue.asIdentifier(), property);
 }
 
-void GetExpression::accept(ExpressionVisitor& visitor) {
-  visitor.visitGetExpression(*this);
+void PropertyGetExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitPropertyGetExpression(*this);
 }
 
-pex::PexValue GetExpression::compile(ExpressionCompiler& compiler) const {
+pex::PexValue PropertyGetExpression::compile(
+    ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
 
@@ -86,6 +87,30 @@ pex::PexValue AssignExpression::compile(ExpressionCompiler& compiler) const {
 
 IdentifierExpression& Expression::asIdentifier() {
   return static_cast<IdentifierExpression&>(*this);
+}
+
+PropertyGetExpression& Expression::asPropertyGet() {
+  return static_cast<PropertyGetExpression&>(*this);
+}
+
+bool PropertySetExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const PropertySetExpression&>(other_);
+  return getObject()->equals(*other.getObject()) &&
+         getProperty() == other.getProperty() &&
+         getValue()->equals(*other.getValue());
+}
+
+VellumValue PropertySetExpression::produceValue() const {
+  return VellumValue();
+}
+
+void PropertySetExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitPropertySetExpression(*this);
+}
+
+pex::PexValue PropertySetExpression::compile(
+    ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
 }
 }  // namespace ast
 }  // namespace vellum

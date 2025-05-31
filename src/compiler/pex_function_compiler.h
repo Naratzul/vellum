@@ -39,7 +39,8 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::LiteralExpression& expr) override;
   pex::PexValue compile(const ast::IdentifierExpression& expr) override;
   pex::PexValue compile(const ast::CallExpression& expr) override;
-  pex::PexValue compile(const ast::GetExpression& expr) override;
+  pex::PexValue compile(const ast::PropertyGetExpression& expr) override;
+  pex::PexValue compile(const ast::PropertySetExpression& expr) override;
   pex::PexValue compile(const ast::AssignExpression& expr) override;
 
  private:

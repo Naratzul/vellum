@@ -69,7 +69,7 @@ pex::PexValue PexFunctionCompiler::compile(
     const ast::IdentifierExpression& expr) {
   if (auto property = resolver->resolveIdentifier(expr.getIdentifier())) {
     if (property->getType() == VellumValueType::Property) {
-      ast::GetExpression getExpr(
+      ast::PropertyGetExpression getExpr(
           std::make_unique<ast::IdentifierExpression>(VellumIdentifier("self")),
           expr.getIdentifier());
       getExpr.setType(property->asProperty().getType());
@@ -128,7 +128,8 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
   return retVal;
 }
 
-pex::PexValue PexFunctionCompiler::compile(const ast::GetExpression& expr) {
+pex::PexValue PexFunctionCompiler::compile(
+    const ast::PropertyGetExpression& expr) {
   const VellumPropertyAccess property = expr.produceValue().asPropertyAccess();
   const pex::PexValue retVal =
       makeTempVar(file.getString(expr.getType().toString()));
@@ -141,6 +142,16 @@ pex::PexValue PexFunctionCompiler::compile(const ast::GetExpression& expr) {
   instructions.emplace_back(pex::PexOpCode::PropGet, std::move(args));
 
   return pex::PexIdentifier(retVal.asTempVar().getName());
+}
+
+pex::PexValue PexFunctionCompiler::compile(
+    const ast::PropertySetExpression& expr) {
+  const pex::PexValue object = expr.getObject()->compile(*this);
+  const pex::PexValue value = expr.getValue()->compile(*this);
+  std::vector<pex::PexValue> args = {makePexValue(expr.getProperty(), file),
+                                     object, value};
+  instructions.emplace_back(pex::PexOpCode::PropSet, std::move(args));
+  return value;
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {

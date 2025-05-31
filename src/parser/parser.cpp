@@ -281,6 +281,9 @@ std::unique_ptr<ast::Expression> Parser::assignExpression() {
       return std::make_unique<ast::AssignExpression>(
           expr->asIdentifier().getIdentifier(), expression());
     } else if (expr->isPropertyGetExpression()) {
+      ast::PropertyGetExpression& getExpr = expr->asPropertyGet();
+      return std::make_unique<ast::PropertySetExpression>(
+          getExpr.getObject(), getExpr.getProperty(), expression());
     } else {
       errorHandler->errorAt(previous, "Invalid assignment target.");
     }
@@ -297,7 +300,7 @@ std::unique_ptr<ast::Expression> Parser::callOrGetExpression() {
       expr = callExpression(std::move(expr));
     } else if (match(TokenType::DOT)) {
       consume(TokenType::IDENTIFIER, "Expect a property name after '.'");
-      expr = std::make_unique<ast::GetExpression>(
+      expr = std::make_unique<ast::PropertyGetExpression>(
           std::move(expr), VellumIdentifier(previous.lexeme));
     } else {
       break;

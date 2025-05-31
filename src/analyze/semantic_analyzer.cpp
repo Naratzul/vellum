@@ -157,7 +157,8 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   }
 }
 
-void SemanticAnalyzer::visitGetExpression(ast::GetExpression& expr) {
+void SemanticAnalyzer::visitPropertyGetExpression(
+    ast::PropertyGetExpression& expr) {
   expr.getObject()->accept(*this);
 
   const VellumIdentifier object =
@@ -182,6 +183,42 @@ void SemanticAnalyzer::visitGetExpression(ast::GetExpression& expr) {
                             std::format("Property '{}' is not accessible.",
                                         expr.getProperty().toString()));
       break;
+  }
+}
+
+void SemanticAnalyzer::visitPropertySetExpression(
+    ast::PropertySetExpression& expr) {
+  expr.getObject()->accept(*this);
+
+  const auto property = resolver->resolveProperty(
+      expr.getObject()->produceValue().asIdentifier(), expr.getProperty());
+  if (!property) {
+    errorHandler->errorAt(Token(), std::format("Undefined property '{}'.",
+                                               expr.getProperty().toString()));
+    return;
+  }
+
+  switch (property->getType()) {
+    case VellumValueType::Property:
+      expr.setType(property->asProperty().getType());
+      break;
+    default:
+      errorHandler->errorAt(Token(),
+                            std::format("'{}' is not assignable.",
+                                        expr.getProperty().toString()));
+      return;
+  }
+
+  expr.getValue()->accept(*this);
+
+  if (expr.getType() != expr.getValue()->getType()) {
+    errorHandler->errorAt(
+        Token(),
+        std::format("Can't assign a value of type '{}' to a property '{}' of "
+                    "type '{}'.",
+                    expr.getValue()->getType().toString(),
+                    expr.getProperty().toString(), expr.getType().toString()));
+    return;
   }
 }
 
