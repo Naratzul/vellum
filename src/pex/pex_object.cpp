@@ -11,7 +11,6 @@ PexWriter& operator<<(PexWriter& writer, const PexObject& object) {
          << object.getAutoStateName();
 
   writer << object.getVariables();
-
   writer << object.getProperties();
   writer << object.getStates();
 
