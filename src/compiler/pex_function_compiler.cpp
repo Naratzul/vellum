@@ -161,6 +161,28 @@ pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
   return value;
 }
 
+pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
+  auto dest = makeTempVar(file.getString(expr.getType().toString()));
+  std::vector<pex::PexValue> args = {dest, expr.getLeft()->compile(*this),
+                                     expr.getRight()->compile(*this)};
+  pex::PexOpCode code;
+  switch (expr.getOperator()) {
+    case ast::BinaryExpression::Operator::Add:
+      if (expr.getType().isInt()) {
+        code = pex::PexOpCode::IAdd;
+      } else if (expr.getType().isFloat()) {
+        code = pex::PexOpCode::FAdd;
+      } else if (expr.getType().isString()) {
+        code = pex::PexOpCode::StrCat;
+      }
+      break;
+  };
+
+  instructions.emplace_back(code, std::move(args));
+
+  return dest;
+}  // namespace vellum
+
 pex::PexValue PexFunctionCompiler::makeValueFromToken(VellumValue value) {
   std::optional<pex::PexValue> pexValue = makePexValue(value, file);
   if (!pexValue) {

@@ -292,6 +292,38 @@ std::unique_ptr<ast::Expression> Parser::assignExpression() {
   return expr;
 }
 
+std::unique_ptr<ast::Expression> Parser::termExpression() {
+  auto expr = factorExpression();
+
+  if (match({TokenType::MINUS, TokenType::PLUS})) {
+    const Token op = previous;
+    expr = std::make_unique<ast::BinaryExpression>(
+        op.type == TokenType::MINUS ? ast::BinaryExpression::Operator::Subtract
+                                    : ast::BinaryExpression::Operator::Add,
+        std::move(expr), factorExpression());
+  }
+
+  return expr;
+}
+
+std::unique_ptr<ast::Expression> Parser::factorExpression() {
+  auto expr = unaryExpression();
+
+  if (match({TokenType::STAR, TokenType::SLASH})) {
+    const Token op = previous;
+    expr = std::make_unique<ast::BinaryExpression>(
+        op.type == TokenType::STAR ? ast::BinaryExpression::Operator::Multiply
+                                   : ast::BinaryExpression::Operator::Divide,
+        std::move(expr), factorExpression());
+  }
+
+  return expr;
+}
+
+std::unique_ptr<ast::Expression> Parser::unaryExpression() {
+  return callOrGetExpression();
+}
+
 std::unique_ptr<ast::Expression> Parser::callOrGetExpression() {
   auto expr = primaryExpression();
 

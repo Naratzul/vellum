@@ -205,5 +205,50 @@ class PropertySetExpression : public Expression {
   VellumType propertyType;
 };
 
+class BinaryExpression : public Expression {
+ public:
+  enum class Operator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
+    And,
+    Or
+  };
+
+  BinaryExpression(Operator op, std::unique_ptr<Expression> left,
+                   std::unique_ptr<Expression> right)
+      : op(op),
+        left(std::move(left)),
+        right(std::move(right)),
+        type(VellumType::unresolved()) {}
+
+  Operator getOperator() const { return op; }
+  const std::unique_ptr<Expression>& getLeft() const { return left; }
+  const std::unique_ptr<Expression>& getRight() const { return right; }
+
+  bool equals(const Expression& other) const override;
+
+  VellumValue produceValue() const override;
+  VellumType getType() const override { return type; }
+  void setType(VellumType type_) { type = type_; }
+
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+ private:
+  Operator op;
+  std::unique_ptr<Expression> left;
+  std::unique_ptr<Expression> right;
+  VellumType type;
+};
+
 }  // namespace ast
 }  // namespace vellum

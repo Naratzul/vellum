@@ -112,5 +112,25 @@ pex::PexValue PropertySetExpression::compile(
     ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
+
+bool BinaryExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const BinaryExpression&>(other_);
+  return op == other.op && left->equals(*other.left) &&
+         right->equals(*other.right);
+}
+
+VellumValue BinaryExpression::produceValue() const {
+  // Binary expressions don't produce a value directly
+  return VellumValue();
+}
+
+void BinaryExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitBinaryExpression(*this);
+}
+
+pex::PexValue BinaryExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
 }  // namespace ast
 }  // namespace vellum

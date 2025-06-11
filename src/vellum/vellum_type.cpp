@@ -74,6 +74,21 @@ std::string_view VellumType::toString() const {
   }
 }
 
+bool VellumType::isInt() const {
+  return getState() == VellumTypeState::Literal &&
+         asLiteralType() == VellumLiteralType::Int;
+}
+
+bool VellumType::isFloat() const {
+  return getState() == VellumTypeState::Literal &&
+         asLiteralType() == VellumLiteralType::Float;
+}
+
+bool VellumType::isString() const {
+  return getState() == VellumTypeState::Literal &&
+         asLiteralType() == VellumLiteralType::String;
+}
+
 VellumType::VellumType(std::string_view type)
     : state(VellumTypeState::Unresolved), type(type) {}
 

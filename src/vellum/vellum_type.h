@@ -26,6 +26,10 @@ class VellumType {
   VellumLiteralType asLiteralType() const;
   VellumIdentifier asIdentifier() const;
 
+  bool isInt() const;
+  bool isFloat() const;
+  bool isString() const;
+
   std::string_view toString() const;
 
  private:

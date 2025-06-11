@@ -244,6 +244,47 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
   }
 }
 
+void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
+  expr.getLeft()->accept(*this);
+  expr.getRight()->accept(*this);
+
+  const VellumType leftType = expr.getLeft()->getType();
+  const VellumType rightType = expr.getRight()->getType();
+
+  // For comparison operators, result is always boolean
+  if (expr.getOperator() == ast::BinaryExpression::Operator::Equal ||
+      expr.getOperator() == ast::BinaryExpression::Operator::NotEqual ||
+      expr.getOperator() == ast::BinaryExpression::Operator::LessThan ||
+      expr.getOperator() == ast::BinaryExpression::Operator::LessThanEqual ||
+      expr.getOperator() == ast::BinaryExpression::Operator::GreaterThan ||
+      expr.getOperator() == ast::BinaryExpression::Operator::GreaterThanEqual ||
+      expr.getOperator() == ast::BinaryExpression::Operator::And ||
+      expr.getOperator() == ast::BinaryExpression::Operator::Or) {
+    expr.setType(VellumType::literal(VellumLiteralType::Bool));
+    return;
+  }
+
+  // For arithmetic operators, both operands must be numeric
+  if (expr.getOperator() == ast::BinaryExpression::Operator::Add ||
+      expr.getOperator() == ast::BinaryExpression::Operator::Subtract ||
+      expr.getOperator() == ast::BinaryExpression::Operator::Multiply ||
+      expr.getOperator() == ast::BinaryExpression::Operator::Divide ||
+      expr.getOperator() == ast::BinaryExpression::Operator::Modulo) {
+    if (leftType != rightType && (leftType.isInt() || leftType.isFloat())) {
+      errorHandler->errorAt(
+          Token(), std::format("Cannot perform arithmetic operation on "
+                               "types: {} and {}",
+                               leftType.toString(), rightType.toString()));
+      return;
+    }
+    // Result type is the same as the left operand
+    expr.setType(leftType);
+    return;
+  }
+
+  errorHandler->errorAt(Token(), "Unsupported binary operator");
+}
+
 VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {
   assert(!unresolvedType.isResolved());
   const std::string_view rawType = unresolvedType.asRawType();
