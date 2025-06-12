@@ -13,6 +13,49 @@
 
 namespace vellum {
 
+namespace {
+pex::PexOpCode getBinaryOpCode(ast::BinaryExpression::Operator op,
+                               const VellumType& type) {
+  switch (op) {
+    case ast::BinaryExpression::Operator::Add:
+      if (type.isInt()) return pex::PexOpCode::IAdd;
+      if (type.isFloat()) return pex::PexOpCode::FAdd;
+      if (type.isString()) return pex::PexOpCode::StrCat;
+      break;
+    case ast::BinaryExpression::Operator::Subtract:
+      if (type.isInt()) return pex::PexOpCode::ISub;
+      if (type.isFloat()) return pex::PexOpCode::FSub;
+      break;
+    case ast::BinaryExpression::Operator::Multiply:
+      if (type.isInt()) return pex::PexOpCode::IMul;
+      if (type.isFloat()) return pex::PexOpCode::FMul;
+      break;
+    case ast::BinaryExpression::Operator::Divide:
+      if (type.isInt()) return pex::PexOpCode::IDiv;
+      if (type.isFloat()) return pex::PexOpCode::FDiv;
+      break;
+    case ast::BinaryExpression::Operator::Modulo:
+      if (type.isInt()) return pex::PexOpCode::IMod;
+      break;
+    case ast::BinaryExpression::Operator::Equal:
+      return pex::PexOpCode::CmpEq;
+    case ast::BinaryExpression::Operator::NotEqual:
+      return pex::PexOpCode::CmpEq;  // Will be followed by Not
+    case ast::BinaryExpression::Operator::LessThan:
+      return pex::PexOpCode::CmpLt;
+    case ast::BinaryExpression::Operator::LessThanEqual:
+      return pex::PexOpCode::CmpLte;
+    case ast::BinaryExpression::Operator::GreaterThan:
+      return pex::PexOpCode::CmpGt;
+    case ast::BinaryExpression::Operator::GreaterThanEqual:
+      return pex::PexOpCode::CmpGte;
+    default:
+      break;
+  }
+  return pex::PexOpCode::Invalid;
+}
+}  // namespace
+
 PexFunctionCompiler::PexFunctionCompiler(
     std::shared_ptr<CompilerErrorHandler> errorHandler,
     std::shared_ptr<Resolver> resolver, pex::PexFile& file)
@@ -162,26 +205,27 @@ pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
-  auto dest = makeTempVar(file.getString(expr.getType().toString()));
+  auto dest = pex::PexIdentifier(
+      makeTempVar(file.getString(expr.getType().toString())).getName());
   std::vector<pex::PexValue> args = {dest, expr.getLeft()->compile(*this),
                                      expr.getRight()->compile(*this)};
-  pex::PexOpCode code;
-  switch (expr.getOperator()) {
-    case ast::BinaryExpression::Operator::Add:
-      if (expr.getType().isInt()) {
-        code = pex::PexOpCode::IAdd;
-      } else if (expr.getType().isFloat()) {
-        code = pex::PexOpCode::FAdd;
-      } else if (expr.getType().isString()) {
-        code = pex::PexOpCode::StrCat;
-      }
-      break;
-  };
+
+  pex::PexOpCode code = getBinaryOpCode(expr.getOperator(), expr.getType());
+  if (code == pex::PexOpCode::Invalid) {
+    errorHandler->errorAt(Token(), "Unsupported binary operator");
+    return dest;
+  }
 
   instructions.emplace_back(code, std::move(args));
 
+  // Handle NotEqual by adding a Not operation after comparison
+  if (expr.getOperator() == ast::BinaryExpression::Operator::NotEqual) {
+    std::vector<pex::PexValue> notArgs = {dest, dest};
+    instructions.emplace_back(pex::PexOpCode::Not, std::move(notArgs));
+  }
+
   return dest;
-}  // namespace vellum
+}
 
 pex::PexValue PexFunctionCompiler::makeValueFromToken(VellumValue value) {
   std::optional<pex::PexValue> pexValue = makePexValue(value, file);

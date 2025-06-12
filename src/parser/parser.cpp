@@ -249,6 +249,9 @@ ast::FunctionBody Parser::functionBody(FunctionType type) {
 
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
     body.push_back(statement());
+    if (errorHandler->isPanicMode()) {
+      synchronize();
+    }
   }
 
   consume(TokenType::RIGHT_BRACE, "Expect '}}' after {} body.",
@@ -274,7 +277,7 @@ std::unique_ptr<ast::Expression> Parser::expression() {
 }
 
 std::unique_ptr<ast::Expression> Parser::assignExpression() {
-  auto expr = callOrGetExpression();
+  auto expr = equalityExpression();
 
   if (match(TokenType::EQUAL)) {
     if (expr->isIdentifierExpression()) {
@@ -287,6 +290,42 @@ std::unique_ptr<ast::Expression> Parser::assignExpression() {
     } else {
       errorHandler->errorAt(previous, "Invalid assignment target.");
     }
+  }
+
+  return expr;
+}
+
+std::unique_ptr<ast::Expression> Parser::equalityExpression() {
+  auto expr = compareExpression();
+
+  if (match({TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL})) {
+    const Token op = previous;
+    expr = std::make_unique<ast::BinaryExpression>(
+        op.type == TokenType::EQUAL_EQUAL
+            ? ast::BinaryExpression::Operator::Equal
+            : ast::BinaryExpression::Operator::NotEqual,
+        std::move(expr), compareExpression());
+  }
+
+  return expr;
+}
+
+std::unique_ptr<ast::Expression> Parser::compareExpression() {
+  auto expr = termExpression();
+
+  if (match({TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER,
+             TokenType::GREATER_EQUAL})) {
+    auto op = ast::BinaryExpression::Operator::LessThan;
+    if (previous.type == TokenType::LESS_EQUAL) {
+      op = ast::BinaryExpression::Operator::LessThanEqual;
+    } else if (previous.type == TokenType::GREATER) {
+      op = ast::BinaryExpression::Operator::GreaterThan;
+    } else if (previous.type == TokenType::GREATER_EQUAL) {
+      op = ast::BinaryExpression::Operator::GreaterThanEqual;
+    }
+
+    expr = std::make_unique<ast::BinaryExpression>(op, std::move(expr),
+                                                   termExpression());
   }
 
   return expr;
@@ -309,12 +348,24 @@ std::unique_ptr<ast::Expression> Parser::termExpression() {
 std::unique_ptr<ast::Expression> Parser::factorExpression() {
   auto expr = unaryExpression();
 
-  if (match({TokenType::STAR, TokenType::SLASH})) {
+  if (match({TokenType::STAR, TokenType::SLASH, TokenType::PERCENT})) {
     const Token op = previous;
-    expr = std::make_unique<ast::BinaryExpression>(
-        op.type == TokenType::STAR ? ast::BinaryExpression::Operator::Multiply
-                                   : ast::BinaryExpression::Operator::Divide,
-        std::move(expr), factorExpression());
+    ast::BinaryExpression::Operator binOp;
+    switch (op.type) {
+      case TokenType::STAR:
+        binOp = ast::BinaryExpression::Operator::Multiply;
+        break;
+      case TokenType::SLASH:
+        binOp = ast::BinaryExpression::Operator::Divide;
+        break;
+      case TokenType::PERCENT:
+        binOp = ast::BinaryExpression::Operator::Modulo;
+        break;
+      default:
+        assert(false && "Unexpected operator type");
+    }
+    expr = std::make_unique<ast::BinaryExpression>(binOp, std::move(expr),
+                                                   factorExpression());
   }
 
   return expr;

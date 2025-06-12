@@ -27,13 +27,9 @@ void CompilerErrorHandler::printError(const Token& token,
   std::ostringstream stream;
   stream << std::format("[line {}] Error", token.line);
 
-  if (token.type == TokenType::ERROR) {
-    return;
-  }
-
   if (token.type == TokenType::END_OF_FILE) {
     stream << " at end";
-  } else {
+  } else if (token.type != TokenType::ERROR) {
     stream << std::format(" at {}", token.lexeme);
   }
 

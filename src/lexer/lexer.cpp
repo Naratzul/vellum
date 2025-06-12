@@ -2,6 +2,8 @@
 
 #include <charconv>
 
+#include "common/string_set.h"
+
 #ifdef __APPLE__
 #include <cstdlib>
 #endif
@@ -54,6 +56,8 @@ Token Lexer::scanToken() {
       return makeToken(TokenType::SLASH);
     case '*':
       return makeToken(TokenType::STAR);
+    case '%':
+      return makeToken(TokenType::PERCENT);
     case '!':
       return makeToken(match('=') ? TokenType::BANG_EQUAL : TokenType::BANG);
     case '=':
@@ -67,7 +71,8 @@ Token Lexer::scanToken() {
       return string();
   }
 
-  return errorToken("Unexpected character.");
+  return errorToken(
+      common::StringSet::insert(std::format("Unexpected character '{}'.", c)));
 }
 
 Token Lexer::makeToken(TokenType type,
