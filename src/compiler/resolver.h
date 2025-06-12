@@ -26,6 +26,12 @@ class Resolver {
     importedObjects.push_back(std::move(importedObject));
   }
 
+  void pushFunction(const VellumFunction& func);
+  void popFunction();
+
+  void pushLocalVar(const VellumVariable& var);
+  void popLocalVar();
+
   std::optional<VellumValue> resolveIdentifier(
       VellumIdentifier identifier) const;
 
@@ -41,5 +47,7 @@ class Resolver {
   VellumObject object;
 
   std::vector<VellumObject> importedObjects;
+  std::vector<VellumFunction> functions;
+  std::vector<VellumVariable> localVars;
 };
 }  // namespace vellum

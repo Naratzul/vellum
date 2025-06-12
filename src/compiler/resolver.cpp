@@ -1,9 +1,35 @@
 #include "resolver.h"
 
 namespace vellum {
+void Resolver::pushFunction(const VellumFunction& func) {
+  functions.push_back(func);
+
+  for (const auto& var : func.getParameters()) {
+    pushLocalVar(var);
+  }
+}
+
+void Resolver::popFunction() {
+  for (int i = 0; i < functions.back().getParameters().size(); ++i) {
+    popLocalVar();
+  }
+  functions.pop_back();
+}
+
+void Resolver::pushLocalVar(const VellumVariable& var) {
+  localVars.push_back(var);
+}
+
+void Resolver::popLocalVar() { localVars.pop_back(); }
 
 std::optional<VellumValue> Resolver::resolveIdentifier(
     VellumIdentifier identifier) const {
+  for (const auto& var : localVars) {
+    if (var.getName() == identifier) {
+      return var;
+    }
+  }
+
   return object.findIdentifier(identifier);
 }
 

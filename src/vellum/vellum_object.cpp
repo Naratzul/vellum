@@ -3,11 +3,8 @@ namespace vellum {
 
 std::optional<VellumValue> VellumObject::findIdentifier(
     VellumIdentifier identifier) const {
-
-  for (const auto& member : variables) {
-    if (member.getName() == identifier) {
-      return member;
-    }
+  if (auto member = findVariable(identifier)) {
+    return member;
   }
 
   return findProperty(identifier);

@@ -24,9 +24,10 @@ class Expression {
   virtual bool equals(const Expression& other) const = 0;
 
   virtual VellumValue produceValue() const = 0;
-  virtual VellumType getType() const = 0;
+  virtual VellumType getType() const { return type; }
+  virtual void setType(VellumType type_) { type = type_; }
 
-  virtual void accept(ExpressionVisitor& visitor) {}
+  virtual void accept(ExpressionVisitor& visitor) { (void)visitor; }
   virtual pex::PexValue compile(ExpressionCompiler& compiler) const = 0;
 
   virtual bool isLiteralExpression() const { return false; }
@@ -35,6 +36,9 @@ class Expression {
 
   IdentifierExpression& asIdentifier();
   PropertyGetExpression& asPropertyGet();
+
+ protected:
+  VellumType type{VellumType::unresolved()};
 };
 
 bool operator==(const Expression& lhs, const Expression& rhs);
@@ -63,15 +67,12 @@ class LiteralExpression : public Expression {
 class IdentifierExpression : public Expression {
  public:
   explicit IdentifierExpression(VellumIdentifier identifier)
-      : identifier(identifier), type(VellumType::unresolved()) {}
+      : identifier(identifier) {}
 
   VellumIdentifier getIdentifier() const { return identifier; }
   bool equals(const Expression& other) const override;
 
   VellumValue produceValue() const override { return VellumValue(identifier); }
-  VellumType getType() const override { return type; }
-
-  void setType(VellumType type_) { type = type_; }
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
@@ -80,25 +81,19 @@ class IdentifierExpression : public Expression {
 
  private:
   VellumIdentifier identifier;
-  VellumType type;
 };
 
 class CallExpression : public Expression {
  public:
   CallExpression(std::unique_ptr<Expression> callee,
                  std::vector<std::unique_ptr<Expression>> arguments)
-      : callee(std::move(callee)),
-        arguments(std::move(arguments)),
-        type(VellumType::none()) {}
+      : callee(std::move(callee)), arguments(std::move(arguments)) {}
 
   const std::unique_ptr<Expression>& getCallee() const { return callee; }
 
   const std::vector<std::unique_ptr<Expression>>& getArguments() const {
     return arguments;
   }
-
-  VellumType getType() const override { return type; }
-  void setType(VellumType type_) { type = type_; }
 
   VellumValue produceValue() const override { return function.value(); }
 
@@ -113,19 +108,16 @@ class CallExpression : public Expression {
   std::unique_ptr<Expression> callee;
   std::vector<std::unique_ptr<Expression>> arguments;
   std::optional<VellumFunctionCall> function;
-  VellumType type;
 };
 
 class AssignExpression : public Expression {
  public:
   AssignExpression(VellumIdentifier name, std::unique_ptr<Expression> value)
-      : name(name), value(std::move(value)), type(VellumType::none()) {}
+      : name(name), value(std::move(value)) {}
 
   bool equals(const Expression& other) const override;
 
   VellumValue produceValue() const override { return value->produceValue(); }
-  VellumType getType() const override { return type; }
-  void setType(VellumType type_) { type = type_; }
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
@@ -136,16 +128,13 @@ class AssignExpression : public Expression {
  private:
   VellumIdentifier name;
   std::unique_ptr<Expression> value;
-  VellumType type;
 };
 
 class PropertyGetExpression : public Expression {
  public:
   PropertyGetExpression(std::unique_ptr<Expression> object,
                         VellumIdentifier property)
-      : object(std::move(object)),
-        property(property),
-        propertyType(VellumType::unresolved()) {}
+      : object(std::move(object)), property(property) {}
 
   const std::unique_ptr<Expression>& getObject() const { return object; }
   std::unique_ptr<Expression> getObject() { return std::move(object); }
@@ -156,19 +145,14 @@ class PropertyGetExpression : public Expression {
 
   VellumValue produceValue() const override;
 
-  VellumType getType() const override { return propertyType; }
-
-  void setType(VellumType typeName) { propertyType = typeName; }
-
-  virtual void accept(ExpressionVisitor& visitor);
+  void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
-  virtual bool isPropertyGetExpression() const { return true; }
+  bool isPropertyGetExpression() const override { return true; }
 
  private:
   std::unique_ptr<Expression> object;
   VellumIdentifier property;
-  VellumType propertyType;
 };
 
 class PropertySetExpression : public Expression {
@@ -178,8 +162,7 @@ class PropertySetExpression : public Expression {
                         std::unique_ptr<Expression> value)
       : object(std::move(object)),
         property(property),
-        value(std::move(value)),
-        propertyType(VellumType::unresolved()) {}
+        value(std::move(value)) {}
 
   const std::unique_ptr<Expression>& getObject() const { return object; }
   VellumIdentifier getProperty() const { return property; }
@@ -189,20 +172,15 @@ class PropertySetExpression : public Expression {
 
   VellumValue produceValue() const override;
 
-  VellumType getType() const override { return propertyType; }
-
-  void setType(VellumType typeName) { propertyType = typeName; }
-
-  virtual void accept(ExpressionVisitor& visitor);
+  void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
-  virtual bool isPropertyGetExpression() const { return true; }
+  bool isPropertyGetExpression() const override { return true; }
 
  private:
   std::unique_ptr<Expression> object;
   VellumIdentifier property;
   std::unique_ptr<Expression> value;
-  VellumType propertyType;
 };
 
 class BinaryExpression : public Expression {
@@ -225,10 +203,7 @@ class BinaryExpression : public Expression {
 
   BinaryExpression(Operator op, std::unique_ptr<Expression> left,
                    std::unique_ptr<Expression> right)
-      : op(op),
-        left(std::move(left)),
-        right(std::move(right)),
-        type(VellumType::unresolved()) {}
+      : op(op), left(std::move(left)), right(std::move(right)) {}
 
   Operator getOperator() const { return op; }
   const std::unique_ptr<Expression>& getLeft() const { return left; }
@@ -237,8 +212,6 @@ class BinaryExpression : public Expression {
   bool equals(const Expression& other) const override;
 
   VellumValue produceValue() const override;
-  VellumType getType() const override { return type; }
-  void setType(VellumType type_) { type = type_; }
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
@@ -247,7 +220,32 @@ class BinaryExpression : public Expression {
   Operator op;
   std::unique_ptr<Expression> left;
   std::unique_ptr<Expression> right;
-  VellumType type;
+};
+
+class GroupingExpression : public Expression {
+ public:
+  explicit GroupingExpression(std::unique_ptr<Expression> expr)
+      : expr(std::move(expr)) {}
+
+  const std::unique_ptr<Expression>& getExpression() const { return expr; }
+
+  bool equals(const Expression& other) const override {
+    return expr->equals(other);
+  }
+
+  VellumValue produceValue() const override { return expr->produceValue(); }
+  VellumType getType() const override { return expr->getType(); }
+
+  void accept(ExpressionVisitor& visitor) override {
+    return expr->accept(visitor);
+  }
+
+  pex::PexValue compile(ExpressionCompiler& compiler) const override {
+    return expr->compile(compiler);
+  }
+
+ private:
+  std::unique_ptr<Expression> expr;
 };
 
 }  // namespace ast

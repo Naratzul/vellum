@@ -27,7 +27,9 @@ SemanticAnalyzeResult SemanticAnalyzer::analyze(
 }
 
 void SemanticAnalyzer::visitScriptDeclaration(
-    ast::ScriptDeclaration& statement) {}
+    ast::ScriptDeclaration& statement) {
+  (void)statement;
+}
 
 void SemanticAnalyzer::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& statement) {
@@ -75,13 +77,16 @@ void SemanticAnalyzer::visitFunctionDeclaration(
         resolveType(declaration.getReturnTypeName());
   }
 
+  VellumFunction func(VellumIdentifier(declaration.getName().value()),
+                      declaration.getReturnTypeName(), std::move(parameters));
+  resolver->pushFunction(func);
+
   for (auto& statement : declaration.getBody()) {
     statement->accept(*this);
   }
 
-  resolver->addFunction(
-      VellumFunction(VellumIdentifier(declaration.getName().value()),
-                     declaration.getReturnTypeName(), std::move(parameters)));
+  resolver->popFunction();
+  resolver->addFunction(func);
 }
 
 void SemanticAnalyzer::visitPropertyDeclaration(

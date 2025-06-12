@@ -298,7 +298,7 @@ std::unique_ptr<ast::Expression> Parser::assignExpression() {
 std::unique_ptr<ast::Expression> Parser::equalityExpression() {
   auto expr = compareExpression();
 
-  if (match({TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL})) {
+  while (match({TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL})) {
     const Token op = previous;
     expr = std::make_unique<ast::BinaryExpression>(
         op.type == TokenType::EQUAL_EQUAL
@@ -313,8 +313,8 @@ std::unique_ptr<ast::Expression> Parser::equalityExpression() {
 std::unique_ptr<ast::Expression> Parser::compareExpression() {
   auto expr = termExpression();
 
-  if (match({TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER,
-             TokenType::GREATER_EQUAL})) {
+  while (match({TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER,
+                TokenType::GREATER_EQUAL})) {
     auto op = ast::BinaryExpression::Operator::LessThan;
     if (previous.type == TokenType::LESS_EQUAL) {
       op = ast::BinaryExpression::Operator::LessThanEqual;
@@ -334,7 +334,7 @@ std::unique_ptr<ast::Expression> Parser::compareExpression() {
 std::unique_ptr<ast::Expression> Parser::termExpression() {
   auto expr = factorExpression();
 
-  if (match({TokenType::MINUS, TokenType::PLUS})) {
+  while (match({TokenType::MINUS, TokenType::PLUS})) {
     const Token op = previous;
     expr = std::make_unique<ast::BinaryExpression>(
         op.type == TokenType::MINUS ? ast::BinaryExpression::Operator::Subtract
@@ -348,7 +348,7 @@ std::unique_ptr<ast::Expression> Parser::termExpression() {
 std::unique_ptr<ast::Expression> Parser::factorExpression() {
   auto expr = unaryExpression();
 
-  if (match({TokenType::STAR, TokenType::SLASH, TokenType::PERCENT})) {
+  while (match({TokenType::STAR, TokenType::SLASH, TokenType::PERCENT})) {
     const Token op = previous;
     ast::BinaryExpression::Operator binOp;
     switch (op.type) {
@@ -418,6 +418,12 @@ std::unique_ptr<ast::Expression> Parser::primaryExpression() {
   if (match(TokenType::IDENTIFIER)) {
     return std::make_unique<ast::IdentifierExpression>(
         VellumIdentifier(previous.lexeme));
+  }
+
+  if (match(TokenType::LEFT_PAREN)) {
+    auto expr = expression();
+    consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+    return std::make_unique<ast::GroupingExpression>(std::move(expr));
   }
 
   errorHandler->errorAt(current, "Unexpected expression.");
