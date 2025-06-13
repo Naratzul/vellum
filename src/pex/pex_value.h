@@ -76,12 +76,13 @@ class PexValue {
     PexString string;
     PexIdentifier identifier;
     PexTemporaryVariable tempVar;
+
     int32_t intNum;
     float floatNum;
     bool boolean;
 
-    Value() : boolean(false){};
-    ~Value(){};
+    Value() : boolean(false) {};
+    ~Value() {};
 
     Value(PexString value) : string(value) {}
     Value(PexIdentifier value) : identifier(value) {}

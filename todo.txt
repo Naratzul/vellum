@@ -1,0 +1,17 @@
+bugs:
+- 
+
+features:
+- local variables
+- variable self-usage in its own initializer
+- if statement
+- for statement
+- while statement
+- imports
+
+tests:
+- return statement
+- binary operations (lexer, parser, semantic, compiler)
+
+done:
+- logical operations

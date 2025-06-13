@@ -89,6 +89,12 @@ bool VellumType::isString() const {
          asLiteralType() == VellumLiteralType::String;
 }
 
+bool VellumType::isBool() const {
+  return getState() == VellumTypeState::Literal &&
+         asLiteralType() == VellumLiteralType::Bool;
+  ;
+}
+
 VellumType::VellumType(std::string_view type)
     : state(VellumTypeState::Unresolved), type(type) {}
 

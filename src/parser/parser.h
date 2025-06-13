@@ -64,6 +64,8 @@ class Parser {
 
   std::unique_ptr<ast::Expression> expression();
   std::unique_ptr<ast::Expression> assignExpression();
+  std::unique_ptr<ast::Expression> logicalOrExpression();
+  std::unique_ptr<ast::Expression> logicalAndExpression();
   std::unique_ptr<ast::Expression> equalityExpression();
   std::unique_ptr<ast::Expression> compareExpression();
   std::unique_ptr<ast::Expression> termExpression();

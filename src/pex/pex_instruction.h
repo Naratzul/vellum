@@ -62,6 +62,8 @@ class PexInstruction {
   const std::vector<PexValue>& getArgs() const { return args; }
   const std::vector<PexValue>& getVariadicArgs() const { return variadicArgs; }
 
+  void setArg(int index, pex::PexValue value) { args[index] = value; }
+
  private:
   PexOpCode code;
   std::vector<PexValue> args;

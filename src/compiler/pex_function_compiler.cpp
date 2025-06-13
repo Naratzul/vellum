@@ -140,8 +140,10 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
   const pex::PexValue retVal =
       function->getReturnType() == VellumType::none()
           ? getNoneVar()
-          : pex::PexValue(makeTempVar(
-                file.getString(function->getReturnType().toString())));
+          : pex::PexValue(pex::PexIdentifier(
+                makeTempVar(
+                    file.getString(function->getReturnType().toString()))
+                    .getName()));
 
   if (functionCall.isStatic()) {
     opcode = pex::PexOpCode::CallStatic;
@@ -207,21 +209,58 @@ pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
 pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
   auto dest = pex::PexIdentifier(
       makeTempVar(file.getString(expr.getType().toString())).getName());
-  std::vector<pex::PexValue> args = {dest, expr.getLeft()->compile(*this),
-                                     expr.getRight()->compile(*this)};
 
-  pex::PexOpCode code = getBinaryOpCode(expr.getOperator(), expr.getType());
-  if (code == pex::PexOpCode::Invalid) {
-    errorHandler->errorAt(Token(), "Unsupported binary operator");
-    return dest;
-  }
+  if (expr.getOperator() == ast::BinaryExpression::Operator::And) {
+    std::vector<pex::PexValue> leftArgs = {dest,
+                                           expr.getLeft()->compile(*this)};
+    instructions.emplace_back(pex::PexOpCode::Assign, std::move(leftArgs));
 
-  instructions.emplace_back(code, std::move(args));
+    pex::PexValue label(int32_t(-1));
+    std::vector<pex::PexValue> jmpArgs = {dest, label};
+    size_t offset = instructions.size();
+    instructions.emplace_back(pex::PexOpCode::JmpF, std::move(jmpArgs));
 
-  // Handle NotEqual by adding a Not operation after comparison
-  if (expr.getOperator() == ast::BinaryExpression::Operator::NotEqual) {
-    std::vector<pex::PexValue> notArgs = {dest, dest};
-    instructions.emplace_back(pex::PexOpCode::Not, std::move(notArgs));
+    std::vector<pex::PexValue> rightArgs = {dest,
+                                            expr.getRight()->compile(*this)};
+    instructions.emplace_back(pex::PexOpCode::Assign, std::move(rightArgs));
+
+    pex::PexInstruction& jmpInstr = instructions[offset];
+    jmpInstr.setArg(1, pex::PexValue(int32_t(instructions.size() - offset)));
+
+  } else if (expr.getOperator() == ast::BinaryExpression::Operator::Or) {
+    std::vector<pex::PexValue> leftArgs = {dest,
+                                           expr.getLeft()->compile(*this)};
+    instructions.emplace_back(pex::PexOpCode::Assign, std::move(leftArgs));
+
+    pex::PexValue label(int32_t(-1));
+    std::vector<pex::PexValue> jmpArgs = {dest, label};
+    size_t offset = instructions.size();
+    instructions.emplace_back(pex::PexOpCode::JmpT, std::move(jmpArgs));
+
+    std::vector<pex::PexValue> rightArgs = {dest,
+                                            expr.getRight()->compile(*this)};
+    instructions.emplace_back(pex::PexOpCode::Assign, std::move(rightArgs));
+
+    pex::PexInstruction& jmpInstr = instructions[offset];
+    jmpInstr.setArg(1, pex::PexValue(int32_t(instructions.size() - offset)));
+
+  } else {
+    std::vector<pex::PexValue> args = {dest, expr.getLeft()->compile(*this),
+                                       expr.getRight()->compile(*this)};
+
+    pex::PexOpCode code = getBinaryOpCode(expr.getOperator(), expr.getType());
+    if (code == pex::PexOpCode::Invalid) {
+      errorHandler->errorAt(Token(), "Unsupported binary operator");
+      return dest;
+    }
+
+    instructions.emplace_back(code, std::move(args));
+
+    // Handle NotEqual by adding a Not operation after comparison
+    if (expr.getOperator() == ast::BinaryExpression::Operator::NotEqual) {
+      std::vector<pex::PexValue> notArgs = {dest, dest};
+      instructions.emplace_back(pex::PexOpCode::Not, std::move(notArgs));
+    }
   }
 
   return dest;

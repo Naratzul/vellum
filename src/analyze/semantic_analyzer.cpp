@@ -157,6 +157,18 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
       break;
   }
 
+  const auto& func =
+      resolver->resolveFunction(expr.getFunctionCall()->getObject(),
+                                expr.getFunctionCall()->getFunction());
+  if (!func) {
+    errorHandler->errorAt(
+        Token(), std::format("Undefined function '{}'.",
+                             expr.getFunctionCall()->getFunction().toString()));
+    return;
+  }
+
+  expr.setType(func->getReturnType());
+
   for (auto& arg : expr.getArguments()) {
     arg->accept(*this);
   }
@@ -255,6 +267,20 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
 
   const VellumType leftType = expr.getLeft()->getType();
   const VellumType rightType = expr.getRight()->getType();
+
+  if (expr.getOperator() == ast::BinaryExpression::Operator::And ||
+      expr.getOperator() == ast::BinaryExpression::Operator::Or) {
+    if (!(leftType.isBool() && rightType.isBool())) {
+      errorHandler->errorAt(
+          Token(),
+          std::format("Cannot perform logical operation on "
+                      "types: {} and {}. Both operands must be of Bool type.",
+                      leftType.toString(), rightType.toString()));
+      return;
+    }
+    expr.setType(VellumType::literal(VellumLiteralType::Bool));
+    return;
+  }
 
   // For comparison operators, result is always boolean
   if (expr.getOperator() == ast::BinaryExpression::Operator::Equal ||

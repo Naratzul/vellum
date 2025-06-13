@@ -29,6 +29,7 @@ class VellumType {
   bool isInt() const;
   bool isFloat() const;
   bool isString() const;
+  bool isBool() const;
 
   std::string_view toString() const;
 

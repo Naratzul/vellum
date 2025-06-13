@@ -277,19 +277,43 @@ std::unique_ptr<ast::Expression> Parser::expression() {
 }
 
 std::unique_ptr<ast::Expression> Parser::assignExpression() {
-  auto expr = equalityExpression();
+  auto expr = logicalOrExpression();
 
   if (match(TokenType::EQUAL)) {
     if (expr->isIdentifierExpression()) {
       return std::make_unique<ast::AssignExpression>(
-          expr->asIdentifier().getIdentifier(), expression());
+          expr->asIdentifier().getIdentifier(), assignExpression());
     } else if (expr->isPropertyGetExpression()) {
       ast::PropertyGetExpression& getExpr = expr->asPropertyGet();
       return std::make_unique<ast::PropertySetExpression>(
-          getExpr.getObject(), getExpr.getProperty(), expression());
+          getExpr.getObject(), getExpr.getProperty(), assignExpression());
     } else {
       errorHandler->errorAt(previous, "Invalid assignment target.");
     }
+  }
+
+  return expr;
+}
+
+std::unique_ptr<ast::Expression> Parser::logicalOrExpression() {
+  auto expr = logicalAndExpression();
+
+  while (match(TokenType::OR)) {
+    expr = std::make_unique<ast::BinaryExpression>(
+        ast::BinaryExpression::Operator::Or, std::move(expr),
+        logicalAndExpression());
+  }
+
+  return expr;
+}
+
+std::unique_ptr<ast::Expression> Parser::logicalAndExpression() {
+  auto expr = equalityExpression();
+
+  while (match(TokenType::AND)) {
+    expr = std::make_unique<ast::BinaryExpression>(
+        ast::BinaryExpression::Operator::And, std::move(expr),
+        equalityExpression());
   }
 
   return expr;
