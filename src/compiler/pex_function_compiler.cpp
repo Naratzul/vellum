@@ -104,6 +104,46 @@ void PexFunctionCompiler::visitReturnStatement(
       std::vector<pex::PexValue>{statement.getExpression()->compile(*this)});
 }
 
+void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
+  assert(statement.getCondition()->getType().isBool());
+  const auto condition = pex::PexIdentifier(
+      makeTempVar(
+          file.getString(statement.getCondition()->getType().toString()))
+          .getName());
+  std::vector<pex::PexValue> assign_args = {
+      condition, statement.getCondition()->compile(*this)};
+  instructions.emplace_back(pex::PexOpCode::Assign, std::move(assign_args));
+
+  pex::PexValue jmp_to_else_label(int32_t(0));
+  std::vector<pex::PexValue> jmp_to_else_args = {condition, jmp_to_else_label};
+  size_t jmp_to_else_pos = instructions.size();
+  instructions.emplace_back(pex::PexOpCode::JmpF, std::move(jmp_to_else_args));
+
+  for (const auto& stmt : statement.getThenBlock()) {
+    stmt->accept(*this);
+  }
+
+  size_t jmp_to_end_pos = instructions.size();
+
+  if (statement.getElseBlock().has_value()) {
+    pex::PexValue jmp_to_end_label(int32_t(0));
+    std::vector<pex::PexValue> endJmpArgs = {jmp_to_end_label};
+    instructions.emplace_back(pex::PexOpCode::Jmp, endJmpArgs);
+  }
+
+  instructions[jmp_to_else_pos].setArg(
+      1, pex::PexValue(int32_t(instructions.size() - jmp_to_else_pos)));
+
+  if (statement.getElseBlock().has_value()) {
+    for (const auto& stmt : statement.getElseBlock().value()) {
+      stmt->accept(*this);
+    }
+
+    instructions[jmp_to_end_pos].setArg(
+        0, pex::PexValue(int32_t(instructions.size() - jmp_to_end_pos)));
+  }
+}
+
 pex::PexValue PexFunctionCompiler::compile(const ast::LiteralExpression& expr) {
   return makePexValue(expr.getLiteral(), file);
 }
@@ -215,7 +255,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
                                            expr.getLeft()->compile(*this)};
     instructions.emplace_back(pex::PexOpCode::Assign, std::move(leftArgs));
 
-    pex::PexValue label(int32_t(-1));
+    pex::PexValue label(int32_t(0));
     std::vector<pex::PexValue> jmpArgs = {dest, label};
     size_t offset = instructions.size();
     instructions.emplace_back(pex::PexOpCode::JmpF, std::move(jmpArgs));
@@ -232,7 +272,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
                                            expr.getLeft()->compile(*this)};
     instructions.emplace_back(pex::PexOpCode::Assign, std::move(leftArgs));
 
-    pex::PexValue label(int32_t(-1));
+    pex::PexValue label(int32_t(0));
     std::vector<pex::PexValue> jmpArgs = {dest, label};
     size_t offset = instructions.size();
     instructions.emplace_back(pex::PexOpCode::JmpT, std::move(jmpArgs));

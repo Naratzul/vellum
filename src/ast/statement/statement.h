@@ -54,5 +54,33 @@ class ReturnStatement : public Statement {
   std::unique_ptr<Expression> expression;
 };
 
+class IfStatement : public Statement {
+ public:
+  IfStatement(std::unique_ptr<Expression> condition,
+              std::vector<std::unique_ptr<Statement>> then_block,
+              std::optional<std::vector<std::unique_ptr<Statement>>>
+                  else_block = std::nullopt)
+      : condition(std::move(condition)),
+        then_block(std::move(then_block)),
+        else_block(std::move(else_block)) {}
+
+  const std::unique_ptr<Expression>& getCondition() const { return condition; }
+  const std::vector<std::unique_ptr<Statement>>& getThenBlock() const {
+    return then_block;
+  }
+  const std::optional<std::vector<std::unique_ptr<Statement>>>& getElseBlock()
+      const {
+    return else_block;
+  }
+
+  void accept(StatementVisitor& visitor) override;
+  bool equals(const Statement& other) const override;
+
+ private:
+  std::unique_ptr<Expression> condition;
+  std::vector<std::unique_ptr<Statement>> then_block;
+  std::optional<std::vector<std::unique_ptr<Statement>>> else_block;
+};
+
 }  // namespace ast
 }  // namespace vellum

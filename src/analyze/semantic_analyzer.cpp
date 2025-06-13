@@ -108,6 +108,18 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
   statement.getExpression()->accept(*this);
 }
 
+void SemanticAnalyzer::visitIfStatement(ast::IfStatement& statement) {
+  statement.getCondition()->accept(*this);
+  for (const auto& stmt : statement.getThenBlock()) {
+    stmt->accept(*this);
+  }
+  if (statement.getElseBlock().has_value()) {
+    for (const auto& stmt : statement.getElseBlock().value()) {
+      stmt->accept(*this);
+    }
+  }
+}
+
 void SemanticAnalyzer::visitIdentifierExpression(
     ast::IdentifierExpression& expr) {
   // TODO: hack for testing, need to remove it

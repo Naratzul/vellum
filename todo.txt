@@ -4,7 +4,6 @@ bugs:
 features:
 - local variables
 - variable self-usage in its own initializer
-- if statement
 - for statement
 - while statement
 - imports
@@ -15,3 +14,4 @@ tests:
 
 done:
 - logical operations
+- if statements

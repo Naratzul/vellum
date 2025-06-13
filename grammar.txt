@@ -17,7 +17,7 @@
 <param>          ::= <identifier> ":" <type>
 
 <block>          ::= "{" <statement>* "}"
-<statement>      ::= <local-var-decl> | <expr-stmt> | <return-stmt>
+<statement>      ::= <local-var-decl> | <expr-stmt> | <return-stmt> | <if-stmt>
 
 <local-var-decl> ::= "var" <identifier> (":" <type>)? ("=" <expr>)? <newline>
 
@@ -41,3 +41,5 @@
 <bin-op>         ::= "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">"
 <unary-op>       ::= "-" | "!"
 <newline>        ::= "\n" | ";"
+
+<if-stmt>        ::= "if" <expr> <block> ("else" <block>)?

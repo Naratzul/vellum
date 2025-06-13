@@ -6,11 +6,14 @@ namespace ast {
 
 class ExpressionStatement;
 class ReturnStatement;
+class IfStatement;
 
 class StatementVisitor {
  public:
-  virtual void visitExpressionStatement(ExpressionStatement& statement) = 0;
-  virtual void visitReturnStatement(ReturnStatement& statement) = 0;
+  virtual ~StatementVisitor() = default;
+  virtual void visitExpressionStatement(ExpressionStatement& stmt) = 0;
+  virtual void visitReturnStatement(ReturnStatement& stmt) = 0;
+  virtual void visitIfStatement(IfStatement& stmt) = 0;
 };
 
 }  // namespace ast

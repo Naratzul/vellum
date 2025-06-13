@@ -261,11 +261,48 @@ ast::FunctionBody Parser::functionBody(FunctionType type) {
 }
 
 std::unique_ptr<ast::Statement> Parser::statement() {
+  if (match(TokenType::IF)) {
+    return ifStatement();
+  }
   if (match(TokenType::RETURN)) {
-    return std::make_unique<ast::ReturnStatement>(expression());
+    return returnStatement();
+  }
+  return expressionStatement();
+}
+
+std::unique_ptr<ast::Statement> Parser::ifStatement() {
+  auto condition = expression();
+
+  consume(TokenType::LEFT_BRACE, "Expected '{{' after if condition.");
+  std::vector<std::unique_ptr<ast::Statement>> then_branch;
+  while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
+    then_branch.push_back(statement());
+    if (errorHandler->isPanicMode()) {
+      synchronize();
+    }
+  }
+  consume(TokenType::RIGHT_BRACE, "Expected '}}' after if block.");
+
+  std::optional<std::vector<std::unique_ptr<ast::Statement>>> else_branch;
+  if (match(TokenType::ELSE)) {
+    std::vector<std::unique_ptr<ast::Statement>> else_statements;
+    consume(TokenType::LEFT_BRACE, "Expected '{{' after 'else'.");
+    while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
+      else_statements.push_back(statement());
+      if (errorHandler->isPanicMode()) {
+        synchronize();
+      }
+    }
+    consume(TokenType::RIGHT_BRACE, "Expected '}}' after else block.");
+    else_branch = std::move(else_statements);
   }
 
-  return expressionStatement();
+  return std::make_unique<ast::IfStatement>(
+      std::move(condition), std::move(then_branch), std::move(else_branch));
+}
+
+std::unique_ptr<ast::Statement> Parser::returnStatement() {
+  return std::make_unique<ast::ReturnStatement>(expression());
 }
 
 std::unique_ptr<ast::Statement> Parser::expressionStatement() {
