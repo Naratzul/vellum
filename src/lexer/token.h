@@ -48,6 +48,7 @@ enum class TokenType {
   GET,
   IF,
   NIL,
+  NOT,
   OR,
   PRINT,
   RETURN,

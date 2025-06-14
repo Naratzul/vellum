@@ -28,6 +28,7 @@ class Resolver {
 
   void pushFunction(const VellumFunction& func);
   void popFunction();
+  const VellumFunction& topFunction();
 
   void pushLocalVar(const VellumVariable& var);
   void popLocalVar();

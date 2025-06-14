@@ -222,6 +222,26 @@ class BinaryExpression : public Expression {
   std::unique_ptr<Expression> right;
 };
 
+class UnaryExpression : public Expression {
+ public:
+  enum class Operator { Negate, Not };
+
+  UnaryExpression(Operator op, std::unique_ptr<Expression> operand)
+      : op(op), operand(std::move(operand)) {}
+
+  Operator getOperator() const { return op; }
+  const std::unique_ptr<Expression>& getOperand() const { return operand; }
+
+  bool equals(const Expression& other) const override;
+  VellumValue produceValue() const override;
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+ private:
+  Operator op;
+  std::unique_ptr<Expression> operand;
+};
+
 class GroupingExpression : public Expression {
  public:
   explicit GroupingExpression(std::unique_ptr<Expression> expr)

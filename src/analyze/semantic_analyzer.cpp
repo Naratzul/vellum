@@ -106,6 +106,16 @@ void SemanticAnalyzer::visitExpressionStatement(
 
 void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
   statement.getExpression()->accept(*this);
+  const VellumFunction& func = resolver->topFunction();
+  if (statement.getExpression()->getType() != func.getReturnType()) {
+    errorHandler->errorAt(
+        Token(),
+        std::format(
+            "Return type mismatch. Given type is '{}'. Expected type is '{}'.",
+            statement.getExpression()->getType().toString(),
+            func.getReturnType().toString()));
+    return;
+  }
 }
 
 void SemanticAnalyzer::visitIfStatement(ast::IfStatement& statement) {
@@ -326,6 +336,34 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
   }
 
   errorHandler->errorAt(Token(), "Unsupported binary operator");
+}
+
+void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
+  expr.getOperand()->accept(*this);
+  expr.setType(expr.getOperand()->getType());
+
+  switch (expr.getOperator()) {
+    case ast::UnaryExpression::Operator::Negate:
+      if (!expr.getType().isInt() || expr.getType().isFloat()) {
+        errorHandler->errorAt(
+            Token(),
+            std::format(
+                "Unary operator '-' can be applied only to expressions with "
+                "numeric types (Int, Float). Given type is '{}'",
+                expr.getType().toString()));
+      }
+      break;
+    case ast::UnaryExpression::Operator::Not:
+      if (!expr.getType().isBool()) {
+        errorHandler->errorAt(
+            Token(),
+            std::format(
+                "Unary operator 'not' can be applied only to expressions with "
+                "Bool type. Given type is '{}'",
+                expr.getType().toString()));
+      }
+      break;
+  }
 }
 
 VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {

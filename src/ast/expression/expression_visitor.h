@@ -14,6 +14,7 @@ class LiteralExpression;
 class IdentifierExpression;
 class AssignExpression;
 class BinaryExpression;
+class UnaryExpression;
 
 class ExpressionVisitor {
  public:
@@ -23,6 +24,7 @@ class ExpressionVisitor {
   virtual void visitPropertySetExpression(ast::PropertySetExpression& expr) = 0;
   virtual void visitAssignExpression(ast::AssignExpression& expr) = 0;
   virtual void visitBinaryExpression(ast::BinaryExpression& expr) = 0;
+  virtual void visitUnaryExpression(ast::UnaryExpression& expr) = 0;
 };
 
 class ExpressionCompiler {
@@ -34,6 +36,7 @@ class ExpressionCompiler {
   virtual pex::PexValue compile(const ast::PropertySetExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::AssignExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::BinaryExpression& expr) = 0;
+  virtual pex::PexValue compile(const ast::UnaryExpression& expr) = 0;
 };
 
 }  // namespace ast

@@ -174,7 +174,15 @@ TokenType Lexer::identifierType() const {
     case 'i':
       return checkKeyword(1, 1, "f", TokenType::IF);
     case 'n':
-      return checkKeyword(1, 2, "il", TokenType::NIL);
+      if (current - start > 1) {
+        switch (start[1]) {
+          case 'i':
+            return checkKeyword(2, 1, "l", TokenType::NIL);
+          case 'o':
+            return checkKeyword(2, 1, "t", TokenType::NOT);
+        }
+        break;
+      }
     case 'o':
       return checkKeyword(1, 1, "r", TokenType::OR);
     case 'p':

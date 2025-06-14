@@ -16,6 +16,8 @@ void Resolver::popFunction() {
   functions.pop_back();
 }
 
+const VellumFunction& Resolver::topFunction() { return functions.back(); }
+
 void Resolver::pushLocalVar(const VellumVariable& var) {
   localVars.push_back(var);
 }

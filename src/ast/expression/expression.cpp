@@ -132,5 +132,20 @@ pex::PexValue BinaryExpression::compile(ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
 
+bool UnaryExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const UnaryExpression&>(other_);
+  return op == other.op && operand->equals(*other.operand);
+}
+
+VellumValue UnaryExpression::produceValue() const { return VellumValue(); }
+
+void UnaryExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitUnaryExpression(*this);
+}
+
+pex::PexValue UnaryExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
 }  // namespace ast
 }  // namespace vellum

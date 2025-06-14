@@ -433,6 +433,13 @@ std::unique_ptr<ast::Expression> Parser::factorExpression() {
 }
 
 std::unique_ptr<ast::Expression> Parser::unaryExpression() {
+  if (match({TokenType::MINUS, TokenType::NOT})) {
+    auto op = previous.type;
+    return std::make_unique<ast::UnaryExpression>(
+        op == TokenType::MINUS ? ast::UnaryExpression::Operator::Negate
+                               : ast::UnaryExpression::Operator::Not,
+        op == TokenType::MINUS ? unaryExpression() : logicalOrExpression());
+  }
   return callOrGetExpression();
 }
 

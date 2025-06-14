@@ -306,6 +306,36 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
   return dest;
 }
 
+pex::PexValue PexFunctionCompiler::compile(const ast::UnaryExpression& expr) {
+  auto dest = pex::PexIdentifier(
+      makeTempVar(file.getString(expr.getType().toString())).getName());
+
+  switch (expr.getOperator()) {
+    case ast::UnaryExpression::Operator::Negate:
+      if (expr.getType().isInt()) {
+        std::vector<pex::PexValue> args = {dest,
+                                           expr.getOperand()->compile(*this)};
+        instructions.emplace_back(pex::PexOpCode::INeg, std::move(args));
+
+      } else if (expr.getType().isFloat()) {
+        std::vector<pex::PexValue> args = {dest,
+                                           expr.getOperand()->compile(*this)};
+        instructions.emplace_back(pex::PexOpCode::FNeg, std::move(args));
+      } else {
+        assert(false && "Invalid operand type");
+      }
+      break;
+    case ast::UnaryExpression::Operator::Not:
+      assert(expr.getType().isBool());
+      std::vector<pex::PexValue> args = {dest,
+                                         expr.getOperand()->compile(*this)};
+      instructions.emplace_back(pex::PexOpCode::Not, std::move(args));
+      break;
+  }
+
+  return dest;
+}
+
 pex::PexValue PexFunctionCompiler::makeValueFromToken(VellumValue value) {
   std::optional<pex::PexValue> pexValue = makePexValue(value, file);
   if (!pexValue) {

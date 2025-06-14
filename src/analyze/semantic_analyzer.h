@@ -49,6 +49,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   void visitPropertySetExpression(ast::PropertySetExpression& expr) override;
   void visitAssignExpression(ast::AssignExpression& expr) override;
   void visitBinaryExpression(ast::BinaryExpression& expr) override;
+  void visitUnaryExpression(ast::UnaryExpression& expr) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;
