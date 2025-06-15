@@ -82,5 +82,29 @@ class IfStatement : public Statement {
   std::optional<std::vector<std::unique_ptr<Statement>>> else_block;
 };
 
+class LocalVariableStatement : public Statement {
+ public:
+  LocalVariableStatement(VellumIdentifier name, std::optional<VellumType> type,
+                         std::unique_ptr<Expression> initializer)
+      : name(name), type(type), initializer(std::move(initializer)) {}
+
+  VellumIdentifier getName() const { return name; }
+
+  std::optional<VellumType> getType() const { return type; }
+  void setType(VellumType type_) { type = type_; }
+
+  const std::unique_ptr<Expression>& getInitializer() const {
+    return initializer;
+  }
+
+  void accept(StatementVisitor& visitor) override;
+  bool equals(const Statement& other) const override;
+
+ private:
+  VellumIdentifier name;
+  std::optional<VellumType> type;
+  std::unique_ptr<Expression> initializer;
+};
+
 }  // namespace ast
 }  // namespace vellum

@@ -63,6 +63,7 @@ class Parser {
   std::unique_ptr<ast::Statement> expressionStatement();
   std::unique_ptr<ast::Statement> ifStatement();
   std::unique_ptr<ast::Statement> returnStatement();
+  std::unique_ptr<ast::Statement> varStatement();
 
   std::unique_ptr<ast::Expression> expression();
   std::unique_ptr<ast::Expression> assignExpression();

@@ -79,14 +79,13 @@ void SemanticAnalyzer::visitFunctionDeclaration(
 
   VellumFunction func(VellumIdentifier(declaration.getName().value()),
                       declaration.getReturnTypeName(), std::move(parameters));
-  resolver->pushFunction(func);
+  resolver->addFunction(func);
 
+  resolver->startFunction(func);
   for (auto& statement : declaration.getBody()) {
     statement->accept(*this);
   }
-
-  resolver->popFunction();
-  resolver->addFunction(func);
+  resolver->endFunction();
 }
 
 void SemanticAnalyzer::visitPropertyDeclaration(
@@ -106,28 +105,66 @@ void SemanticAnalyzer::visitExpressionStatement(
 
 void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
   statement.getExpression()->accept(*this);
-  const VellumFunction& func = resolver->topFunction();
-  if (statement.getExpression()->getType() != func.getReturnType()) {
+  const auto& func = resolver->getCurrentFunction();
+  assert(func.has_value());
+  if (statement.getExpression()->getType() != func->getReturnType()) {
     errorHandler->errorAt(
         Token(),
         std::format(
             "Return type mismatch. Given type is '{}'. Expected type is '{}'.",
             statement.getExpression()->getType().toString(),
-            func.getReturnType().toString()));
+            func->getReturnType().toString()));
     return;
   }
 }
 
 void SemanticAnalyzer::visitIfStatement(ast::IfStatement& statement) {
   statement.getCondition()->accept(*this);
+
+  resolver->pushScope();
   for (const auto& stmt : statement.getThenBlock()) {
     stmt->accept(*this);
   }
+  resolver->popScope();
+
   if (statement.getElseBlock().has_value()) {
+    resolver->pushScope();
     for (const auto& stmt : statement.getElseBlock().value()) {
       stmt->accept(*this);
     }
+    resolver->popScope();
   }
+}
+
+void SemanticAnalyzer::visitLocalVariableStatement(
+    ast::LocalVariableStatement& statement) {
+  std::optional<VellumType> annotatedType;
+  if (auto type = statement.getType()) {
+    annotatedType = resolveType(type.value());
+    statement.setType(annotatedType.value());
+  }
+
+  std::optional<VellumType> deducedType;
+  if (statement.getInitializer()) {
+    statement.getInitializer()->accept(*this);
+    deducedType = deduceType(statement.getInitializer());
+    if (!annotatedType) {
+      statement.setType(deducedType.value());
+    }
+  }
+
+  if (annotatedType && deducedType) {
+    if (annotatedType.value() != deducedType.value()) {
+      errorHandler->errorAt(
+          Token(),
+          std::format("Variable type mismatch: got {}, expected {}.",
+                      annotatedType->toString(), deducedType->toString()));
+      return;
+    }
+  }
+
+  VellumVariable var(statement.getName(), statement.getType().value());
+  resolver->pushLocalVar(var);
 }
 
 void SemanticAnalyzer::visitIdentifierExpression(

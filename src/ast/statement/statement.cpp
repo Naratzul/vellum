@@ -66,5 +66,27 @@ bool IfStatement::equals(const Statement& other_) const {
   }
   return true;
 }
+
+void LocalVariableStatement::accept(StatementVisitor& visitor) {
+  visitor.visitLocalVariableStatement(*this);
+}
+
+bool LocalVariableStatement::equals(const Statement& other_) const {
+  auto& other = static_cast<const LocalVariableStatement&>(other_);
+  if (getName() != other.getName()) {
+    return false;
+  }
+
+  if (getType() != other.getType()) {
+    return false;
+  }
+
+  const bool hasInit = getInitializer() != nullptr;
+  if (hasInit != (other.getInitializer() != nullptr)) {
+    return false;
+  }
+
+  return !hasInit || getInitializer()->equals(*other.getInitializer());
+}
 }  // namespace ast
 }  // namespace vellum

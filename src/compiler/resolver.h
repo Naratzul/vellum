@@ -2,13 +2,18 @@
 
 #include <optional>
 
+#include "compiler_error_handler.h"
+#include "scope.h"
 #include "vellum/vellum_object.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
+
 class Resolver {
  public:
-  Resolver(VellumObject object) : object(std::move(object)) {}
+  Resolver(VellumObject object,
+           std::shared_ptr<CompilerErrorHandler> errorHandler)
+      : object(std::move(object)), errorHandler(errorHandler) {}
 
   void addFunction(VellumFunction function) {
     object.addFunction(std::move(function));
@@ -26,12 +31,18 @@ class Resolver {
     importedObjects.push_back(std::move(importedObject));
   }
 
-  void pushFunction(const VellumFunction& func);
-  void popFunction();
-  const VellumFunction& topFunction();
+  const std::optional<VellumFunction>& getCurrentFunction() {
+    return currentFunction;
+  }
+  void startFunction(const VellumFunction& func);
+  void endFunction();
+
+  void pushScope();
+  void popScope();
 
   void pushLocalVar(const VellumVariable& var);
   void popLocalVar();
+  void popLocalVar(int count);
 
   std::optional<VellumValue> resolveIdentifier(
       VellumIdentifier identifier) const;
@@ -46,9 +57,10 @@ class Resolver {
 
  private:
   VellumObject object;
+  std::shared_ptr<CompilerErrorHandler> errorHandler;
 
   std::vector<VellumObject> importedObjects;
-  std::vector<VellumFunction> functions;
-  std::vector<VellumVariable> localVars;
+  std::vector<Scope> scopes;
+  std::optional<VellumFunction> currentFunction;
 };
 }  // namespace vellum

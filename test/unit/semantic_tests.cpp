@@ -18,8 +18,8 @@ TEST_CASE("SemanticGlobalVarTest") {
       std::make_unique<ast::LiteralExpression>(VellumLiteral(42))));
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver =
-      std::make_shared<Resolver>(VellumObject(VellumIdentifier("TestScript")));
+  auto resolver = std::make_shared<Resolver>(
+      VellumObject(VellumIdentifier("TestScript")), errorHandler);
   const auto result =
       SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
 
@@ -40,8 +40,8 @@ TEST_CASE("SemanticAutoPropertyTest") {
       std::nullopt, VellumValue()));
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver =
-      std::make_shared<Resolver>(VellumObject(VellumIdentifier("TestScript")));
+  auto resolver = std::make_shared<Resolver>(
+      VellumObject(VellumIdentifier("TestScript")), errorHandler);
   const auto result =
       SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
 
@@ -62,8 +62,8 @@ TEST_CASE("SemanticFunctionTest") {
       std::vector<std::unique_ptr<ast::Statement>>{}));
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver =
-      std::make_shared<Resolver>(VellumObject(VellumIdentifier("TestScript")));
+  auto resolver = std::make_shared<Resolver>(
+      VellumObject(VellumIdentifier("TestScript")), errorHandler);
   const auto result =
       SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
 

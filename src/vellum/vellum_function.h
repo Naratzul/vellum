@@ -43,6 +43,8 @@ class VellumFunction {
     return parameters;
   }
 
+  int getArity() const { return parameters.size(); }
+
  private:
   VellumIdentifier name;
   VellumType returnType;

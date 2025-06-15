@@ -118,8 +118,8 @@ std::unique_ptr<ast::Declaration> Parser::scriptDeclaration() {
     errorHandler->errorAt(current, "Unexpected token after script declaration");
   }
 
-  resolver =
-      std::make_shared<Resolver>(VellumObject(VellumIdentifier(scriptName)));
+  resolver = std::make_shared<Resolver>(
+      VellumObject(VellumIdentifier(scriptName)), errorHandler);
 
   return std::make_unique<ast::ScriptDeclaration>(scriptName, parentScriptName);
 }
@@ -267,6 +267,9 @@ std::unique_ptr<ast::Statement> Parser::statement() {
   if (match(TokenType::RETURN)) {
     return returnStatement();
   }
+  if (match(TokenType::VAR)) {
+    return varStatement();
+  }
   return expressionStatement();
 }
 
@@ -303,6 +306,30 @@ std::unique_ptr<ast::Statement> Parser::ifStatement() {
 
 std::unique_ptr<ast::Statement> Parser::returnStatement() {
   return std::make_unique<ast::ReturnStatement>(expression());
+}
+
+std::unique_ptr<ast::Statement> Parser::varStatement() {
+  consume(TokenType::IDENTIFIER, "Expect a variable name.");
+  const VellumIdentifier name(previous.lexeme);
+
+  std::optional<VellumType> type;
+  if (match(TokenType::COLON)) {
+    consume(TokenType::IDENTIFIER, "Expect a type name.");
+    type = VellumType::unresolved(previous.lexeme);
+  }
+
+  std::unique_ptr<ast::Expression> initializer;
+  if (match(TokenType::EQUAL)) {
+    initializer = expression();
+  }
+
+  if (!type && !initializer) {
+    errorHandler->errorAt(current, "Type annotation is missing.");
+    return nullptr;
+  }
+
+  return std::make_unique<ast::LocalVariableStatement>(name, type,
+                                                       std::move(initializer));
 }
 
 std::unique_ptr<ast::Statement> Parser::expressionStatement() {

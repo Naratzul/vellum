@@ -11,6 +11,7 @@
     compiler/pex_function_compiler.cpp
     compiler/pex_object_compiler.cpp
     compiler/resolver.cpp
+    compiler/scope.cpp
     lexer/lexer.cpp
     parser/parser.cpp
     pex/pex_file.cpp

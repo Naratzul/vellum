@@ -1,7 +1,7 @@
 #ifdef WIN32
 #include <Windows.h>
-#include <lmcons.h>
 #include <debugapi.h>
+#include <lmcons.h>
 #endif
 
 #include "os.h"
@@ -28,11 +28,13 @@ std::string getComputerName() {
   return buf;
 }
 void debugBreak() { DebugBreak(); }
-#else
+#elif defined __APPLE__
 std::string getUserName() { return std::string(); }
 std::string getComputerName() { return std::string(); }
 
 void debugBreak() { __builtin_trap(); }
+#else
+#error "Unsupported platform."
 #endif
 }  // namespace common
 }  // namespace vellum

@@ -144,6 +144,20 @@ void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
   }
 }
 
+void PexFunctionCompiler::visitLocalVariableStatement(
+    ast::LocalVariableStatement& statement) {
+  localVariables.emplace_back(file.getString(statement.getName().toString()),
+                              file.getString(statement.getType()->toString()));
+
+  if (statement.getInitializer()) {
+    pex::PexFunctionParameter localVar = localVariables.back();
+    std::vector<pex::PexValue> args = {
+        pex::PexIdentifier(localVar.getName()),
+        statement.getInitializer()->compile(*this)};
+    instructions.emplace_back(pex::PexOpCode::Assign, std::move(args));
+  }
+}
+
 pex::PexValue PexFunctionCompiler::compile(const ast::LiteralExpression& expr) {
   return makePexValue(expr.getLiteral(), file);
 }
@@ -164,25 +178,16 @@ pex::PexValue PexFunctionCompiler::compile(
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
-  const VellumFunctionCall functionCall = expr.getFunctionCall().value();
-  const auto function = resolver->resolveFunction(functionCall.getObject(),
-                                                  functionCall.getFunction());
-  if (!function) {
-    errorHandler->errorAt(Token(),
-                          std::format("Undefined function '{}'.",
-                                      functionCall.getFunction().toString()));
-    return pex::PexValue();
-  }
-
   pex::PexOpCode opcode;
   std::vector<pex::PexValue> args;
 
+  const VellumFunctionCall functionCall = expr.getFunctionCall().value();
+
   const pex::PexValue retVal =
-      function->getReturnType() == VellumType::none()
+      expr.getType() == VellumType::none()
           ? getNoneVar()
           : pex::PexValue(pex::PexIdentifier(
-                makeTempVar(
-                    file.getString(function->getReturnType().toString()))
+                makeTempVar(file.getString(expr.getType().toString()))
                     .getName()));
 
   if (functionCall.isStatic()) {

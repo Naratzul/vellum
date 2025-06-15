@@ -1,33 +1,42 @@
 #include "resolver.h"
 
 namespace vellum {
-void Resolver::pushFunction(const VellumFunction& func) {
-  functions.push_back(func);
-
-  for (const auto& var : func.getParameters()) {
-    pushLocalVar(var);
+void Resolver::startFunction(const VellumFunction& func) {
+  currentFunction = func;
+  pushScope();
+  for (const auto& param : func.getParameters()) {
+    pushLocalVar(param);
   }
 }
 
-void Resolver::popFunction() {
-  for (int i = 0; i < functions.back().getParameters().size(); ++i) {
-    popLocalVar();
-  }
-  functions.pop_back();
+void Resolver::endFunction() {
+  assert(currentFunction.has_value());
+  popScope();
+  currentFunction = std::nullopt;
 }
 
-const VellumFunction& Resolver::topFunction() { return functions.back(); }
+void Resolver::pushScope() { scopes.emplace_back(); }
+void Resolver::popScope() { scopes.pop_back(); }
 
 void Resolver::pushLocalVar(const VellumVariable& var) {
-  localVars.push_back(var);
+  auto& scope = scopes.back();
+  if (scope.contains(var.getName())) {
+    errorHandler->errorAt(
+        Token(),
+        std::format("Variable with name '{}' aleady defined in this scope.",
+                    var.getName().toString()));
+    return;
+  }
+  scopes.back().pushVar(var);
 }
 
-void Resolver::popLocalVar() { localVars.pop_back(); }
+void Resolver::popLocalVar() { scopes.back().popVar(); }
+void Resolver::popLocalVar(int count) { scopes.back().popVar(count); }
 
 std::optional<VellumValue> Resolver::resolveIdentifier(
     VellumIdentifier identifier) const {
-  for (const auto& var : localVars) {
-    if (var.getName() == identifier) {
+  for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+    if (auto var = it->getVariable(identifier)) {
       return var;
     }
   }
@@ -67,6 +76,11 @@ std::optional<VellumFunction> Resolver::resolveFunction(
 
 std::optional<VellumVariable> Resolver::resolveVariable(
     VellumIdentifier name) const {
+  for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+    if (auto var = it->getVariable(name)) {
+      return var;
+    }
+  }
   return object.findVariable(name);
 }
 
