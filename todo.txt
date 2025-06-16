@@ -2,9 +2,7 @@ bugs:
 - 
 
 features:
-- variable self-usage in its own initializer
 - for statement
-- while statement
 - imports
 
 tests:
@@ -12,9 +10,11 @@ tests:
 - binary operations (lexer, parser, semantic, compiler)
 - unary operations
 - local variables
+- while statement
 
 done:
 - logical operations
 - if statements
 - unary operations
 - local variables
+- while statement

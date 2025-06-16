@@ -270,6 +270,9 @@ std::unique_ptr<ast::Statement> Parser::statement() {
   if (match(TokenType::VAR)) {
     return varStatement();
   }
+  if (match(TokenType::WHILE)) {
+    return whileStatement();
+  }
   return expressionStatement();
 }
 
@@ -330,6 +333,24 @@ std::unique_ptr<ast::Statement> Parser::varStatement() {
 
   return std::make_unique<ast::LocalVariableStatement>(name, type,
                                                        std::move(initializer));
+}
+
+std::unique_ptr<ast::Statement> Parser::whileStatement() {
+  auto condition = expression();
+  consume(TokenType::LEFT_BRACE, "Expect '{{' after condition.");
+
+  ast::WhileStatement::Body body;
+  while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
+    body.push_back(statement());
+    if (errorHandler->isPanicMode()) {
+      synchronize();
+    }
+  }
+
+  consume(TokenType::RIGHT_BRACE, "Expect '}}' after while loop.");
+
+  return std::make_unique<ast::WhileStatement>(std::move(condition),
+                                               std::move(body));
 }
 
 std::unique_ptr<ast::Statement> Parser::expressionStatement() {

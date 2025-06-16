@@ -38,6 +38,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   void visitIfStatement(ast::IfStatement& statement) override;
   void visitLocalVariableStatement(
       ast::LocalVariableStatement& statement) override;
+  void visitWhileStatement(ast::WhileStatement& statement) override;
 
   pex::PexValue compile(const ast::LiteralExpression& expr) override;
   pex::PexValue compile(const ast::IdentifierExpression& expr) override;

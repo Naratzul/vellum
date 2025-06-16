@@ -158,6 +158,35 @@ void PexFunctionCompiler::visitLocalVariableStatement(
   }
 }
 
+void PexFunctionCompiler::visitWhileStatement(ast::WhileStatement& statement) {
+  const pex::PexValue condition = pex::PexIdentifier(
+      makeTempVar(
+          file.getString(statement.getCondition()->getType().toString()))
+          .getName());
+  size_t conditionOffset = instructions.size();
+  instructions.emplace_back(
+      pex::PexOpCode::Assign,
+      std::vector<pex::PexValue>{condition,
+                                 statement.getCondition()->compile(*this)});
+
+  size_t jmpToEndOffset = instructions.size();
+  pex::PexValue jmpToEnd(int32_t(0));
+
+  instructions.emplace_back(pex::PexOpCode::JmpF,
+                            std::vector<pex::PexValue>{condition, jmpToEnd});
+
+  for (const auto& stmt : statement.getBody()) {
+    stmt->accept(*this);
+  }
+
+  instructions.emplace_back(pex::PexOpCode::Jmp,
+                            std::vector<pex::PexValue>{pex::PexValue(int32_t(
+                                conditionOffset - instructions.size()))});
+
+  instructions[jmpToEndOffset].setArg(
+      1, pex::PexValue(int32_t(instructions.size() - jmpToEndOffset)));
+}
+
 pex::PexValue PexFunctionCompiler::compile(const ast::LiteralExpression& expr) {
   return makePexValue(expr.getLiteral(), file);
 }

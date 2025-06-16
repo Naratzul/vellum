@@ -41,8 +41,10 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
 
   void visitExpressionStatement(ast::ExpressionStatement& statement) override;
   void visitReturnStatement(ast::ReturnStatement& statement) override;
-  void visitIfStatement(ast::IfStatement& stmt) override;
-  void visitLocalVariableStatement(ast::LocalVariableStatement& stmt) override;
+  void visitIfStatement(ast::IfStatement& statement) override;
+  void visitLocalVariableStatement(
+      ast::LocalVariableStatement& statement) override;
+  void visitWhileStatement(ast::WhileStatement& statement) override;
 
   void visitIdentifierExpression(ast::IdentifierExpression& expr) override;
   void visitCallExpression(ast::CallExpression& expr) override;

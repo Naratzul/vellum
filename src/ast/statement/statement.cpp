@@ -88,5 +88,25 @@ bool LocalVariableStatement::equals(const Statement& other_) const {
 
   return !hasInit || getInitializer()->equals(*other.getInitializer());
 }
+
+void WhileStatement::accept(StatementVisitor& visitor) {
+  visitor.visitWhileStatement(*this);
+}
+
+bool WhileStatement::equals(const Statement& other_) const {
+  auto& other = static_cast<const WhileStatement&>(other_);
+  if (!getCondition()->equals(*other.getCondition())) {
+    return false;
+  }
+  if (getBody().size() != other.getBody().size()) {
+    return false;
+  }
+  for (int i = 0; i < getBody().size(); ++i) {
+    if (!getBody()[i]->equals(*other.getBody()[i])) {
+      return false;
+    }
+  }
+  return true;
+}
 }  // namespace ast
 }  // namespace vellum

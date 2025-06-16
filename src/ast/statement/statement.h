@@ -106,5 +106,26 @@ class LocalVariableStatement : public Statement {
   std::unique_ptr<Expression> initializer;
 };
 
+class WhileStatement : public Statement {
+ public:
+  using Body = std::vector<std::unique_ptr<ast::Statement>>;
+
+  WhileStatement(std::unique_ptr<ast::Expression> condition, Body body)
+      : condition(std::move(condition)), body(std::move(body)) {}
+
+  const std::unique_ptr<ast::Expression>& getCondition() const {
+    return condition;
+  }
+
+  const Body& getBody() const { return body; }
+
+  void accept(StatementVisitor& visitor) override;
+  bool equals(const Statement& other) const override;
+
+ private:
+  std::unique_ptr<ast::Expression> condition;
+  Body body;
+};
+
 }  // namespace ast
 }  // namespace vellum

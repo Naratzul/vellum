@@ -167,6 +167,13 @@ void SemanticAnalyzer::visitLocalVariableStatement(
   resolver->pushLocalVar(var);
 }
 
+void SemanticAnalyzer::visitWhileStatement(ast::WhileStatement& statement) {
+  statement.getCondition()->accept(*this);
+  for (auto& stmt : statement.getBody()) {
+    stmt->accept(*this);
+  }
+}
+
 void SemanticAnalyzer::visitIdentifierExpression(
     ast::IdentifierExpression& expr) {
   // TODO: hack for testing, need to remove it
@@ -193,7 +200,7 @@ void SemanticAnalyzer::visitIdentifierExpression(
       expr.setType(value->asFunction().getReturnType());
       break;
     default:
-      assert(false && "Unsuported identifier type");
+      assert(false && "Unsupported identifier type");
   }
 }
 
