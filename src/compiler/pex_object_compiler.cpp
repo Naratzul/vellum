@@ -12,9 +12,8 @@
 namespace vellum {
 
 PexObjectCompiler::PexObjectCompiler(
-    std::shared_ptr<CompilerErrorHandler> errorHandler,
-    std::shared_ptr<Resolver> resolver, pex::PexFile& file)
-    : errorHandler(errorHandler), resolver(resolver), file(file) {}
+    std::shared_ptr<CompilerErrorHandler> errorHandler, pex::PexFile& file)
+    : errorHandler(errorHandler), file(file) {}
 
 pex::PexObject PexObjectCompiler::compile(
     const std::vector<std::unique_ptr<ast::Declaration>>& declarations) {
@@ -56,7 +55,7 @@ void PexObjectCompiler::visitVariableDeclaration(
 
 void PexObjectCompiler::visitFunctionDeclaration(
     ast::FunctionDeclaration& declaration) {
-  PexFunctionCompiler compiler(errorHandler, resolver, file);
+  PexFunctionCompiler compiler(errorHandler, file);
   pex::PexFunction function = compiler.compile(declaration);
 
   object.getRootState().getFunctions().push_back(std::move(function));
@@ -86,8 +85,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
 
     ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
                                       std::move(body));
-    getAccessorFunc =
-        PexFunctionCompiler(errorHandler, resolver, file).compile(funcDecl);
+    getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(funcDecl);
   }
 
   if (auto setAccessor = declaration.getSetAccessor()) {
@@ -95,7 +93,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
       ast::FunctionDeclaration funcDecl({}, {}, VellumType::none(),
                                         std::move(setAccessor.value()));
       setAccessorFunc =
-          PexFunctionCompiler(errorHandler, resolver, file).compile(funcDecl);
+          PexFunctionCompiler(errorHandler, file).compile(funcDecl);
     }
   }
 

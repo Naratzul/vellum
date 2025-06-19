@@ -6,13 +6,11 @@
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
 #include "pex_object_compiler.h"
-#include "resolver.h"
 
 namespace vellum {
 
-Compiler::Compiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
-                   std::shared_ptr<Resolver> resolver)
-    : errorHandler(errorHandler), resolver(resolver) {}
+Compiler::Compiler(std::shared_ptr<CompilerErrorHandler> errorHandler)
+    : errorHandler(errorHandler) {}
 
 pex::PexFile Compiler::compile(
     const ScriptMetadata& metadata,
@@ -20,7 +18,7 @@ pex::PexFile Compiler::compile(
   pex::PexFile file;
   fillHeader(file.header(), metadata);
 
-  PexObjectCompiler objectCompiler(errorHandler, resolver, file);
+  PexObjectCompiler objectCompiler(errorHandler, file);
   pex::PexObject object = objectCompiler.compile(declarations);
   file.objects().push_back(std::move(object));
 

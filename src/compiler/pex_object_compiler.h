@@ -25,7 +25,6 @@ class PexFile;
 class PexObjectCompiler : public ast::DeclarationVisitor {
  public:
   PexObjectCompiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
-                    std::shared_ptr<Resolver> resolver,
                     pex::PexFile& file);
 
   pex::PexObject compile(

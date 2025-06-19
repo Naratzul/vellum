@@ -202,6 +202,8 @@ void SemanticAnalyzer::visitIdentifierExpression(
     default:
       assert(false && "Unsupported identifier type");
   }
+
+  expr.setIdentifierType(value->getType());
 }
 
 void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {

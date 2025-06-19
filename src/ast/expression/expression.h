@@ -70,6 +70,10 @@ class IdentifierExpression : public Expression {
       : identifier(identifier) {}
 
   VellumIdentifier getIdentifier() const { return identifier; }
+
+  void setIdentifierType(VellumValueType type) { identifierType = type; }
+  VellumValueType getIdentifierType() const { return identifierType; }
+
   bool equals(const Expression& other) const override;
 
   VellumValue produceValue() const override { return VellumValue(identifier); }
@@ -81,6 +85,7 @@ class IdentifierExpression : public Expression {
 
  private:
   VellumIdentifier identifier;
+  VellumValueType identifierType{VellumValueType::None};
 };
 
 class CallExpression : public Expression {

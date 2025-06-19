@@ -47,7 +47,7 @@ void Vellum::run(std::string_view inputFile) {
   metadata.userName = common::getUserName();
   metadata.computerName = common::getComputerName();
 
-  Compiler compiler(errorHandler, parseResult.resolver);
+  Compiler compiler(errorHandler);
   pex::PexFile pexFile =
       compiler.compile(metadata, semanticResult.declarations);
 

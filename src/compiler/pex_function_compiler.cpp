@@ -8,7 +8,6 @@
 #include "common/string_set.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
-#include "resolver.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -57,9 +56,8 @@ pex::PexOpCode getBinaryOpCode(ast::BinaryExpression::Operator op,
 }  // namespace
 
 PexFunctionCompiler::PexFunctionCompiler(
-    std::shared_ptr<CompilerErrorHandler> errorHandler,
-    std::shared_ptr<Resolver> resolver, pex::PexFile& file)
-    : errorHandler(errorHandler), resolver(resolver), file(file) {}
+    std::shared_ptr<CompilerErrorHandler> errorHandler, pex::PexFile& file)
+    : errorHandler(errorHandler), file(file) {}
 
 pex::PexFunction PexFunctionCompiler::compile(
     const ast::FunctionDeclaration& func) {
@@ -193,14 +191,12 @@ pex::PexValue PexFunctionCompiler::compile(const ast::LiteralExpression& expr) {
 
 pex::PexValue PexFunctionCompiler::compile(
     const ast::IdentifierExpression& expr) {
-  if (auto property = resolver->resolveIdentifier(expr.getIdentifier())) {
-    if (property->getType() == VellumValueType::Property) {
-      ast::PropertyGetExpression getExpr(
-          std::make_unique<ast::IdentifierExpression>(VellumIdentifier("self")),
-          expr.getIdentifier());
-      getExpr.setType(property->asProperty().getType());
-      return compile(getExpr);
-    }
+  if (expr.getIdentifierType() == VellumValueType::Property) {
+    ast::PropertyGetExpression getExpr(
+        std::make_unique<ast::IdentifierExpression>(VellumIdentifier("self")),
+        expr.getIdentifier());
+    getExpr.setType(expr.getType());
+    return compile(getExpr);
   }
 
   return makePexValue(expr.getIdentifier(), file);

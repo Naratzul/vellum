@@ -6,7 +6,6 @@
 #include "ast/decl/declaration.h"
 #include "compiler/compiler.h"
 #include "compiler/compiler_error_handler.h"
-#include "compiler/resolver.h"
 #include "pex/pex_file.h"
 #include "utils.h"
 
@@ -19,11 +18,8 @@ TEST_CASE("CompileGlobalVarTest") {
       std::make_unique<ast::LiteralExpression>(VellumLiteral(42))));
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-
-  pex::PexFile file = Compiler(errorHandler, resolver)
-                          .compile(ScriptMetadata(), std::move(ast));
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(file.objects().size() == 1);
