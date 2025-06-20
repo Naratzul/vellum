@@ -105,7 +105,8 @@ Token Lexer::string() {
 
   // the closing quote.
   advance();
-  return makeToken(TokenType::STRING, currentLexeme());
+  return makeToken(TokenType::STRING,
+                   std::string_view(start + 1, current - start - 2)); // drop quotes
 }
 
 Token Lexer::number() {
