@@ -142,7 +142,7 @@ class PropertyGetExpression : public Expression {
       : object(std::move(object)), property(property) {}
 
   const std::unique_ptr<Expression>& getObject() const { return object; }
-  std::unique_ptr<Expression> getObject() { return std::move(object); }
+  std::unique_ptr<Expression> releaseObject() { return std::move(object); }
 
   VellumIdentifier getProperty() const { return property; }
 

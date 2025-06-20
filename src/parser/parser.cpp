@@ -371,7 +371,7 @@ std::unique_ptr<ast::Expression> Parser::assignExpression() {
     } else if (expr->isPropertyGetExpression()) {
       ast::PropertyGetExpression& getExpr = expr->asPropertyGet();
       return std::make_unique<ast::PropertySetExpression>(
-          getExpr.getObject(), getExpr.getProperty(), assignExpression());
+          getExpr.releaseObject(), getExpr.getProperty(), assignExpression());
     } else {
       errorHandler->errorAt(previous, "Invalid assignment target.");
     }
