@@ -147,5 +147,19 @@ pex::PexValue UnaryExpression::compile(ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
 
+bool CastExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const CastExpression&>(other_);
+  return getTargetType() == other.getTargetType() &&
+         getExpression()->equals(*other.getExpression());
+}
+
+void CastExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitCastExpression(*this);
+}
+
+pex::PexValue CastExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
 }  // namespace ast
 }  // namespace vellum

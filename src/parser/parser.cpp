@@ -488,7 +488,19 @@ std::unique_ptr<ast::Expression> Parser::unaryExpression() {
                                : ast::UnaryExpression::Operator::Not,
         op == TokenType::MINUS ? unaryExpression() : logicalOrExpression());
   }
-  return callOrGetExpression();
+  return castExpression();
+}
+
+std::unique_ptr<ast::Expression> Parser::castExpression() {
+  auto expr = callOrGetExpression();
+
+  if (match(TokenType::AS)) {
+    consume(TokenType::IDENTIFIER, "Expect a target type for cast.");
+    return std::make_unique<ast::CastExpression>(
+        std::move(expr), VellumType::unresolved(previous.lexeme));
+  }
+
+  return expr;
 }
 
 std::unique_ptr<ast::Expression> Parser::callOrGetExpression() {

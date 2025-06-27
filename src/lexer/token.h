@@ -40,6 +40,7 @@ enum class TokenType {
   FLOAT,
   // Keywords.
   AND,
+  AS,
   ELSE,
   EVENT,
   FALSE,

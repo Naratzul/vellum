@@ -75,6 +75,7 @@ class Parser {
   std::unique_ptr<ast::Expression> termExpression();
   std::unique_ptr<ast::Expression> factorExpression();
   std::unique_ptr<ast::Expression> unaryExpression();
+  std::unique_ptr<ast::Expression> castExpression();
   std::unique_ptr<ast::Expression> callOrGetExpression();
   std::unique_ptr<ast::Expression> callExpression(
       std::unique_ptr<ast::Expression> callee);

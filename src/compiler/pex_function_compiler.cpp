@@ -366,6 +366,19 @@ pex::PexValue PexFunctionCompiler::compile(const ast::UnaryExpression& expr) {
   return dest;
 }
 
+pex::PexValue PexFunctionCompiler::compile(const ast::CastExpression& expr) {
+  assert(expr.getTargetType().isResolved());
+
+  pex::PexValue dest = pex::PexIdentifier(
+      makeTempVar(file.getString(expr.getTargetType().toString())).getName());
+  pex::PexValue value = expr.getExpression()->compile(*this);
+
+  std::vector<pex::PexValue> args = {dest, value};
+  instructions.emplace_back(pex::PexOpCode::Cast, std::move(args));
+
+  return dest;
+}
+
 pex::PexValue PexFunctionCompiler::makeValueFromToken(VellumValue value) {
   std::optional<pex::PexValue> pexValue = makePexValue(value, file);
   if (!pexValue) {

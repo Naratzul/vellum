@@ -105,8 +105,9 @@ Token Lexer::string() {
 
   // the closing quote.
   advance();
-  return makeToken(TokenType::STRING,
-                   std::string_view(start + 1, current - start - 2)); // drop quotes
+  return makeToken(
+      TokenType::STRING,
+      std::string_view(start + 1, current - start - 2));  // drop quotes
 }
 
 Token Lexer::number() {
@@ -148,7 +149,13 @@ Token Lexer::identifier() {
 TokenType Lexer::identifierType() const {
   switch (start[0]) {
     case 'a':
-      return checkKeyword(1, 2, "nd", TokenType::AND);
+      switch (start[1]) {
+        case 'n':
+          return checkKeyword(2, 1, "d", TokenType::AND);
+        case 's':
+          return TokenType::AS;
+      }
+      break;
     case 'e':
       if (current - start > 1) {
         switch (start[1]) {
@@ -158,6 +165,7 @@ TokenType Lexer::identifierType() const {
             return checkKeyword(2, 2, "se", TokenType::ELSE);
         }
       }
+      break;
     case 'f':
       if (current - start > 1) {
         switch (start[1]) {
@@ -182,8 +190,8 @@ TokenType Lexer::identifierType() const {
           case 'o':
             return checkKeyword(2, 1, "t", TokenType::NOT);
         }
-        break;
       }
+      break;
     case 'o':
       return checkKeyword(1, 1, "r", TokenType::OR);
     case 'p':

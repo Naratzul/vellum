@@ -273,5 +273,28 @@ class GroupingExpression : public Expression {
   std::unique_ptr<Expression> expr;
 };
 
+class CastExpression : public Expression {
+ public:
+  explicit CastExpression(std::unique_ptr<Expression> expr, VellumType targetType)
+      : expr(std::move(expr)), targetType(targetType) {}
+
+  const std::unique_ptr<Expression>& getExpression() const { return expr; }
+
+  VellumType getTargetType() const { return targetType; }
+  void setTargetType(VellumType type) { targetType = type; }
+
+  VellumType getType() const override { return targetType; }
+
+  bool equals(const Expression& other) const override;
+
+  VellumValue produceValue() const override { return expr->produceValue(); }
+
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+ private:
+  std::unique_ptr<Expression> expr;
+  VellumType targetType;
+};
 }  // namespace ast
 }  // namespace vellum

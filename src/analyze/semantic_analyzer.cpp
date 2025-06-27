@@ -369,7 +369,8 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
       expr.getOperator() == ast::BinaryExpression::Operator::Multiply ||
       expr.getOperator() == ast::BinaryExpression::Operator::Divide ||
       expr.getOperator() == ast::BinaryExpression::Operator::Modulo) {
-    if (leftType != rightType && (leftType.isInt() || leftType.isFloat())) {
+    if (leftType != rightType ||
+        !(leftType.isInt() || leftType.isFloat() || leftType.isString())) {
       errorHandler->errorAt(
           Token(), std::format("Cannot perform arithmetic operation on "
                                "types: {} and {}",
@@ -410,6 +411,13 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
       }
       break;
   }
+}
+
+void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
+  expr.getExpression()->accept(*this);
+
+  assert(!expr.getTargetType().isResolved());
+  expr.setTargetType(resolveType(expr.getTargetType()));
 }
 
 VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {
