@@ -116,3 +116,28 @@ TEST_CASE("LexerFunctionDeclaration_MultipleParams_MixedTypes") {
   CHECK_THAT(scanTokens(std::make_unique<Lexer>(source)),
              Catch::Matchers::Equals(expected));
 }
+
+TEST_CASE("LexerCall_NoArgs") {
+  std::vector<Token> expected{
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+  };
+  std::string_view source = "foo()";
+  CHECK_THAT(scanTokens(std::make_unique<Lexer>(source)),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerCall_WithArgs") {
+  std::vector<Token> expected{
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::IDENTIFIER, 1, "bar"),
+      makeToken(TokenType::COMMA, 1, ","),
+      makeToken(TokenType::INT, 1, "42", VellumLiteral(42)),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+  };
+  std::string_view source = "foo(bar, 42)";
+  CHECK_THAT(scanTokens(std::make_unique<Lexer>(source)),
+             Catch::Matchers::Equals(expected));
+}

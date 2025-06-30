@@ -9,5 +9,6 @@ std::string getUserName();
 std::string getComputerName();
 
 void debugBreak();
+bool isDebuggerPresent();
 }  // namespace common
 }  // namespace vellum

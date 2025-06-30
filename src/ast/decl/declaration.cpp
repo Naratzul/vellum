@@ -46,10 +46,29 @@ void FunctionDeclaration::accept(DeclarationVisitor& visitor) {
 
 bool FunctionDeclaration::equals(const Declaration& other_) const {
   auto& other = static_cast<const FunctionDeclaration&>(other_);
-  return getName() == other.getName() &&
-         getReturnTypeName() == other.getReturnTypeName() &&
-         getParameters() == other.getParameters() &&
-         getBody() == other.getBody();
+  if (getName() != other.getName()) {
+    return false;
+  }
+
+  if (getReturnTypeName() != other.getReturnTypeName()) {
+    return false;
+  }
+
+  if (getParameters() != other.getParameters()) {
+    return false;
+  }
+
+  if (getBody().size() != other.getBody().size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < getBody().size(); i++) {
+    if (!getBody()[i]->equals(*other.getBody()[i])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 void PropertyDeclaration::accept(DeclarationVisitor& visitor) {

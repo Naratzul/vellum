@@ -36,7 +36,9 @@ void CompilerErrorHandler::printError(const Token& token,
   stream << std::format(": {}", message);
   std::cerr << stream.str() << std::endl;
 
-  common::debugBreak();
+  if (common::isDebuggerPresent()) {
+    common::debugBreak();
+  }
 }
 
 }  // namespace vellum

@@ -235,11 +235,31 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     return;
   }
 
-  expr.setType(func->getReturnType());
-
-  for (auto& arg : expr.getArguments()) {
-    arg->accept(*this);
+  if (func->getParameters().size() != expr.getArguments().size()) {
+    errorHandler->errorAt(
+        Token(),
+        std::format("Function '{}' expects {} arguments, but {} were "
+                    "provided.",
+                    func->getName().toString(), func->getParameters().size(),
+                    expr.getArguments().size()));
+    return;
   }
+
+  for (size_t i = 0; i < expr.getArguments().size(); i++) {
+    auto& arg = expr.getArguments()[i];
+    arg->accept(*this);
+    if (arg->getType() != func->getParameters()[i].getType()) {
+      errorHandler->errorAt(
+          Token(), std::format("Argument {} of function '{}' expects type {}, "
+                               "but got type {}.",
+                               i, func->getName().toString(),
+                               func->getParameters()[i].getType().toString(),
+                               arg->getType().toString()));
+      return;
+    }
+  }
+
+  expr.setType(func->getReturnType());
 }
 
 void SemanticAnalyzer::visitPropertyGetExpression(
@@ -402,12 +422,11 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
       break;
     case ast::UnaryExpression::Operator::Not:
       if (!expr.getType().isBool()) {
-        errorHandler->errorAt(
-            Token(),
-            std::format(
-                "Unary operator 'not' can be applied only to expressions with "
-                "Bool type. Given type is '{}'",
-                expr.getType().toString()));
+        errorHandler->errorAt(Token(),
+                              std::format("Unary operator 'not' can be "
+                                          "applied only to expressions with "
+                                          "Bool type. Given type is '{}'",
+                                          expr.getType().toString()));
       }
       break;
   }

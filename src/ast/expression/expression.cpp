@@ -38,8 +38,21 @@ pex::PexValue CallExpression::compile(ExpressionCompiler& compiler) const {
 
 bool CallExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const CallExpression&>(other_);
-  return getCallee()->equals(*other.getCallee()) &&
-         getArguments() == other.getArguments();
+  if (!getCallee()->equals(*other.getCallee())) {
+    return false;
+  }
+
+  if (getArguments().size() != other.getArguments().size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < getArguments().size(); i++) {
+    if (!getArguments()[i]->equals(*other.getArguments()[i])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool PropertyGetExpression::equals(const Expression& other_) const {

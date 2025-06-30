@@ -195,3 +195,80 @@ TEST_CASE("ParserFunctionDeclaration_MultipleParams_MixedTypes") {
                                     ast::FunctionBody{});
   CHECK(expected == *result.declarations[0]);
 }
+
+TEST_CASE("ParserCall_NoArgs") {
+  std::vector<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
+                            makeToken(TokenType::IDENTIFIER, 1, "test"),
+                            makeToken(TokenType::LEFT_PAREN, 1, "("),
+                            makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                            makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                            makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                            makeToken(TokenType::LEFT_PAREN, 1, "("),
+                            makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                            makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                            makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  const auto result =
+      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+          .parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  auto expected_call_expr = std::make_unique<ast::CallExpression>(
+      std::make_unique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      std::vector<std::unique_ptr<ast::Expression>>{});
+  auto expected_body = std::vector<std::unique_ptr<ast::Statement>>{};
+  expected_body.emplace_back(std::make_unique<ast::ExpressionStatement>(
+      std::move(expected_call_expr)));
+
+  ast::FunctionDeclaration expected("test", {}, VellumType::none(),
+                                    std::move(expected_body));
+
+  CHECK(expected == *result.declarations[0]);
+}
+
+TEST_CASE("ParserCall_WithArgs") {
+  std::vector<Token> tokens{
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "test"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::IDENTIFIER, 1, "bar"),
+      makeToken(TokenType::COMMA, 1, ","),
+      makeToken(TokenType::INT, 1, "42", VellumLiteral(42)),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  const auto result =
+      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+          .parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  auto args = std::vector<std::unique_ptr<ast::Expression>>{};
+  args.emplace_back(
+      std::make_unique<ast::IdentifierExpression>(VellumIdentifier("bar")));
+  args.emplace_back(
+      std::make_unique<ast::LiteralExpression>(VellumLiteral(42)));
+
+  auto expected_call_expr = std::make_unique<ast::CallExpression>(
+      std::make_unique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      std::move(args));
+
+  auto expected_body = std::vector<std::unique_ptr<ast::Statement>>{};
+  expected_body.emplace_back(std::make_unique<ast::ExpressionStatement>(
+      std::move(expected_call_expr)));
+
+  ast::FunctionDeclaration expected("test", {}, VellumType::none(),
+                                    std::move(expected_body));
+
+  CHECK(expected == *result.declarations[0]);
+}
