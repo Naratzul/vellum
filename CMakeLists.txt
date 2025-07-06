@@ -11,4 +11,8 @@ message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "C++ compiler flags: ${CMAKE_CXX_FLAGS}")
 
 add_subdirectory(src)
-add_subdirectory(test)
+add_subdirectory(test) 
+
+set(LSP_USE_SANITIZERS OFF)
+add_subdirectory(external/lsp-framework)
+add_subdirectory(lsp-server)
