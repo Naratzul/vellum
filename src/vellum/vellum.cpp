@@ -30,6 +30,10 @@ void Vellum::run(std::string_view inputFile) {
       VellumIdentifier("messageBox"), VellumType::none(),
       {VellumVariable(VellumIdentifier("message"),
                       VellumType::literal(VellumLiteralType::String))}));
+  debug.addFunction(VellumFunction(
+      VellumIdentifier("notification"), VellumType::none(),
+      {VellumVariable(VellumIdentifier("message"),
+                      VellumType::literal(VellumLiteralType::String))}));
 
   parseResult.resolver->importObject(debug);
 

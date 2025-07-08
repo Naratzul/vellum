@@ -4,6 +4,7 @@ bugs:
 features:
 - for statement
 - imports
+- cast semantic
 
 tests:
 - return statement
@@ -18,3 +19,4 @@ done:
 - unary operations
 - local variables
 - while statement
+- cast
