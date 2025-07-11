@@ -5,6 +5,7 @@
 
 import * as path from 'path';
 import { window, ExtensionContext } from 'vscode';
+import * as process from 'process'
 
 import {
 	LanguageClient,
@@ -12,13 +13,23 @@ import {
 	ServerOptions,
 	TransportKind
 } from 'vscode-languageclient/node';
+import { assert } from 'console';
 
 let client: LanguageClient;
+
+function getServerExecutableName() {
+	if (process.platform == "win32") {
+		return "vellum-lsp.exe";
+	} else if (process.platform == "darwin" || process.platform == "linux") {
+		return "vellum-lsp";
+	}
+	assert(false, "Unsupported platform");
+}
 
 export function activate(context: ExtensionContext) {
 	// The server is implemented in node
 	const serverModule = context.asAbsolutePath(
-		path.join('..', 'build', 'lsp-server', 'vellum-lsp'),
+		path.join('..', 'bin', 'vellum-lsp', getServerExecutableName()),
 	);
 
 	// If the extension is launched in debug mode then the debug server options are used
