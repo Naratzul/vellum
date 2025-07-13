@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include <optional>
 #include <ostream>
 #include <string_view>
@@ -65,15 +66,43 @@ enum class TokenType {
   END_OF_FILE
 };
 
+struct Location {
+  int line;
+  int position;
+};
+
+inline bool operator==(const Location& lhs, const Location& rhs) {
+  return lhs.line == rhs.line && lhs.position == rhs.position;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const Location& loc) {
+  os << std::format("({}, {})", loc.line, loc.position);
+  return os;
+}
+
+struct LocationRange {
+  Location start;
+  Location end;
+};
+
+inline bool operator==(const LocationRange& lhs, const LocationRange& rhs) {
+  return lhs.start == rhs.start && lhs.end == rhs.end;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const LocationRange& loc) {
+  os << loc.start << " - " << loc.end;
+  return os;
+}
+
 struct Token {
   TokenType type = TokenType::END_OF_FILE;
   std::string_view lexeme;
-  int line = -1;
+  LocationRange location;
   std::optional<VellumLiteral> value;
 };
 
 inline bool operator==(const Token& lhs, const Token& rhs) {
-  return lhs.type == rhs.type && lhs.line == rhs.line &&
+  return lhs.type == rhs.type && lhs.location == rhs.location &&
          lhs.lexeme == rhs.lexeme && lhs.value == rhs.value;
 }
 
@@ -82,7 +111,8 @@ inline bool operator!=(const Token& lhs, const Token& rhs) {
 }
 
 inline std::ostream& operator<<(std::ostream& os, const Token& token) {
-  os << "{" << (int)token.type << "; " << token.lexeme << "; " << token.line;
+  os << "{" << (int)token.type << "; " << token.lexeme << "; "
+     << token.location;
   if (token.value) {
     os << "; " << *token.value;
   }

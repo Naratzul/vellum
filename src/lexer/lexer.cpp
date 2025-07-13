@@ -11,7 +11,7 @@
 namespace vellum {
 
 Lexer::Lexer(std::string_view source)
-    : start(source.data()), current(source.data()), line(1) {}
+    : start(source.data()), current(source.data()) {}
 
 Token Lexer::scanToken() {
   skipWhitespaces();
@@ -80,7 +80,10 @@ Token Lexer::makeToken(TokenType type,
   Token token;
   token.type = type;
   token.lexeme = currentLexeme();
-  token.line = line;
+  token.location = {
+      .start = {.line = line,
+                .position = position - (int)token.lexeme.length() - 1},
+      .end = {.line = line, .position = position - 1}};
   token.value = value;
   return token;
 }
@@ -89,13 +92,19 @@ Token Lexer::errorToken(std::string_view message) const {
   Token token;
   token.type = TokenType::ERROR;
   token.lexeme = message;
-  token.line = line;
+  token.location = {
+      .start = {.line = line,
+                .position = position - (int)token.lexeme.length() - 1},
+      .end = {.line = line, .position = position}};
   return token;
 }
 
 Token Lexer::string() {
   while (peek() != '"' && !isAtEnd()) {
-    if (peek() == '\n') line++;
+    if (peek() == '\n') {
+      line++;
+      position = 0;
+    }
     advance();
   }
 
@@ -238,7 +247,10 @@ TokenType Lexer::checkKeyword(int start, int length, const char* rest,
   return TokenType::IDENTIFIER;
 }
 
-char Lexer::advance() { return *current++; }
+char Lexer::advance() {
+  position++;
+  return *current++;
+}
 
 char Lexer::peek() { return *current; }
 
@@ -251,6 +263,7 @@ bool Lexer::match(char expected) {
   if (isAtEnd()) return false;
   if (*current != expected) return false;
   current++;
+  position++;
   return true;
 }
 
@@ -265,6 +278,7 @@ void Lexer::skipWhitespaces() {
         break;
       case '\n':
         line++;
+        position = 0;
         advance();
         break;
       case '/':

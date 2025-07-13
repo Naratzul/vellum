@@ -18,14 +18,23 @@ class ExpressionCompiler;
 class IdentifierExpression;
 class PropertyGetExpression;
 
+struct TokenLocation {
+  TokenType type;
+  LocationRange location;
+};
+
 class Expression {
  public:
+  explicit Expression(TokenLocation location) : location(location) {}
   virtual ~Expression() = default;
+
   virtual bool equals(const Expression& other) const = 0;
 
   virtual VellumValue produceValue() const = 0;
   virtual VellumType getType() const { return type; }
   virtual void setType(VellumType type_) { type = type_; }
+
+  TokenLocation getLocation() const { return location; }
 
   virtual void accept(ExpressionVisitor& visitor) { (void)visitor; }
   virtual pex::PexValue compile(ExpressionCompiler& compiler) const = 0;
@@ -39,6 +48,7 @@ class Expression {
 
  protected:
   VellumType type{VellumType::unresolved()};
+  TokenLocation location;
 };
 
 bool operator==(const Expression& lhs, const Expression& rhs);
@@ -46,7 +56,8 @@ bool operator!=(const Expression& lhs, const Expression& rhs);
 
 class LiteralExpression : public Expression {
  public:
-  explicit LiteralExpression(VellumLiteral literal) : literal(literal) {}
+  explicit LiteralExpression(TokenLocation location, VellumLiteral literal)
+      : Expression(location), literal(literal) {}
 
   VellumLiteral getLiteral() const { return literal; }
   bool equals(const Expression& other) const override;
@@ -275,7 +286,8 @@ class GroupingExpression : public Expression {
 
 class CastExpression : public Expression {
  public:
-  explicit CastExpression(std::unique_ptr<Expression> expr, VellumType targetType)
+  explicit CastExpression(std::unique_ptr<Expression> expr,
+                          VellumType targetType)
       : expr(std::move(expr)), targetType(targetType) {}
 
   const std::unique_ptr<Expression>& getExpression() const { return expr; }

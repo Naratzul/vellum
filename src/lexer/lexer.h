@@ -15,7 +15,8 @@ class Lexer : public ILexer {
  private:
   const char* start;
   const char* current;
-  int line;
+  int line = 0;
+  int position = 0;
 
   Token makeToken(TokenType type,
                   std::optional<VellumLiteral> value = std::nullopt) const;

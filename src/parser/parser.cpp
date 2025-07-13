@@ -114,7 +114,8 @@ std::unique_ptr<ast::Declaration> Parser::scriptDeclaration() {
     parentScriptName = previous.lexeme;
   }
 
-  if (!check(TokenType::END_OF_FILE) && previous.line == current.line) {
+  if (!check(TokenType::END_OF_FILE) &&
+      previous.location.start.line == current.location.start.line) {
     errorHandler->errorAt(current, "Unexpected token after script declaration");
   }
 
@@ -146,7 +147,7 @@ std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
   }
 
   if (!typeName && !initializer) {
-    errorHandler->errorAt(current, "Type annotation is missing.");
+    errorHandler->errorAt(previous, "Type annotation is missing.");
     return nullptr;
   }
 
@@ -248,9 +249,10 @@ ast::FunctionBody Parser::functionBody(FunctionType type) {
   ast::FunctionBody body;
 
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    body.push_back(statement());
-    if (errorHandler->isPanicMode()) {
-      synchronize();
+    if (auto stmt = statement()) {
+      body.push_back(std::move(stmt));
+    } else {
+      break;
     }
   }
 
@@ -282,9 +284,10 @@ std::unique_ptr<ast::Statement> Parser::ifStatement() {
   consume(TokenType::LEFT_BRACE, "Expected '{{' after if condition.");
   std::vector<std::unique_ptr<ast::Statement>> then_branch;
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    then_branch.push_back(statement());
-    if (errorHandler->isPanicMode()) {
-      synchronize();
+    if (auto stmt = statement()) {
+      then_branch.push_back(std::move(stmt));
+    } else {
+      break;
     }
   }
   consume(TokenType::RIGHT_BRACE, "Expected '}}' after if block.");
@@ -294,9 +297,10 @@ std::unique_ptr<ast::Statement> Parser::ifStatement() {
     std::vector<std::unique_ptr<ast::Statement>> else_statements;
     consume(TokenType::LEFT_BRACE, "Expected '{{' after 'else'.");
     while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-      else_statements.push_back(statement());
-      if (errorHandler->isPanicMode()) {
-        synchronize();
+      if (auto stmt = statement()) {
+        else_statements.push_back(std::move(stmt));
+      } else {
+        break;
       }
     }
     consume(TokenType::RIGHT_BRACE, "Expected '}}' after else block.");
@@ -327,7 +331,7 @@ std::unique_ptr<ast::Statement> Parser::varStatement() {
   }
 
   if (!type && !initializer) {
-    errorHandler->errorAt(current, "Type annotation is missing.");
+    errorHandler->errorAt(previous, "Type annotation is missing.");
     return nullptr;
   }
 
@@ -341,9 +345,10 @@ std::unique_ptr<ast::Statement> Parser::whileStatement() {
 
   ast::WhileStatement::Body body;
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    body.push_back(statement());
-    if (errorHandler->isPanicMode()) {
-      synchronize();
+    if (auto stmt = statement()) {
+      body.push_back(std::move(stmt));
+    } else {
+      break;
     }
   }
 
@@ -354,7 +359,10 @@ std::unique_ptr<ast::Statement> Parser::whileStatement() {
 }
 
 std::unique_ptr<ast::Statement> Parser::expressionStatement() {
-  return std::make_unique<ast::ExpressionStatement>(expression());
+  if (auto expr = expression()) {
+    return std::make_unique<ast::ExpressionStatement>(std::move(expr));
+  }
+  return nullptr;
 }
 
 std::unique_ptr<ast::Expression> Parser::expression() {
@@ -563,6 +571,7 @@ void Parser::synchronize() {
   while (!check(TokenType::END_OF_FILE)) {
     switch (current.type) {
       case TokenType::FUN:
+      case TokenType::EVENT:
       case TokenType::IDENTIFIER:
       case TokenType::VAR:
       case TokenType::SCRIPT:

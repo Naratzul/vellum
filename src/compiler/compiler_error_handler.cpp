@@ -12,11 +12,6 @@ namespace vellum {
 
 void CompilerErrorHandler::errorAt(const Token& token,
                                    std::string_view message) {
-  printError(token, message);
-}
-
-void CompilerErrorHandler::printError(const Token& token,
-                                      std::string_view message) {
   if (isPanicMode()) {
     return;
   }
@@ -24,8 +19,17 @@ void CompilerErrorHandler::printError(const Token& token,
   enablePanicMode();
   hadError_ = true;
 
+  errors.push_back(DiagnosticMessage{.type = DiagnosticMessageType::Error,
+                                     .token = token,
+                                     .message = std::string(message)});
+  printError(token, message);
+}
+
+void CompilerErrorHandler::printError(const Token& token,
+                                      std::string_view message) {
   std::ostringstream stream;
-  stream << std::format("[line {}] Error", token.line);
+  stream << std::format("[line {}, position {}] Error", token.location.start.line + 1,
+                        token.location.start.position);
 
   if (token.type == TokenType::END_OF_FILE) {
     stream << " at end";
