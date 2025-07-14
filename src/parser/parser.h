@@ -78,7 +78,7 @@ class Parser {
   std::unique_ptr<ast::Expression> castExpression();
   std::unique_ptr<ast::Expression> callOrGetExpression();
   std::unique_ptr<ast::Expression> callExpression(
-      std::unique_ptr<ast::Expression> callee);
+      std::unique_ptr<ast::Expression> callee, const Token& location);
   std::unique_ptr<ast::Expression> primaryExpression();
 
   void synchronize();

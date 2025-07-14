@@ -6,7 +6,8 @@ Token makeToken(TokenType type, int line, std::string_view lexeme,
   Token token;
   token.type = type;
   token.lexeme = lexeme;
-  token.location = Location{.line = line, .position = 0};
+  token.location = {.start = {.line = line, .position = 0},
+                    .end = {.line = line, .position = 0}};
   token.value = value;
   return token;
 }

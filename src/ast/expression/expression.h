@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include "lexer/token.h"
 #include "pex/pex_value.h"
 #include "vellum/vellum_type.h"
 #include "vellum/vellum_value.h"
@@ -18,14 +19,9 @@ class ExpressionCompiler;
 class IdentifierExpression;
 class PropertyGetExpression;
 
-struct TokenLocation {
-  TokenType type;
-  LocationRange location;
-};
-
 class Expression {
  public:
-  explicit Expression(TokenLocation location) : location(location) {}
+  explicit Expression(Token location) : location(location) {}
   virtual ~Expression() = default;
 
   virtual bool equals(const Expression& other) const = 0;
@@ -34,7 +30,7 @@ class Expression {
   virtual VellumType getType() const { return type; }
   virtual void setType(VellumType type_) { type = type_; }
 
-  TokenLocation getLocation() const { return location; }
+  Token getLocation() const { return location; }
 
   virtual void accept(ExpressionVisitor& visitor) { (void)visitor; }
   virtual pex::PexValue compile(ExpressionCompiler& compiler) const = 0;
@@ -48,7 +44,7 @@ class Expression {
 
  protected:
   VellumType type{VellumType::unresolved()};
-  TokenLocation location;
+  Token location;
 };
 
 bool operator==(const Expression& lhs, const Expression& rhs);
@@ -56,7 +52,7 @@ bool operator!=(const Expression& lhs, const Expression& rhs);
 
 class LiteralExpression : public Expression {
  public:
-  explicit LiteralExpression(TokenLocation location, VellumLiteral literal)
+  explicit LiteralExpression(VellumLiteral literal, Token location = Token{})
       : Expression(location), literal(literal) {}
 
   VellumLiteral getLiteral() const { return literal; }
@@ -77,8 +73,8 @@ class LiteralExpression : public Expression {
 
 class IdentifierExpression : public Expression {
  public:
-  explicit IdentifierExpression(VellumIdentifier identifier)
-      : identifier(identifier) {}
+  IdentifierExpression(VellumIdentifier identifier, Token location = Token{})
+      : Expression(location), identifier(identifier) {}
 
   VellumIdentifier getIdentifier() const { return identifier; }
 
@@ -102,8 +98,11 @@ class IdentifierExpression : public Expression {
 class CallExpression : public Expression {
  public:
   CallExpression(std::unique_ptr<Expression> callee,
-                 std::vector<std::unique_ptr<Expression>> arguments)
-      : callee(std::move(callee)), arguments(std::move(arguments)) {}
+                 std::vector<std::unique_ptr<Expression>> arguments,
+                 Token location = Token{})
+      : Expression(location),
+        callee(std::move(callee)),
+        arguments(std::move(arguments)) {}
 
   const std::unique_ptr<Expression>& getCallee() const { return callee; }
 
@@ -128,8 +127,9 @@ class CallExpression : public Expression {
 
 class AssignExpression : public Expression {
  public:
-  AssignExpression(VellumIdentifier name, std::unique_ptr<Expression> value)
-      : name(name), value(std::move(value)) {}
+  AssignExpression(VellumIdentifier name, std::unique_ptr<Expression> value,
+                   Token location = Token{})
+      : Expression(location), name(name), value(std::move(value)) {}
 
   bool equals(const Expression& other) const override;
 
@@ -149,8 +149,8 @@ class AssignExpression : public Expression {
 class PropertyGetExpression : public Expression {
  public:
   PropertyGetExpression(std::unique_ptr<Expression> object,
-                        VellumIdentifier property)
-      : object(std::move(object)), property(property) {}
+                        VellumIdentifier property, Token location = Token{})
+      : Expression(location), object(std::move(object)), property(property) {}
 
   const std::unique_ptr<Expression>& getObject() const { return object; }
   std::unique_ptr<Expression> releaseObject() { return std::move(object); }
@@ -175,8 +175,10 @@ class PropertySetExpression : public Expression {
  public:
   PropertySetExpression(std::unique_ptr<Expression> object,
                         VellumIdentifier property,
-                        std::unique_ptr<Expression> value)
-      : object(std::move(object)),
+                        std::unique_ptr<Expression> value,
+                        Token location = Token{})
+      : Expression(location),
+        object(std::move(object)),
         property(property),
         value(std::move(value)) {}
 
@@ -218,8 +220,11 @@ class BinaryExpression : public Expression {
   };
 
   BinaryExpression(Operator op, std::unique_ptr<Expression> left,
-                   std::unique_ptr<Expression> right)
-      : op(op), left(std::move(left)), right(std::move(right)) {}
+                   std::unique_ptr<Expression> right, Token location = Token{})
+      : Expression(location),
+        op(op),
+        left(std::move(left)),
+        right(std::move(right)) {}
 
   Operator getOperator() const { return op; }
   const std::unique_ptr<Expression>& getLeft() const { return left; }
@@ -242,8 +247,9 @@ class UnaryExpression : public Expression {
  public:
   enum class Operator { Negate, Not };
 
-  UnaryExpression(Operator op, std::unique_ptr<Expression> operand)
-      : op(op), operand(std::move(operand)) {}
+  UnaryExpression(Operator op, std::unique_ptr<Expression> operand,
+                  Token location = Token{})
+      : Expression(location), op(op), operand(std::move(operand)) {}
 
   Operator getOperator() const { return op; }
   const std::unique_ptr<Expression>& getOperand() const { return operand; }
@@ -260,8 +266,8 @@ class UnaryExpression : public Expression {
 
 class GroupingExpression : public Expression {
  public:
-  explicit GroupingExpression(std::unique_ptr<Expression> expr)
-      : expr(std::move(expr)) {}
+  GroupingExpression(std::unique_ptr<Expression> expr, Token location = Token{})
+      : Expression(location), expr(std::move(expr)) {}
 
   const std::unique_ptr<Expression>& getExpression() const { return expr; }
 
@@ -286,9 +292,9 @@ class GroupingExpression : public Expression {
 
 class CastExpression : public Expression {
  public:
-  explicit CastExpression(std::unique_ptr<Expression> expr,
-                          VellumType targetType)
-      : expr(std::move(expr)), targetType(targetType) {}
+  CastExpression(std::unique_ptr<Expression> expr, VellumType targetType,
+                 Token location = Token{})
+      : Expression(location), expr(std::move(expr)), targetType(targetType) {}
 
   const std::unique_ptr<Expression>& getExpression() const { return expr; }
 

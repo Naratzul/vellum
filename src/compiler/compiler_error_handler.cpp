@@ -28,7 +28,8 @@ void CompilerErrorHandler::errorAt(const Token& token,
 void CompilerErrorHandler::printError(const Token& token,
                                       std::string_view message) {
   std::ostringstream stream;
-  stream << std::format("[line {}, position {}] Error", token.location.start.line + 1,
+  stream << std::format("[line {}, position {}] Error",
+                        token.location.start.line + 1,
                         token.location.start.position);
 
   if (token.type == TokenType::END_OF_FILE) {

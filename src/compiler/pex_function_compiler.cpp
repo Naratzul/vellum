@@ -193,8 +193,9 @@ pex::PexValue PexFunctionCompiler::compile(
     const ast::IdentifierExpression& expr) {
   if (expr.getIdentifierType() == VellumValueType::Property) {
     ast::PropertyGetExpression getExpr(
-        std::make_unique<ast::IdentifierExpression>(VellumIdentifier("self")),
-        expr.getIdentifier());
+        std::make_unique<ast::IdentifierExpression>(VellumIdentifier("self"),
+                                                    expr.getLocation()),
+        expr.getIdentifier(), expr.getLocation());
     getExpr.setType(expr.getType());
     return compile(getExpr);
   }
@@ -320,7 +321,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
 
     pex::PexOpCode code = getBinaryOpCode(expr.getOperator(), expr.getType());
     if (code == pex::PexOpCode::Invalid) {
-      errorHandler->errorAt(Token(), "Unsupported binary operator");
+      errorHandler->errorAt(expr.getLocation(), "Unsupported binary operator");
       return dest;
     }
 
@@ -382,6 +383,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CastExpression& expr) {
 pex::PexValue PexFunctionCompiler::makeValueFromToken(VellumValue value) {
   std::optional<pex::PexValue> pexValue = makePexValue(value, file);
   if (!pexValue) {
+    // TODO: logic error
     errorHandler->errorAt(Token(), "Unexpected variable initializer type.");
     return pex::PexValue();
   }
@@ -406,6 +408,7 @@ pex::PexTemporaryVariable PexFunctionCompiler::makeTempVar(
   auto result = std::to_chars(buf.data() + PrefixLength,
                               buf.data() + buf.size(), tempVarCount);
   if (result.ec != std::errc{}) {
+    // TODO: internal error
     errorHandler->errorAt(
         Token(), "Failed to convert the current temp var index to a string.");
   }

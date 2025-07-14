@@ -102,8 +102,8 @@ struct Token {
 };
 
 inline bool operator==(const Token& lhs, const Token& rhs) {
-  return lhs.type == rhs.type && lhs.location == rhs.location &&
-         lhs.lexeme == rhs.lexeme && lhs.value == rhs.value;
+  return lhs.type == rhs.type && lhs.lexeme == rhs.lexeme &&
+         lhs.value == rhs.value;
 }
 
 inline bool operator!=(const Token& lhs, const Token& rhs) {

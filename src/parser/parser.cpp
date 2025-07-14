@@ -375,11 +375,12 @@ std::unique_ptr<ast::Expression> Parser::assignExpression() {
   if (match(TokenType::EQUAL)) {
     if (expr->isIdentifierExpression()) {
       return std::make_unique<ast::AssignExpression>(
-          expr->asIdentifier().getIdentifier(), assignExpression());
+          expr->asIdentifier().getIdentifier(), assignExpression(), previous);
     } else if (expr->isPropertyGetExpression()) {
       ast::PropertyGetExpression& getExpr = expr->asPropertyGet();
       return std::make_unique<ast::PropertySetExpression>(
-          getExpr.releaseObject(), getExpr.getProperty(), assignExpression());
+          getExpr.releaseObject(), getExpr.getProperty(), assignExpression(),
+          previous);
     } else {
       errorHandler->errorAt(previous, "Invalid assignment target.");
     }
@@ -394,7 +395,7 @@ std::unique_ptr<ast::Expression> Parser::logicalOrExpression() {
   while (match(TokenType::OR)) {
     expr = std::make_unique<ast::BinaryExpression>(
         ast::BinaryExpression::Operator::Or, std::move(expr),
-        logicalAndExpression());
+        logicalAndExpression(), previous);
   }
 
   return expr;
@@ -406,7 +407,7 @@ std::unique_ptr<ast::Expression> Parser::logicalAndExpression() {
   while (match(TokenType::AND)) {
     expr = std::make_unique<ast::BinaryExpression>(
         ast::BinaryExpression::Operator::And, std::move(expr),
-        equalityExpression());
+        equalityExpression(), previous);
   }
 
   return expr;
@@ -421,7 +422,7 @@ std::unique_ptr<ast::Expression> Parser::equalityExpression() {
         op.type == TokenType::EQUAL_EQUAL
             ? ast::BinaryExpression::Operator::Equal
             : ast::BinaryExpression::Operator::NotEqual,
-        std::move(expr), compareExpression());
+        std::move(expr), compareExpression(), op);
   }
 
   return expr;
@@ -432,17 +433,17 @@ std::unique_ptr<ast::Expression> Parser::compareExpression() {
 
   while (match({TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER,
                 TokenType::GREATER_EQUAL})) {
-    auto op = ast::BinaryExpression::Operator::LessThan;
-    if (previous.type == TokenType::LESS_EQUAL) {
-      op = ast::BinaryExpression::Operator::LessThanEqual;
-    } else if (previous.type == TokenType::GREATER) {
-      op = ast::BinaryExpression::Operator::GreaterThan;
-    } else if (previous.type == TokenType::GREATER_EQUAL) {
-      op = ast::BinaryExpression::Operator::GreaterThanEqual;
+    const Token op = previous;
+    auto binOp = ast::BinaryExpression::Operator::LessThan;
+    if (op.type == TokenType::LESS_EQUAL) {
+      binOp = ast::BinaryExpression::Operator::LessThanEqual;
+    } else if (op.type == TokenType::GREATER) {
+      binOp = ast::BinaryExpression::Operator::GreaterThan;
+    } else if (op.type == TokenType::GREATER_EQUAL) {
+      binOp = ast::BinaryExpression::Operator::GreaterThanEqual;
     }
-
-    expr = std::make_unique<ast::BinaryExpression>(op, std::move(expr),
-                                                   termExpression());
+    expr = std::make_unique<ast::BinaryExpression>(binOp, std::move(expr),
+                                                   termExpression(), op);
   }
 
   return expr;
@@ -456,7 +457,7 @@ std::unique_ptr<ast::Expression> Parser::termExpression() {
     expr = std::make_unique<ast::BinaryExpression>(
         op.type == TokenType::MINUS ? ast::BinaryExpression::Operator::Subtract
                                     : ast::BinaryExpression::Operator::Add,
-        std::move(expr), factorExpression());
+        std::move(expr), factorExpression(), op);
   }
 
   return expr;
@@ -482,7 +483,7 @@ std::unique_ptr<ast::Expression> Parser::factorExpression() {
         assert(false && "Unexpected operator type");
     }
     expr = std::make_unique<ast::BinaryExpression>(binOp, std::move(expr),
-                                                   factorExpression());
+                                                   factorExpression(), op);
   }
 
   return expr;
@@ -490,11 +491,12 @@ std::unique_ptr<ast::Expression> Parser::factorExpression() {
 
 std::unique_ptr<ast::Expression> Parser::unaryExpression() {
   if (match({TokenType::MINUS, TokenType::NOT})) {
-    auto op = previous.type;
+    const Token op = previous;
     return std::make_unique<ast::UnaryExpression>(
-        op == TokenType::MINUS ? ast::UnaryExpression::Operator::Negate
-                               : ast::UnaryExpression::Operator::Not,
-        op == TokenType::MINUS ? unaryExpression() : logicalOrExpression());
+        op.type == TokenType::MINUS ? ast::UnaryExpression::Operator::Negate
+                                    : ast::UnaryExpression::Operator::Not,
+        op.type == TokenType::MINUS ? unaryExpression() : logicalOrExpression(),
+        op);
   }
   return castExpression();
 }
@@ -503,9 +505,10 @@ std::unique_ptr<ast::Expression> Parser::castExpression() {
   auto expr = callOrGetExpression();
 
   if (match(TokenType::AS)) {
+    const Token op = previous;
     consume(TokenType::IDENTIFIER, "Expect a target type for cast.");
     return std::make_unique<ast::CastExpression>(
-        std::move(expr), VellumType::unresolved(previous.lexeme));
+        std::move(expr), VellumType::unresolved(previous.lexeme), op);
   }
 
   return expr;
@@ -516,11 +519,13 @@ std::unique_ptr<ast::Expression> Parser::callOrGetExpression() {
 
   while (true) {
     if (match(TokenType::LEFT_PAREN)) {
-      expr = callExpression(std::move(expr));
+      const Token op = previous;
+      expr = callExpression(std::move(expr), op);
     } else if (match(TokenType::DOT)) {
+      const Token op = previous;
       consume(TokenType::IDENTIFIER, "Expect a property name after '.'");
       expr = std::make_unique<ast::PropertyGetExpression>(
-          std::move(expr), VellumIdentifier(previous.lexeme));
+          std::move(expr), VellumIdentifier(previous.lexeme), op);
     } else {
       break;
     }
@@ -530,7 +535,7 @@ std::unique_ptr<ast::Expression> Parser::callOrGetExpression() {
 }
 
 std::unique_ptr<ast::Expression> Parser::callExpression(
-    std::unique_ptr<ast::Expression> callee) {
+    std::unique_ptr<ast::Expression> callee, const Token& location) {
   std::vector<std::unique_ptr<ast::Expression>> arguments;
 
   if (!check(TokenType::RIGHT_PAREN)) {
@@ -542,24 +547,25 @@ std::unique_ptr<ast::Expression> Parser::callExpression(
   consume(TokenType::RIGHT_PAREN, "Expect ')' after function call.");
 
   return std::make_unique<ast::CallExpression>(std::move(callee),
-                                               std::move(arguments));
+                                               std::move(arguments), location);
 }
 
 std::unique_ptr<ast::Expression> Parser::primaryExpression() {
   if (match({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
              TokenType::TRUE, TokenType::STRING, TokenType::NIL})) {
-    return std::make_unique<ast::LiteralExpression>(*previous.value);
+    return std::make_unique<ast::LiteralExpression>(*previous.value, previous);
   }
 
   if (match(TokenType::IDENTIFIER)) {
     return std::make_unique<ast::IdentifierExpression>(
-        VellumIdentifier(previous.lexeme));
+        VellumIdentifier(previous.lexeme), previous);
   }
 
   if (match(TokenType::LEFT_PAREN)) {
+    const Token op = previous;
     auto expr = expression();
     consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-    return std::make_unique<ast::GroupingExpression>(std::move(expr));
+    return std::make_unique<ast::GroupingExpression>(std::move(expr), op);
   }
 
   errorHandler->errorAt(current, "Unexpected expression.");
