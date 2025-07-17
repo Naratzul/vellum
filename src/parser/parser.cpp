@@ -7,6 +7,18 @@
 
 namespace vellum {
 
+class ParseException : public std::runtime_error {
+ public:
+  ParseException(Token token, const std::string& message)
+      : std::runtime_error(message), token(token) {}
+
+  Token getToken() const { return token; }
+  std::string getMessage() const { return what(); }
+
+ private:
+  Token token;
+};
+
 static std::string_view getFunctionTypeName(FunctionType type) {
   switch (type) {
     case FunctionType::Event:
@@ -32,11 +44,11 @@ ParserResult Parser::parse() {
   ParserResult result;
 
   while (!check(TokenType::END_OF_FILE)) {
-    if (auto decl = declaration()) {
-      result.declarations.push_back(std::move(decl));
-    }
-    if (errorHandler->isPanicMode()) {
-      synchronize();
+    try {
+      result.declarations.push_back(declaration());
+    } catch (const ParseException& e) {
+      errorHandler->errorAt(e.getToken(), e.getMessage());
+      synchronizeDeclaration();
     }
   }
 
@@ -57,21 +69,23 @@ void Parser::advance() {
 }
 
 std::unique_ptr<ast::Declaration> Parser::declaration() {
+  std::unique_ptr<ast::Declaration> decl;
+
   if (match(TokenType::SCRIPT)) {
-    return scriptDeclaration();
+    decl = scriptDeclaration();
   } else if (match(TokenType::VAR)) {
-    return variableDeclaration();
+    decl = variableDeclaration();
   } else if (match(TokenType::FUN)) {
-    return functionDeclaration(FunctionType::Function);
+    decl = functionDeclaration(FunctionType::Function);
   } else if (match(TokenType::EVENT)) {
-    return functionDeclaration(FunctionType::Event);
+    decl = functionDeclaration(FunctionType::Event);
   } else if (match(TokenType::IDENTIFIER)) {
-    return propertyDeclaration();
+    decl = propertyDeclaration();
+  } else {
+    throw ParseException(current, "Expect a declaraion.");
   }
 
-  errorHandler->errorAt(current, "Unexpected declaraion.");
-
-  return nullptr;
+  return decl;
 }
 
 bool Parser::match(TokenType type) {
@@ -138,17 +152,15 @@ std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
   std::unique_ptr<ast::Expression> initializer;
   if (match(TokenType::EQUAL)) {
     initializer = expression();
-    if (initializer && !initializer->isLiteralExpression()) {
-      errorHandler->errorAt(
+    if (!initializer->isLiteralExpression()) {
+      throw ParseException(
           current,
           "Script variables can only be initialized with literal value.");
-      return nullptr;
     }
   }
 
   if (!typeName && !initializer) {
-    errorHandler->errorAt(previous, "Type annotation is missing.");
-    return nullptr;
+    throw ParseException(previous, "Type annotation is missing.");
   }
 
   return std::make_unique<ast::GlobalVariableDeclaration>(
@@ -249,10 +261,11 @@ ast::FunctionBody Parser::functionBody(FunctionType type) {
   ast::FunctionBody body;
 
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    if (auto stmt = statement()) {
-      body.push_back(std::move(stmt));
-    } else {
-      break;
+    try {
+      body.push_back(std::move(statement()));
+    } catch (const ParseException& e) {
+      errorHandler->errorAt(e.getToken(), e.getMessage());
+      synchronizeStatement();
     }
   }
 
@@ -263,19 +276,21 @@ ast::FunctionBody Parser::functionBody(FunctionType type) {
 }
 
 std::unique_ptr<ast::Statement> Parser::statement() {
+  std::unique_ptr<ast::Statement> stmt;
+
   if (match(TokenType::IF)) {
-    return ifStatement();
+    stmt = ifStatement();
+  } else if (match(TokenType::RETURN)) {
+    stmt = returnStatement();
+  } else if (match(TokenType::VAR)) {
+    stmt = varStatement();
+  } else if (match(TokenType::WHILE)) {
+    stmt = whileStatement();
+  } else {
+    stmt = expressionStatement();
   }
-  if (match(TokenType::RETURN)) {
-    return returnStatement();
-  }
-  if (match(TokenType::VAR)) {
-    return varStatement();
-  }
-  if (match(TokenType::WHILE)) {
-    return whileStatement();
-  }
-  return expressionStatement();
+
+  return stmt;
 }
 
 std::unique_ptr<ast::Statement> Parser::ifStatement() {
@@ -284,10 +299,11 @@ std::unique_ptr<ast::Statement> Parser::ifStatement() {
   consume(TokenType::LEFT_BRACE, "Expected '{{' after if condition.");
   std::vector<std::unique_ptr<ast::Statement>> then_branch;
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    if (auto stmt = statement()) {
-      then_branch.push_back(std::move(stmt));
-    } else {
-      break;
+    try {
+      then_branch.push_back(std::move(statement()));
+    } catch (const ParseException& e) {
+      errorHandler->errorAt(e.getToken(), e.getMessage());
+      synchronizeStatement();
     }
   }
   consume(TokenType::RIGHT_BRACE, "Expected '}}' after if block.");
@@ -297,10 +313,11 @@ std::unique_ptr<ast::Statement> Parser::ifStatement() {
     std::vector<std::unique_ptr<ast::Statement>> else_statements;
     consume(TokenType::LEFT_BRACE, "Expected '{{' after 'else'.");
     while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-      if (auto stmt = statement()) {
-        else_statements.push_back(std::move(stmt));
-      } else {
-        break;
+      try {
+        else_statements.push_back(std::move(statement()));
+      } catch (const ParseException& e) {
+        errorHandler->errorAt(e.getToken(), e.getMessage());
+        synchronizeStatement();
       }
     }
     consume(TokenType::RIGHT_BRACE, "Expected '}}' after else block.");
@@ -331,8 +348,7 @@ std::unique_ptr<ast::Statement> Parser::varStatement() {
   }
 
   if (!type && !initializer) {
-    errorHandler->errorAt(previous, "Type annotation is missing.");
-    return nullptr;
+    throw ParseException(previous, "Type annotation is missing.");
   }
 
   return std::make_unique<ast::LocalVariableStatement>(name, type,
@@ -345,10 +361,11 @@ std::unique_ptr<ast::Statement> Parser::whileStatement() {
 
   ast::WhileStatement::Body body;
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    if (auto stmt = statement()) {
-      body.push_back(std::move(stmt));
-    } else {
-      break;
+    try {
+      body.push_back(std::move(statement()));
+    } catch (const ParseException& e) {
+      errorHandler->errorAt(e.getToken(), e.getMessage());
+      synchronizeStatement();
     }
   }
 
@@ -359,10 +376,7 @@ std::unique_ptr<ast::Statement> Parser::whileStatement() {
 }
 
 std::unique_ptr<ast::Statement> Parser::expressionStatement() {
-  if (auto expr = expression()) {
-    return std::make_unique<ast::ExpressionStatement>(std::move(expr));
-  }
-  return nullptr;
+  return std::make_unique<ast::ExpressionStatement>(expression());
 }
 
 std::unique_ptr<ast::Expression> Parser::expression() {
@@ -568,11 +582,10 @@ std::unique_ptr<ast::Expression> Parser::primaryExpression() {
     return std::make_unique<ast::GroupingExpression>(std::move(expr), op);
   }
 
-  errorHandler->errorAt(current, "Unexpected expression.");
-  return nullptr;
+  throw ParseException(current, "Expect an expression.");
 }
 
-void Parser::synchronize() {
+void Parser::synchronizeDeclaration() {
   errorHandler->disablePanicMode();
   while (!check(TokenType::END_OF_FILE)) {
     switch (current.type) {
@@ -581,10 +594,24 @@ void Parser::synchronize() {
       case TokenType::IDENTIFIER:
       case TokenType::VAR:
       case TokenType::SCRIPT:
+        return;
+      default:
+        break;
+    }
+    advance();
+  }
+}
+
+void Parser::synchronizeStatement() {
+  errorHandler->disablePanicMode();
+  while (!check(TokenType::END_OF_FILE)) {
+    switch (current.type) {
+      case TokenType::VAR:
       case TokenType::IF:
       case TokenType::FOR:
       case TokenType::WHILE:
       case TokenType::RETURN:
+      case TokenType::RIGHT_BRACE:
         return;
       default:
         break;

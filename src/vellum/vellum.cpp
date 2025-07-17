@@ -21,9 +21,6 @@ void Vellum::run(std::string_view inputFile) {
 
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();
-  if (errorHandler->hadError()) {
-    return;
-  }
 
   VellumObject debug(VellumIdentifier(("Debug")));
   debug.addFunction(VellumFunction(

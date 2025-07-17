@@ -81,7 +81,8 @@ class Parser {
       std::unique_ptr<ast::Expression> callee, const Token& location);
   std::unique_ptr<ast::Expression> primaryExpression();
 
-  void synchronize();
+  void synchronizeDeclaration();
+  void synchronizeStatement();
 };
 template <typename... Args>
 inline void Parser::consume(TokenType type, std::format_string<Args...> fmt,

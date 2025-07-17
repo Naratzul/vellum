@@ -15,9 +15,6 @@ std::vector<DiagnosticMessage> StaticAnalyze::analyze(
 
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();
-  if (errorHandler->hadError()) {
-    return errorHandler->getErrors();
-  }
 
   VellumObject debug(VellumIdentifier(("Debug")));
   debug.addFunction(VellumFunction(
