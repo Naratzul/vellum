@@ -22,7 +22,9 @@ class CompilerErrorHandler {
 
   bool hadError() const { return hadError_; }
 
-  bool isPanicMode() const { return panicMode_; }
+  void setCanEnterPanicMode(bool value) { canEnterPanicMode = value; }
+
+  bool isPanicMode() const { return canEnterPanicMode && panicMode_; }
   void enablePanicMode() { panicMode_ = true; }
   void disablePanicMode() { panicMode_ = false; }
 
@@ -31,6 +33,7 @@ class CompilerErrorHandler {
  private:
   bool hadError_ = false;
   bool panicMode_ = false;
+  bool canEnterPanicMode = true;
 
   std::vector<DiagnosticMessage> errors;
 

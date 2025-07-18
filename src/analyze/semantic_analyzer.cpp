@@ -19,9 +19,13 @@ SemanticAnalyzer::SemanticAnalyzer(
 
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
     std::vector<std::unique_ptr<ast::Declaration>>&& declarations) {
+  errorHandler->setCanEnterPanicMode(false);
+
   for (auto& declaration : declarations) {
     declaration->accept(*this);
   }
+
+  errorHandler->setCanEnterPanicMode(true);
 
   return SemanticAnalyzeResult{std::move(declarations)};
 }
@@ -48,12 +52,15 @@ void SemanticAnalyzer::visitVariableDeclaration(
   }
 
   if (annotatedType && deducedType) {
-    if (annotatedType.value() != deducedType.value()) {
-      errorHandler->errorAt(
-          statement.initializer()->getLocation(),
-          std::format("Variable type mismatch: got {}, expected {}.",
-                      annotatedType->toString(), deducedType->toString()));
+    std::string gotType;
+    if (deducedType->isResolved()) {
+      gotType = std::format(", got '{}'.", deducedType->toString());
     }
+
+    errorHandler->errorAt(
+        statement.initializer()->getLocation(),
+        std::format("Variable type mismatch: expected '{}'{}.",
+                    annotatedType->toString(), gotType));
   }
 
   resolver->addVariable(VellumVariable(VellumIdentifier(statement.name()),
@@ -108,12 +115,15 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
   const auto& func = resolver->getCurrentFunction();
   assert(func.has_value());
   if (statement.getExpression()->getType() != func->getReturnType()) {
+    std::string gotType;
+    if (statement.getExpression()->getType().isResolved()) {
+      gotType = std::format("Got type is '{}'.",
+                            statement.getExpression()->getType().toString());
+    }
     errorHandler->errorAt(
         statement.getExpression()->getLocation(),
-        std::format(
-            "Return type mismatch. Given type is '{}'. Expected type is '{}'.",
-            statement.getExpression()->getType().toString(),
-            func->getReturnType().toString()));
+        std::format("Return type mismatch. Expected type is '{}'. {}",
+                    func->getReturnType().toString(), gotType));
     return;
   }
 }
@@ -155,11 +165,15 @@ void SemanticAnalyzer::visitLocalVariableStatement(
 
   if (annotatedType && deducedType) {
     if (annotatedType.value() != deducedType.value()) {
+      std::string gotType;
+      if (deducedType->isResolved()) {
+        gotType = std::format(", got '{}'.", deducedType->toString());
+      }
+
       errorHandler->errorAt(
           statement.getInitializer()->getLocation(),
-          std::format("Variable type mismatch: got {}, expected {}.",
-                      annotatedType->toString(), deducedType->toString()));
-      return;
+          std::format("Variable type mismatch: expected '{}'{}.",
+                      annotatedType->toString(), gotType));
     }
   }
 
@@ -252,8 +266,8 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     if (arg->getType() != func->getParameters()[i].getType()) {
       errorHandler->errorAt(
           arg->getLocation(),
-          std::format("Argument {} of function '{}' expects type {}, "
-                      "but got type {}.",
+          std::format("Argument {} of function '{}' expects type '{}', "
+                      "but got type '{}'.",
                       i, func->getName().toString(),
                       func->getParameters()[i].getType().toString(),
                       arg->getType().toString()));
@@ -366,9 +380,10 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
     if (!(leftType.isBool() && rightType.isBool())) {
       errorHandler->errorAt(
           expr.getLocation(),
-          std::format("Cannot perform logical operation on "
-                      "types: {} and {}. Both operands must be of Bool type.",
-                      leftType.toString(), rightType.toString()));
+          std::format(
+              "Cannot perform logical operation on "
+              "types: '{}' and '{}'. Both operands must be of Bool type.",
+              leftType.toString(), rightType.toString()));
       return;
     }
     expr.setType(VellumType::literal(VellumLiteralType::Bool));
@@ -399,7 +414,7 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
       errorHandler->errorAt(
           expr.getLocation(),
           std::format("Cannot perform arithmetic operation on "
-                      "types: {} and {}",
+                      "types: '{}' and '{}'",
                       leftType.toString(), rightType.toString()));
       return;
     }
@@ -422,7 +437,7 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
             expr.getOperand()->getLocation(),
             std::format(
                 "Unary operator '-' can be applied only to expressions with "
-                "numeric types (Int, Float). Given type is '{}'",
+                "numeric types (Int, Float). Got type is '{}'",
                 expr.getType().toString()));
       }
       break;
@@ -431,7 +446,7 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
         errorHandler->errorAt(expr.getOperand()->getLocation(),
                               std::format("Unary operator 'not' can be "
                                           "applied only to expressions with "
-                                          "Bool type. Given type is '{}'",
+                                          "Bool type. Got type is '{}'",
                                           expr.getType().toString()));
       }
       break;
