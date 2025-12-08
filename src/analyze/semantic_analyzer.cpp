@@ -403,6 +403,13 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
     return;
   }
 
+  // string concat
+  if (expr.getOperator() == ast::BinaryExpression::Operator::Add &&
+      leftType.isString() && rightType.isString()) {
+    expr.setType(VellumType::literal(VellumLiteralType::String));
+    return;
+  }
+
   // For arithmetic operators, both operands must be numeric
   if (expr.getOperator() == ast::BinaryExpression::Operator::Add ||
       expr.getOperator() == ast::BinaryExpression::Operator::Subtract ||
@@ -410,7 +417,7 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
       expr.getOperator() == ast::BinaryExpression::Operator::Divide ||
       expr.getOperator() == ast::BinaryExpression::Operator::Modulo) {
     if (leftType != rightType ||
-        !(leftType.isInt() || leftType.isFloat() || leftType.isString())) {
+        !(leftType.isInt() || leftType.isFloat())) {
       errorHandler->errorAt(
           expr.getLocation(),
           std::format("Cannot perform arithmetic operation on "
