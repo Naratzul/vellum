@@ -40,6 +40,10 @@ Token Lexer::scanToken() {
       return makeToken(TokenType::LEFT_BRACE);
     case '}':
       return makeToken(TokenType::RIGHT_BRACE);
+    case '[':
+      return makeToken(TokenType::LEFT_BRACK);
+    case ']':
+      return makeToken(TokenType::RIGHT_BRACK);
     case ':':
       return makeToken(TokenType::COLON);
     case ';':

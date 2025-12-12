@@ -80,6 +80,7 @@ class Parser {
   std::unique_ptr<ast::Expression> callExpression(
       std::unique_ptr<ast::Expression> callee, const Token& location);
   std::unique_ptr<ast::Expression> primaryExpression();
+  std::unique_ptr<ast::Expression> arrayExpression();
 
   void synchronizeDeclaration();
   void synchronizeStatement();

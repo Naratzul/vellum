@@ -5,6 +5,9 @@ features:
 - for statement
 - imports
 - cast semantic
+- states
+- scripts as classes (one script def per file is required)
+- arrays
 
 tests:
 - return statement

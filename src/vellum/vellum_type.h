@@ -10,7 +10,7 @@
 
 namespace vellum {
 
-enum class VellumTypeState { Unresolved, None, Literal, Identifier };
+enum class VellumTypeState { Unresolved, None, Literal, Identifier, Array };
 
 class VellumType {
  public:
@@ -18,6 +18,7 @@ class VellumType {
   static VellumType literal(VellumLiteralType type);
   static VellumType identifier(VellumIdentifier identifier);
   static VellumType unresolved(std::string_view type = "");
+  static VellumType array(VellumType subtype);
 
   VellumTypeState getState() const { return state; }
   bool isResolved() const { return state != VellumTypeState::Unresolved; }
@@ -25,24 +26,27 @@ class VellumType {
   std::string_view asRawType() const;
   VellumLiteralType asLiteralType() const;
   VellumIdentifier asIdentifier() const;
+  const std::shared_ptr<VellumType>& asArraySubtype() const;
 
   bool isInt() const;
   bool isFloat() const;
   bool isString() const;
   bool isBool() const;
+  bool isArray() const;
 
   std::string_view toString() const;
 
  private:
   VellumTypeState state = VellumTypeState::None;
   std::variant<std::monostate, std::string_view, VellumLiteralType,
-               VellumIdentifier>
+               VellumIdentifier, std::shared_ptr<VellumType>>
       type;
 
   VellumType() = default;
   explicit VellumType(std::string_view type);
   explicit VellumType(VellumLiteralType type);
   explicit VellumType(VellumIdentifier type);
+  explicit VellumType(std::shared_ptr<VellumType> subtype);
 };
 
 bool operator==(const VellumType& lhs, const VellumType& rhs);

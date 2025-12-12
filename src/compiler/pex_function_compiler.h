@@ -48,6 +48,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::BinaryExpression& expr) override;
   pex::PexValue compile(const ast::UnaryExpression& expr) override;
   pex::PexValue compile(const ast::CastExpression& expr) override;
+  pex::PexValue compile(const ast::NewArrayExpression& expr) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;

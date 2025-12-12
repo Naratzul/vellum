@@ -143,14 +143,24 @@ std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
   consume(TokenType::IDENTIFIER, "Expect a variable name.");
   const std::string_view name = previous.lexeme;
 
+  bool isArray = false;
   std::optional<VellumType> typeName;
   if (match(TokenType::COLON)) {
+    isArray = match(TokenType::LEFT_BRACK);
+
     consume(TokenType::IDENTIFIER, "Expect a type name.");
-    typeName = VellumType::unresolved(previous.lexeme);
+
+    auto subtype = VellumType::unresolved(previous.lexeme);
+
+    typeName = isArray ? VellumType::array(subtype) : subtype;
+
+    if (isArray) {
+      consume(TokenType::RIGHT_BRACK, "Expect ']' after array type.");
+    }
   }
 
   std::unique_ptr<ast::Expression> initializer;
-  if (match(TokenType::EQUAL)) {
+  if (!isArray && match(TokenType::EQUAL)) {
     initializer = expression();
     if (!initializer->isLiteralExpression()) {
       throw ParseException(
@@ -582,7 +592,35 @@ std::unique_ptr<ast::Expression> Parser::primaryExpression() {
     return std::make_unique<ast::GroupingExpression>(std::move(expr), op);
   }
 
+  if (match(TokenType::LEFT_BRACK)) {
+    return arrayExpression();
+  }
+
   throw ParseException(current, "Expect an expression.");
+}
+
+std::unique_ptr<ast::Expression> Parser::arrayExpression() {
+  std::optional<VellumType> subtype;
+
+  if (match(TokenType::RIGHT_BRACK)) {
+    return std::make_unique<ast::NewArrayExpression>(subtype, VellumLiteral(0), previous);
+  }
+
+  consume(TokenType::IDENTIFIER, "Expect array elements type.");
+  subtype = VellumType::unresolved(previous.lexeme);
+
+  consume(TokenType::SEMICOLON, "Expect ';' after array elements type.");
+
+  consume(TokenType::INT, "Expect array length as Int value.");
+  if (!previous.value.has_value()) {
+    throw ParseException(previous, "Array length must be provided.");
+  }
+
+  const VellumLiteral length = previous.value.value();
+
+  consume(TokenType::RIGHT_BRACK, "Expect ']' after array.");
+
+  return std::make_unique<ast::NewArrayExpression>(subtype, length, previous);
 }
 
 void Parser::synchronizeDeclaration() {

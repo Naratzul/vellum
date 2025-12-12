@@ -314,5 +314,25 @@ class CastExpression : public Expression {
   std::unique_ptr<Expression> expr;
   VellumType targetType;
 };
+
+class NewArrayExpression : public Expression {
+ public:
+  NewArrayExpression(std::optional<VellumType> subtype, VellumLiteral length, Token location)
+      : Expression(location), subtype(subtype), length(length) {}
+
+  bool equals(const Expression& other) const override;
+  virtual VellumValue produceValue() const override { return VellumValue(); }
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  const std::optional<VellumType>& getSubtype() const { return subtype; }
+  void setSubtype(VellumType type) { subtype = type; }
+
+  const VellumLiteral& getLength() const { return length; }
+
+ private:
+  std::optional<VellumType> subtype;
+  VellumLiteral length;
+};
 }  // namespace ast
 }  // namespace vellum

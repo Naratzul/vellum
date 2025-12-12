@@ -15,6 +15,8 @@ enum class TokenType {
   RIGHT_PAREN,
   LEFT_BRACE,
   RIGHT_BRACE,
+  LEFT_BRACK,
+  RIGHT_BRACK,
   COMMA,
   DOT,
   MINUS,

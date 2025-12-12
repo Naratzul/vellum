@@ -174,5 +174,18 @@ pex::PexValue CastExpression::compile(ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
 
+bool NewArrayExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const NewArrayExpression&>(other_);
+  return subtype == other.subtype && length == other.length;
+}
+
+void NewArrayExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitNewArrayExpression(*this);
+}
+
+pex::PexValue NewArrayExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
 }  // namespace ast
 }  // namespace vellum

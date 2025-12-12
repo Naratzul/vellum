@@ -52,15 +52,17 @@ void SemanticAnalyzer::visitVariableDeclaration(
   }
 
   if (annotatedType && deducedType) {
-    std::string gotType;
-    if (deducedType->isResolved()) {
-      gotType = std::format(", got '{}'.", deducedType->toString());
-    }
+    if (annotatedType != deducedType) {
+      std::string gotType;
+      if (deducedType->isResolved()) {
+        gotType = std::format(", got '{}'.", deducedType->toString());
+      }
 
-    errorHandler->errorAt(
-        statement.initializer()->getLocation(),
-        std::format("Variable type mismatch: expected '{}'{}.",
-                    annotatedType->toString(), gotType));
+      errorHandler->errorAt(
+          statement.initializer()->getLocation(),
+          std::format("Variable type mismatch: expected '{}'{}.",
+                      annotatedType->toString(), gotType));
+    }
   }
 
   resolver->addVariable(VellumVariable(VellumIdentifier(statement.name()),
@@ -416,8 +418,7 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
       expr.getOperator() == ast::BinaryExpression::Operator::Multiply ||
       expr.getOperator() == ast::BinaryExpression::Operator::Divide ||
       expr.getOperator() == ast::BinaryExpression::Operator::Modulo) {
-    if (leftType != rightType ||
-        !(leftType.isInt() || leftType.isFloat())) {
+    if (leftType != rightType || !(leftType.isInt() || leftType.isFloat())) {
       errorHandler->errorAt(
           expr.getLocation(),
           std::format("Cannot perform arithmetic operation on "
@@ -467,7 +468,37 @@ void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
   expr.setTargetType(resolveType(expr.getTargetType()));
 }
 
+void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
+  if (const auto& subtype = expr.getSubtype(); subtype.has_value()) {
+    VellumType resolvedSubtype = resolveType(subtype.value());
+    expr.setSubtype(resolvedSubtype);
+    expr.setType(VellumType::array(resolvedSubtype));
+  }
+
+  const auto& length = expr.getLength();
+  if (length.getType() != VellumLiteralType::Int) {
+    errorHandler->errorAt(
+        expr.getLocation(),
+        std::format("Array length is expected to be 'Int'. Got type is '{}'",
+                    literalTypeToString(length.getType())));
+  }
+
+  const int lengthInt = length.asInt();
+
+  if (lengthInt < 0) {
+    errorHandler->errorAt(expr.getLocation(),
+                          "Array length must be a positive number.");
+  } else if (lengthInt > 128) {
+    errorHandler->errorAt(expr.getLocation(),
+                          "Maximum array length (128) is exceeded.");
+  }
+}
+
 VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {
+  if (unresolvedType.isArray()) {
+    return VellumType::array(resolveType(*unresolvedType.asArraySubtype()));
+  }
+
   assert(!unresolvedType.isResolved());
   const std::string_view rawType = unresolvedType.asRawType();
   assert(!rawType.empty());

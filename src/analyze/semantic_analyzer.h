@@ -54,6 +54,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   void visitBinaryExpression(ast::BinaryExpression& expr) override;
   void visitUnaryExpression(ast::UnaryExpression& expr) override;
   void visitCastExpression(ast::CastExpression& expr) override;
+  void visitNewArrayExpression(ast::NewArrayExpression& expr) override;
 
  private:
   std::shared_ptr<CompilerErrorHandler> errorHandler;
