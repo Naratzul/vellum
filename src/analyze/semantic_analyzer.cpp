@@ -281,8 +281,7 @@ void SemanticAnalyzer::visitPropertyGetExpression(
     ast::PropertyGetExpression& expr) {
   expr.getObject()->accept(*this);
 
-  const VellumIdentifier object =
-      expr.getObject()->asIdentifier().getIdentifier();
+  const VellumIdentifier object = expr.getObject()->getType().asIdentifier();
 
   const auto property = resolver->resolveProperty(object, expr.getProperty());
   if (!property) {
@@ -312,7 +311,7 @@ void SemanticAnalyzer::visitPropertySetExpression(
   expr.getObject()->accept(*this);
 
   const auto property = resolver->resolveProperty(
-      expr.getObject()->asIdentifier().getIdentifier(), expr.getProperty());
+      expr.getObject()->getType().asIdentifier(), expr.getProperty());
   if (!property) {
     errorHandler->errorAt(
         expr.getLocation(),
