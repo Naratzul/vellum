@@ -17,7 +17,7 @@ bool ScriptDeclaration::equals(const Declaration& other_) const {
 
 VellumValue GlobalVariableDeclaration::getValue() const {
   if (initializer_) {
-    return initializer_->produceValue();
+    return initializer_->asLiteral().getLiteral();
   }
   return VellumValue();
 }

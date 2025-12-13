@@ -246,13 +246,13 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
 
 pex::PexValue PexFunctionCompiler::compile(
     const ast::PropertyGetExpression& expr) {
-  const VellumPropertyAccess property = expr.produceValue().asPropertyAccess();
   const pex::PexValue retVal =
       makeTempVar(file.getString(expr.getType().toString()));
 
   std::vector<pex::PexValue> args = {
-      pex::PexIdentifier(file.getString(property.getProperty().getValue())),
-      pex::PexIdentifier(file.getString(property.getObject().getValue())),
+      pex::PexIdentifier(file.getString(expr.getProperty().getValue())),
+      pex::PexIdentifier(file.getString(
+          expr.getObject()->asIdentifier().getIdentifier().toString())),
       pex::PexIdentifier(retVal.asTempVar().getName())};
 
   instructions.emplace_back(pex::PexOpCode::PropGet, std::move(args));

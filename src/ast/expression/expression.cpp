@@ -61,12 +61,6 @@ bool PropertyGetExpression::equals(const Expression& other_) const {
          getProperty() == other.getProperty();
 }
 
-VellumValue PropertyGetExpression::produceValue() const {
-  const VellumValue objectValue = object->produceValue();
-  assert(objectValue.getType() == VellumValueType::Identifier);
-  return VellumPropertyAccess(objectValue.asIdentifier(), property);
-}
-
 void PropertyGetExpression::accept(ExpressionVisitor& visitor) {
   visitor.visitPropertyGetExpression(*this);
 }
@@ -98,6 +92,10 @@ pex::PexValue AssignExpression::compile(ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
 
+LiteralExpression& Expression::asLiteral() {
+  return static_cast<LiteralExpression&>(*this);
+}
+
 IdentifierExpression& Expression::asIdentifier() {
   return static_cast<IdentifierExpression&>(*this);
 }
@@ -111,10 +109,6 @@ bool PropertySetExpression::equals(const Expression& other_) const {
   return getObject()->equals(*other.getObject()) &&
          getProperty() == other.getProperty() &&
          getValue()->equals(*other.getValue());
-}
-
-VellumValue PropertySetExpression::produceValue() const {
-  return VellumValue();
 }
 
 void PropertySetExpression::accept(ExpressionVisitor& visitor) {
@@ -132,11 +126,6 @@ bool BinaryExpression::equals(const Expression& other_) const {
          right->equals(*other.right);
 }
 
-VellumValue BinaryExpression::produceValue() const {
-  // Binary expressions don't produce a value directly
-  return VellumValue();
-}
-
 void BinaryExpression::accept(ExpressionVisitor& visitor) {
   visitor.visitBinaryExpression(*this);
 }
@@ -149,8 +138,6 @@ bool UnaryExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const UnaryExpression&>(other_);
   return op == other.op && operand->equals(*other.operand);
 }
-
-VellumValue UnaryExpression::produceValue() const { return VellumValue(); }
 
 void UnaryExpression::accept(ExpressionVisitor& visitor) {
   visitor.visitUnaryExpression(*this);

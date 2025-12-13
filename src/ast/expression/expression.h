@@ -16,6 +16,7 @@ namespace ast {
 class ExpressionVisitor;
 class ExpressionCompiler;
 
+class LiteralExpression;
 class IdentifierExpression;
 class PropertyGetExpression;
 
@@ -26,7 +27,6 @@ class Expression {
 
   virtual bool equals(const Expression& other) const = 0;
 
-  virtual VellumValue produceValue() const = 0;
   virtual VellumType getType() const { return type; }
   virtual void setType(VellumType type_) { type = type_; }
 
@@ -39,6 +39,7 @@ class Expression {
   virtual bool isIdentifierExpression() const { return false; }
   virtual bool isPropertyGetExpression() const { return false; }
 
+  LiteralExpression& asLiteral();
   IdentifierExpression& asIdentifier();
   PropertyGetExpression& asPropertyGet();
 
@@ -58,7 +59,6 @@ class LiteralExpression : public Expression {
   VellumLiteral getLiteral() const { return literal; }
   bool equals(const Expression& other) const override;
 
-  VellumValue produceValue() const override { return VellumValue(literal); }
   VellumType getType() const override {
     return VellumType::literal(literal.getType());
   }
@@ -82,8 +82,6 @@ class IdentifierExpression : public Expression {
   VellumValueType getIdentifierType() const { return identifierType; }
 
   bool equals(const Expression& other) const override;
-
-  VellumValue produceValue() const override { return VellumValue(identifier); }
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
@@ -110,8 +108,6 @@ class CallExpression : public Expression {
     return arguments;
   }
 
-  VellumValue produceValue() const override { return function.value(); }
-
   void setFunctionCall(VellumFunctionCall function_) { function = function_; }
   std::optional<VellumFunctionCall> getFunctionCall() const { return function; }
 
@@ -132,8 +128,6 @@ class AssignExpression : public Expression {
       : Expression(location), name(name), value(std::move(value)) {}
 
   bool equals(const Expression& other) const override;
-
-  VellumValue produceValue() const override { return value->produceValue(); }
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
@@ -158,8 +152,6 @@ class PropertyGetExpression : public Expression {
   VellumIdentifier getProperty() const { return property; }
 
   bool equals(const Expression& other) const override;
-
-  VellumValue produceValue() const override;
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
@@ -187,8 +179,6 @@ class PropertySetExpression : public Expression {
   const std::unique_ptr<Expression>& getValue() const { return value; }
 
   bool equals(const Expression& other) const override;
-
-  VellumValue produceValue() const override;
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
@@ -232,8 +222,6 @@ class BinaryExpression : public Expression {
 
   bool equals(const Expression& other) const override;
 
-  VellumValue produceValue() const override;
-
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
@@ -255,7 +243,6 @@ class UnaryExpression : public Expression {
   const std::unique_ptr<Expression>& getOperand() const { return operand; }
 
   bool equals(const Expression& other) const override;
-  VellumValue produceValue() const override;
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
@@ -275,7 +262,6 @@ class GroupingExpression : public Expression {
     return expr->equals(other);
   }
 
-  VellumValue produceValue() const override { return expr->produceValue(); }
   VellumType getType() const override { return expr->getType(); }
 
   void accept(ExpressionVisitor& visitor) override {
@@ -305,8 +291,6 @@ class CastExpression : public Expression {
 
   bool equals(const Expression& other) const override;
 
-  VellumValue produceValue() const override { return expr->produceValue(); }
-
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
@@ -321,7 +305,6 @@ class NewArrayExpression : public Expression {
       : Expression(location), subtype(subtype), length(length) {}
 
   bool equals(const Expression& other) const override;
-  virtual VellumValue produceValue() const override { return VellumValue(); }
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 

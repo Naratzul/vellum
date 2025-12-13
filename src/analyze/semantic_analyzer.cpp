@@ -224,21 +224,18 @@ void SemanticAnalyzer::visitIdentifierExpression(
 
 void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   expr.getCallee()->accept(*this);
-  const VellumValue callee = expr.getCallee()->produceValue();
+  const auto& callee = expr.getCallee();
 
-  switch (callee.getType()) {
-    case VellumValueType::Identifier:
-      expr.setFunctionCall(VellumFunctionCall(VellumIdentifier("self"),
-                                              callee.asIdentifier(), false));
-      break;
-    case VellumValueType::PropertyAccess:
-      expr.setFunctionCall(
-          VellumFunctionCall(callee.asPropertyAccess().getObject(),
-                             callee.asPropertyAccess().getProperty(), true));
-      break;
-    default:
-      assert(false && "Unknown callee type");
-      break;
+  if (callee->isIdentifierExpression()) {
+    expr.setFunctionCall(
+        VellumFunctionCall(VellumIdentifier("self"),
+                           callee->asIdentifier().getIdentifier(), false));
+  } else if (callee->isPropertyGetExpression()) {
+    expr.setFunctionCall(VellumFunctionCall(
+        callee->asPropertyGet().getObject()->asIdentifier().getIdentifier(),
+        callee->asPropertyGet().getProperty(), true));
+  } else {
+    assert(false && "Unknown callee type");
   }
 
   const auto& func =
@@ -285,7 +282,7 @@ void SemanticAnalyzer::visitPropertyGetExpression(
   expr.getObject()->accept(*this);
 
   const VellumIdentifier object =
-      expr.getObject()->produceValue().asIdentifier();
+      expr.getObject()->asIdentifier().getIdentifier();
 
   const auto property = resolver->resolveProperty(object, expr.getProperty());
   if (!property) {
@@ -315,7 +312,7 @@ void SemanticAnalyzer::visitPropertySetExpression(
   expr.getObject()->accept(*this);
 
   const auto property = resolver->resolveProperty(
-      expr.getObject()->produceValue().asIdentifier(), expr.getProperty());
+      expr.getObject()->asIdentifier().getIdentifier(), expr.getProperty());
   if (!property) {
     errorHandler->errorAt(
         expr.getLocation(),
