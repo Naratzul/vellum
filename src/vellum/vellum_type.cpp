@@ -46,6 +46,10 @@ VellumType VellumType::identifier(VellumIdentifier identifier) {
   return VellumType(identifier);
 }
 
+VellumType VellumType::identifier(std::string_view identifier) {
+  return VellumType::identifier(VellumIdentifier(identifier));
+}
+
 VellumType VellumType::unresolved(std::string_view type) {
   return VellumType(type);
 }

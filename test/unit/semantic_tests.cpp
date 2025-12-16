@@ -11,17 +11,29 @@
 
 using namespace vellum;
 
-TEST_CASE("SemanticGlobalVarTest") {
+class SemanticTestsFixture {
+ public:
+  SemanticTestsFixture() {
+    errorHandler = std::make_shared<CompilerErrorHandler>();
+    resolver = std::make_shared<Resolver>(
+        VellumObject(VellumType::identifier("TestScript")), errorHandler);
+    analyzer = std::make_shared<SemanticAnalyzer>(errorHandler, resolver,
+                                                  "testscript");
+  }
+
+ protected:
+  std::shared_ptr<CompilerErrorHandler> errorHandler;
+  std::shared_ptr<Resolver> resolver;
+  std::shared_ptr<SemanticAnalyzer> analyzer;
+};
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticGlobalVarTest") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   ast.emplace_back(std::make_unique<ast::GlobalVariableDeclaration>(
       "number", VellumType::unresolved("Int"),
       std::make_unique<ast::LiteralExpression>(VellumLiteral(42))));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
@@ -33,17 +45,13 @@ TEST_CASE("SemanticGlobalVarTest") {
   CHECK(expected == *result.declarations[0]);
 }
 
-TEST_CASE("SemanticAutoPropertyTest") {
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAutoPropertyTest") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   ast.emplace_back(std::make_unique<ast::PropertyDeclaration>(
       "MyProperty", VellumType::unresolved("String"), "", std::nullopt,
       std::nullopt, VellumValue()));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
@@ -54,18 +62,14 @@ TEST_CASE("SemanticAutoPropertyTest") {
   CHECK(expected == *result.declarations[0]);
 }
 
-TEST_CASE("SemanticFunctionTest") {
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticFunctionTest") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   ast.emplace_back(std::make_unique<ast::FunctionDeclaration>(
       "foo", std::vector<ast::FunctionParameter>{},
       VellumType::unresolved("Bool"),
       std::vector<std::unique_ptr<ast::Statement>>{}));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
@@ -75,7 +79,7 @@ TEST_CASE("SemanticFunctionTest") {
   CHECK(expected == *result.declarations[0]);
 }
 
-TEST_CASE("SemanticCall_NoArgs") {
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_NoArgs") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   // Define foo(): Int
   ast.emplace_back(std::make_unique<ast::FunctionDeclaration>(
@@ -94,11 +98,7 @@ TEST_CASE("SemanticCall_NoArgs") {
       "test", std::vector<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body)));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 2);
@@ -112,7 +112,7 @@ TEST_CASE("SemanticCall_NoArgs") {
   CHECK(call.getType().isInt());
 }
 
-TEST_CASE("SemanticCall_WithArgs") {
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_WithArgs") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   // Define foo(x: Int, y: String): Bool
   std::vector<ast::FunctionParameter> params = {
@@ -139,11 +139,7 @@ TEST_CASE("SemanticCall_WithArgs") {
       "test", std::vector<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body)));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 2);
@@ -157,7 +153,7 @@ TEST_CASE("SemanticCall_WithArgs") {
   CHECK(call.getType().isBool());
 }
 
-TEST_CASE("SemanticCall_UndefinedFunction") {
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_UndefinedFunction") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   // test() { notDefined(); }
   auto call_expr = std::make_unique<ast::CallExpression>(
@@ -171,16 +167,12 @@ TEST_CASE("SemanticCall_UndefinedFunction") {
       "test", std::vector<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body)));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hadError());
 }
 
-TEST_CASE("SemanticCall_ArgumentTypeMismatch") {
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_ArgumentTypeMismatch") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   // Define foo(x: Int, y: String): Bool
   std::vector<ast::FunctionParameter> params = {
@@ -207,16 +199,12 @@ TEST_CASE("SemanticCall_ArgumentTypeMismatch") {
       "test", std::vector<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body)));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hadError());
 }
 
-TEST_CASE("SemanticCall_TooFewArguments") {
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooFewArguments") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   // Define foo(x: Int, y: String): Bool
   std::vector<ast::FunctionParameter> params = {
@@ -241,16 +229,12 @@ TEST_CASE("SemanticCall_TooFewArguments") {
       "test", std::vector<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body)));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hadError());
 }
 
-TEST_CASE("SemanticCall_TooManyArguments") {
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooManyArguments") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   // Define foo(x: Int): Bool
   std::vector<ast::FunctionParameter> params = {
@@ -276,16 +260,13 @@ TEST_CASE("SemanticCall_TooManyArguments") {
       "test", std::vector<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body)));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hadError());
 }
 
-TEST_CASE("SemanticFunction_MismatchedReturnType") {
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticFunction_MismatchedReturnType") {
   std::vector<std::unique_ptr<ast::Declaration>> ast;
   // fun foo(): Int { return "not an int"; }
   auto body = std::vector<std::unique_ptr<ast::Statement>>{};
@@ -296,11 +277,7 @@ TEST_CASE("SemanticFunction_MismatchedReturnType") {
       "foo", std::vector<ast::FunctionParameter>{},
       VellumType::unresolved("Int"), std::move(body)));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
-  auto resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier("TestScript")), errorHandler);
-  const auto result =
-      SemanticAnalyzer(errorHandler, resolver).analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hadError());
 }

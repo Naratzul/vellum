@@ -11,9 +11,15 @@ namespace vellum {
 
 class Resolver {
  public:
+  static void addBultinObject(VellumObject object) {
+    builtinObjects.push_back(std::move(object));
+  }
+
   Resolver(VellumObject object,
            std::shared_ptr<CompilerErrorHandler> errorHandler)
       : object(std::move(object)), errorHandler(errorHandler) {}
+
+  const VellumObject& getObject() const { return object; }
 
   void addFunction(VellumFunction function) {
     object.addFunction(std::move(function));
@@ -34,6 +40,7 @@ class Resolver {
   const std::optional<VellumFunction>& getCurrentFunction() {
     return currentFunction;
   }
+
   void startFunction(const VellumFunction& func);
   void endFunction();
 
@@ -47,18 +54,21 @@ class Resolver {
   std::optional<VellumValue> resolveIdentifier(
       VellumIdentifier identifier) const;
 
-  std::optional<VellumValue> resolveProperty(VellumIdentifier object,
+  std::optional<VellumValue> resolveProperty(VellumType type,
                                              VellumIdentifier member) const;
 
   std::optional<VellumFunction> resolveFunction(
-      VellumIdentifier object, VellumIdentifier function) const;
+      VellumType type, VellumIdentifier function) const;
 
   std::optional<VellumVariable> resolveVariable(VellumIdentifier name) const;
+
+  std::optional<VellumType> resolveScriptType(VellumIdentifier identifier) const;
 
  private:
   VellumObject object;
   std::shared_ptr<CompilerErrorHandler> errorHandler;
 
+  static std::vector<VellumObject> builtinObjects;
   std::vector<VellumObject> importedObjects;
   std::vector<Scope> scopes;
   std::optional<VellumFunction> currentFunction;

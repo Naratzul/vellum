@@ -1,9 +1,21 @@
 #include "vellum_function.h"
 
 namespace vellum {
+
+VellumFunctionCall VellumFunctionCall::methodCall(VellumIdentifier object,
+                                                  VellumType objectType,
+                                                  VellumIdentifier function) {
+  return VellumFunctionCall(objectType, object, function);
+}
+
+VellumFunctionCall VellumFunctionCall::staticCall(VellumType objectType,
+                                                  VellumIdentifier function) {
+  return VellumFunctionCall(objectType, std::nullopt, function);
+}
+
 bool operator==(const VellumFunctionCall& lhs, const VellumFunctionCall& rhs) {
   return lhs.isStatic() == rhs.isStatic() &&
-         lhs.getObject() == rhs.getObject() &&
+         lhs.getObjectType() == rhs.getObjectType() &&
          lhs.getFunction() == rhs.getFunction();
 }
 
@@ -12,7 +24,7 @@ bool operator!=(const VellumFunctionCall& lhs, const VellumFunctionCall& rhs) {
 }
 
 std::ostream& operator<<(std::ostream& os, const VellumFunctionCall& value) {
-  os << value.getObject() << "." << value.getFunction() << "()";
+  os << value.getObjectType() << "." << value.getFunction() << "()";
   return os;
 }
 

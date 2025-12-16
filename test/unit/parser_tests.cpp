@@ -18,13 +18,13 @@ TEST_CASE("ParserScriptDeclarationTest") {
 
   auto errorHandler = std::make_shared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+      Parser(std::make_unique<LexerMock>(tokens), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
 
-  ast::ScriptDeclaration expected("name", "parent");
+  ast::ScriptDeclaration expected("name", tokens[1], "parent", tokens[3]);
   CHECK(expected == *result.declarations[0]);
 }
 

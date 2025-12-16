@@ -12,9 +12,9 @@
 namespace vellum {
 class VellumObject {
  public:
-  explicit VellumObject(VellumIdentifier name) : name(name) {}
+  explicit VellumObject(VellumType type) : type(type) {}
 
-  VellumIdentifier getName() const { return name; }
+  VellumType getType() const { return type; }
 
   const std::vector<VellumFunction>& getFunctions() const { return functions; }
   void addFunction(VellumFunction function) {
@@ -39,7 +39,7 @@ class VellumObject {
   std::optional<VellumVariable> findVariable(VellumIdentifier identifier) const;
 
  private:
-  VellumIdentifier name;
+  VellumType type;
 
   std::vector<VellumFunction> functions;
   std::vector<VellumProperty> properties;

@@ -115,17 +115,18 @@ std::unique_ptr<ast::Declaration> Parser::scriptDeclaration() {
     errorHandler->errorAt(current, "Expect a script's name after 'script'.");
   }
 
+  Token scriptNameLocation = previous;
   std::string_view scriptName = previous.lexeme;
 
-  // TODO: check that scriptName == filename
-
   std::optional<std::string_view> parentScriptName;
+  std::optional<Token> parentScriptNameLocation;
   if (match(TokenType::COLON)) {
     if (!match(TokenType::IDENTIFIER)) {
       errorHandler->errorAt(current,
                             "Expect a parent script's name after ':'.");
     }
     parentScriptName = previous.lexeme;
+    parentScriptNameLocation = previous;
   }
 
   if (!check(TokenType::END_OF_FILE) &&
@@ -134,9 +135,11 @@ std::unique_ptr<ast::Declaration> Parser::scriptDeclaration() {
   }
 
   resolver = std::make_shared<Resolver>(
-      VellumObject(VellumIdentifier(scriptName)), errorHandler);
+      VellumObject(VellumType::identifier(scriptName)), errorHandler);
 
-  return std::make_unique<ast::ScriptDeclaration>(scriptName, parentScriptName);
+  return std::make_unique<ast::ScriptDeclaration>(
+      scriptName, scriptNameLocation, parentScriptName,
+      parentScriptNameLocation);
 }
 
 std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
@@ -603,7 +606,8 @@ std::unique_ptr<ast::Expression> Parser::arrayExpression() {
   std::optional<VellumType> subtype;
 
   if (match(TokenType::RIGHT_BRACK)) {
-    return std::make_unique<ast::NewArrayExpression>(subtype, VellumLiteral(0), previous);
+    return std::make_unique<ast::NewArrayExpression>(subtype, VellumLiteral(0),
+                                                     previous);
   }
 
   consume(TokenType::IDENTIFIER, "Expect array elements type.");

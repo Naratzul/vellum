@@ -17,6 +17,7 @@ class VellumType {
   static VellumType none();
   static VellumType literal(VellumLiteralType type);
   static VellumType identifier(VellumIdentifier identifier);
+  static VellumType identifier(std::string_view identifier);
   static VellumType unresolved(std::string_view type = "");
   static VellumType array(VellumType subtype);
 

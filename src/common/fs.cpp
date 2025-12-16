@@ -38,7 +38,7 @@ std::string canonicalPath(std::string_view path) {
   return fs::canonical(fs::path(path)).string();
 }
 
-std::string filenameWithoutEx(std::string_view path) {
+std::string filenameWithoutExt(std::string_view path) {
   return fs::path(path).stem().string();
 }
 

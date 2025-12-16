@@ -6,6 +6,7 @@
 #include <format>
 #include <unordered_map>
 
+#include "common/os.h"
 #include "diagnostics.h"
 
 auto connection = lsp::Connection(lsp::io::standardIO());
@@ -97,6 +98,9 @@ int main() {
       [&isRunning]() { isRunning = false; });
 
   logMsg("Hello from server");
+
+  while (!vellum::common::isDebuggerPresent()) {
+  }
 
   while (isRunning) {
     messageHandler.processIncomingMessages();

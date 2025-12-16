@@ -1,6 +1,9 @@
 bugs:
 - 
 
+check:
+- [1, 2, 3].count - is it legit?
+
 features:
 - for statement
 - imports

@@ -27,26 +27,29 @@ enum class VellumValueType {
   Literal,
   Property,
   PropertyAccess,
-  Variable
+  Variable,
+  ScriptType
 };
 
 class VellumValue {
  public:
   VellumValue() = default;
   VellumValue(VellumFunction value)
-      : value(value), type(VellumValueType::Function){};
+      : value(value), type(VellumValueType::Function) {}
   VellumValue(VellumFunctionCall value)
-      : value(value), type(VellumValueType::FunctionCall){};
+      : value(value), type(VellumValueType::FunctionCall) {}
   VellumValue(VellumLiteral value)
-      : value(value), type(VellumValueType::Literal){};
+      : value(value), type(VellumValueType::Literal) {}
   VellumValue(VellumIdentifier value)
-      : value(value), type(VellumValueType::Identifier){};
+      : value(value), type(VellumValueType::Identifier) {}
   VellumValue(VellumProperty value)
-      : value(value), type(VellumValueType::Property){};
+      : value(value), type(VellumValueType::Property) {}
   VellumValue(VellumPropertyAccess value)
-      : value(value), type(VellumValueType::PropertyAccess){};
+      : value(value), type(VellumValueType::PropertyAccess) {}
   VellumValue(VellumVariable value)
-      : value(value), type(VellumValueType::Variable){};
+      : value(value), type(VellumValueType::Variable) {}
+  VellumValue(VellumType value)
+      : value(value.asIdentifier()), type(VellumValueType::ScriptType) {}
 
   VellumValueType getType() const { return type; }
 
@@ -83,6 +86,11 @@ class VellumValue {
   VellumVariable asVariable() const {
     assert(type == VellumValueType::Variable);
     return std::get<VellumVariable>(value);
+  }
+
+  VellumType asScriptType() const {
+    assert(type == VellumValueType::ScriptType);
+    return VellumType::identifier(std::get<VellumIdentifier>(value));
   }
 
  private:

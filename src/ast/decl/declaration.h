@@ -26,13 +26,22 @@ bool operator!=(const Declaration& lhs, const Declaration& rhs);
 
 class ScriptDeclaration : public Declaration {
  public:
-  ScriptDeclaration(std::string_view scriptName,
-                    std::optional<std::string_view> parentScriptName)
-      : scriptName_(scriptName), parentScriptName_(parentScriptName) {}
+  ScriptDeclaration(std::string_view scriptName, Token scriptNameLocation,
+                    std::optional<std::string_view> parentScriptName,
+                    std::optional<Token> parentScriptNameLocation)
+      : scriptName_(scriptName),
+        scriptNameLocation(scriptNameLocation),
+        parentScriptName_(parentScriptName),
+        parentScriptNameLocation(parentScriptNameLocation) {}
 
   std::string_view scriptName() const { return scriptName_; }
   std::optional<std::string_view> parentScriptName() const {
     return parentScriptName_;
+  }
+
+  Token getScriptNameLocation() const { return scriptNameLocation; }
+  std::optional<Token> getParentScriptNameLocation() const {
+    return parentScriptNameLocation;
   }
 
   void accept(DeclarationVisitor& visitor) override;
@@ -41,6 +50,9 @@ class ScriptDeclaration : public Declaration {
  private:
   std::string_view scriptName_;
   std::optional<std::string_view> parentScriptName_;
+
+  Token scriptNameLocation;
+  std::optional<Token> parentScriptNameLocation;
 };
 
 class GlobalVariableDeclaration : public Declaration {

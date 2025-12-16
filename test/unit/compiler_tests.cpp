@@ -36,8 +36,8 @@ TEST_CASE("CompileFunctionCallTest") {
   auto call_expr = std::make_unique<ast::CallExpression>(
       std::make_unique<ast::IdentifierExpression>(VellumIdentifier("foo")),
       std::vector<std::unique_ptr<ast::Expression>>{});
-  call_expr->setFunctionCall(VellumFunctionCall(VellumIdentifier("TestScript"),
-                                                VellumIdentifier("foo"), true));
+  call_expr->setFunctionCall(VellumFunctionCall::staticCall(
+      VellumType::identifier("TestScript"), VellumIdentifier("foo")));
 
   auto body = std::vector<std::unique_ptr<ast::Statement>>{};
   body.emplace_back(

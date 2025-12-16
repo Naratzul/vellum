@@ -219,7 +219,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
   if (functionCall.isStatic()) {
     opcode = pex::PexOpCode::CallStatic;
     args = {
-        pex::PexIdentifier(file.getString(functionCall.getObject().getValue())),
+        pex::PexIdentifier(file.getString(functionCall.getObjectType().toString())),
         pex::PexIdentifier(
             file.getString(functionCall.getFunction().getValue())),
         retVal};

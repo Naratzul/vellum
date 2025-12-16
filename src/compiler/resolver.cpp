@@ -1,6 +1,9 @@
 #include "resolver.h"
 
 namespace vellum {
+
+std::vector<VellumObject> Resolver::builtinObjects;
+
 void Resolver::startFunction(const VellumFunction& func) {
   currentFunction = func;
   pushScope();
@@ -41,32 +44,42 @@ std::optional<VellumValue> Resolver::resolveIdentifier(
     }
   }
 
-  return object.findIdentifier(identifier);
+  if (auto id = object.findIdentifier(identifier)) {
+    return id;
+  }
+
+  return resolveScriptType(identifier);
 }
 
 std::optional<VellumValue> Resolver::resolveProperty(
-    VellumIdentifier object, VellumIdentifier member) const {
-  if (object == VellumIdentifier("self")) {
+    VellumType type, VellumIdentifier member) const {
+  if (type == object.getType()) {
     return this->object.findProperty(member);
   }
 
+  for (const auto& object : builtinObjects) {
+    if (object.getType() == type) {
+      return object.findProperty(member);
+    }
+  }
+
   for (const auto& importedObject : importedObjects) {
-    if (importedObject.getName() == object) {
+    if (importedObject.getType() == type) {
       return importedObject.findProperty(member);
     }
   }
 
-  return resolveFunction(object, member);
+  return std::nullopt;
 }
 
 std::optional<VellumFunction> Resolver::resolveFunction(
-    VellumIdentifier object, VellumIdentifier function) const {
-  if (object == VellumIdentifier("self")) {
+    VellumType type, VellumIdentifier function) const {
+  if (type == object.getType()) {
     return this->object.findFunction(function);
   }
 
   for (const auto& importedObject : importedObjects) {
-    if (importedObject.getName() == object) {
+    if (importedObject.getType() == type) {
       return importedObject.findFunction(function);
     }
   }
@@ -84,4 +97,20 @@ std::optional<VellumVariable> Resolver::resolveVariable(
   return object.findVariable(name);
 }
 
+std::optional<VellumType> Resolver::resolveScriptType(
+    VellumIdentifier identifier) const {
+  auto type = VellumType::identifier(identifier);
+
+  if (object.getType() == type) {
+    return object.getType();
+  }
+
+  for (const auto& object : importedObjects) {
+    if (object.getType() == type) {
+      return object.getType();
+    }
+  }
+
+  return std::nullopt;
+}
 }  // namespace vellum

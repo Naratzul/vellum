@@ -9,22 +9,37 @@
 namespace vellum {
 class VellumFunctionCall {
  public:
-  VellumFunctionCall(VellumIdentifier object, VellumIdentifier function,
-                     bool isStatic)
-      : object(object),
-        function(function),
-        returnType(VellumType::unresolved()),
-        isStatic_(isStatic) {}
+  VellumFunctionCall() = delete;
 
-  VellumIdentifier getObject() const { return object; }
+  static VellumFunctionCall methodCall(VellumIdentifier object,
+                                       VellumType objectType,
+                                       VellumIdentifier function);
+
+  static VellumFunctionCall staticCall(VellumType objectType,
+                                       VellumIdentifier function);
+
+  VellumType getObjectType() const {
+    return objectType;
+  }
+
+  VellumIdentifier getObject() const {
+    assert(!isStatic());
+    return object.value();
+  }
+
   VellumIdentifier getFunction() const { return function; }
-  bool isStatic() const { return isStatic_; }
+
+  bool isStatic() const { return object == std::nullopt; }
 
  private:
-  VellumIdentifier object;
+  VellumFunctionCall(VellumType objectType,
+                     std::optional<VellumIdentifier> object,
+                     VellumIdentifier function)
+      : object(object), function(function), objectType(objectType) {}
+
+  VellumType objectType;
   VellumIdentifier function;
-  VellumType returnType;
-  bool isStatic_;
+  std::optional<VellumIdentifier> object;
 };
 
 bool operator==(const VellumFunctionCall& lhs, const VellumFunctionCall& rhs);

@@ -22,7 +22,7 @@ void Vellum::run(std::string_view inputFile) {
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();
 
-  VellumObject debug(VellumIdentifier(("Debug")));
+  VellumObject debug(VellumType::identifier("Debug"));
   debug.addFunction(VellumFunction(
       VellumIdentifier("messageBox"), VellumType::none(),
       {VellumVariable(VellumIdentifier("message"),
@@ -34,7 +34,7 @@ void Vellum::run(std::string_view inputFile) {
 
   parseResult.resolver->importObject(debug);
 
-  SemanticAnalyzer semantic(errorHandler, parseResult.resolver);
+  SemanticAnalyzer semantic(errorHandler, parseResult.resolver, common::filenameWithoutExt(inputFile));
   const SemanticAnalyzeResult semanticResult =
       semantic.analyze(std::move(parseResult.declarations));
   if (errorHandler->hadError()) {
