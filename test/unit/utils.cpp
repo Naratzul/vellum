@@ -2,7 +2,7 @@
 
 namespace vellum {
 Token makeToken(TokenType type, int line, std::string_view lexeme,
-                std::optional<VellumLiteral> value) {
+                Opt<VellumLiteral> value) {
   Token token;
   token.type = type;
   token.lexeme = lexeme;
@@ -12,8 +12,8 @@ Token makeToken(TokenType type, int line, std::string_view lexeme,
   return token;
 }
 
-std::vector<Token> scanTokens(std::unique_ptr<ILexer> lexer) {
-  std::vector<Token> tokens;
+Vec<Token> scanTokens(Unique<ILexer> lexer) {
+  Vec<Token> tokens;
 
   for (;;) {
     Token token = lexer->scanToken();

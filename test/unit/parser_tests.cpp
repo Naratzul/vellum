@@ -1,24 +1,28 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
-#include <memory>
-#include <vector>
 
+#include "common/types.h"
 #include "mock/mock_lexer.h"
 #include "parser/parser.h"
 #include "utils.h"
 
 using namespace vellum;
+using common::makeShared;
+using common::makeUnique;
+using common::Shared;
+using common::Unique;
+using common::Vec;
 
 TEST_CASE("ParserScriptDeclarationTest") {
-  std::vector<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                             makeToken(TokenType::IDENTIFIER, 1, "name"),
                             makeToken(TokenType::COLON, 1, ":"),
                             makeToken(TokenType::IDENTIFIER, 1, "parent"),
                             makeToken(TokenType::END_OF_FILE, 1, "")};
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(tokens), errorHandler)
+      Parser(makeUnique<LexerMock>(tokens), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
@@ -29,7 +33,7 @@ TEST_CASE("ParserScriptDeclarationTest") {
 }
 
 TEST_CASE("ParserGlobalVarDeclarationTest") {
-  std::vector<Token> tokens{
+  Vec<Token> tokens{
       makeToken(TokenType::VAR, 1, "var"),
       makeToken(TokenType::IDENTIFIER, 1, "number"),
       makeToken(TokenType::COLON, 1, ":"),
@@ -38,9 +42,9 @@ TEST_CASE("ParserGlobalVarDeclarationTest") {
       makeToken(TokenType::INT, 1, "42", VellumLiteral(42)),
       makeToken(TokenType::END_OF_FILE, 1, "")};
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+      Parser(makeUnique<LexerMock>(std::move(tokens)), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
@@ -48,12 +52,12 @@ TEST_CASE("ParserGlobalVarDeclarationTest") {
 
   ast::GlobalVariableDeclaration expected(
       "number", VellumType::unresolved("Int"),
-      std::make_unique<ast::LiteralExpression>(VellumLiteral(42)));
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)));
   CHECK(expected == *result.declarations[0]);
 }
 
 TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
-  std::vector<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
+  Vec<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
                             makeToken(TokenType::IDENTIFIER, 1, "foo"),
                             makeToken(TokenType::LEFT_PAREN, 1, "("),
                             makeToken(TokenType::RIGHT_PAREN, 1, ")"),
@@ -61,9 +65,9 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
                             makeToken(TokenType::RIGHT_BRACE, 1, "}"),
                             makeToken(TokenType::END_OF_FILE, 1, "")};
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+      Parser(makeUnique<LexerMock>(std::move(tokens)), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
@@ -75,7 +79,7 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
 }
 
 TEST_CASE("ParserFunctionDeclaration_Params_NoReturn") {
-  std::vector<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
+  Vec<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
                             makeToken(TokenType::IDENTIFIER, 1, "bar"),
                             makeToken(TokenType::LEFT_PAREN, 1, "("),
                             makeToken(TokenType::IDENTIFIER, 1, "x"),
@@ -90,15 +94,15 @@ TEST_CASE("ParserFunctionDeclaration_Params_NoReturn") {
                             makeToken(TokenType::RIGHT_BRACE, 1, "}"),
                             makeToken(TokenType::END_OF_FILE, 1, "")};
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+      Parser(makeUnique<LexerMock>(std::move(tokens)), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
 
-  std::vector<ast::FunctionParameter> params = {
+  Vec<ast::FunctionParameter> params = {
       {"x", VellumType::unresolved("Int")},
       {"y", VellumType::unresolved("Float")}};
   ast::FunctionDeclaration expected("bar", params, VellumType::none(),
@@ -107,7 +111,7 @@ TEST_CASE("ParserFunctionDeclaration_Params_NoReturn") {
 }
 
 TEST_CASE("ParserFunctionDeclaration_NoParams_WithReturn") {
-  std::vector<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
+  Vec<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
                             makeToken(TokenType::IDENTIFIER, 1, "baz"),
                             makeToken(TokenType::LEFT_PAREN, 1, "("),
                             makeToken(TokenType::RIGHT_PAREN, 1, ")"),
@@ -117,9 +121,9 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_WithReturn") {
                             makeToken(TokenType::RIGHT_BRACE, 1, "}"),
                             makeToken(TokenType::END_OF_FILE, 1, "")};
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+      Parser(makeUnique<LexerMock>(std::move(tokens)), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
@@ -131,7 +135,7 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_WithReturn") {
 }
 
 TEST_CASE("ParserFunctionDeclaration_Params_WithReturn") {
-  std::vector<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
+  Vec<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
                             makeToken(TokenType::IDENTIFIER, 1, "qux"),
                             makeToken(TokenType::LEFT_PAREN, 1, "("),
                             makeToken(TokenType::IDENTIFIER, 1, "a"),
@@ -144,15 +148,15 @@ TEST_CASE("ParserFunctionDeclaration_Params_WithReturn") {
                             makeToken(TokenType::RIGHT_BRACE, 1, "}"),
                             makeToken(TokenType::END_OF_FILE, 1, "")};
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+      Parser(makeUnique<LexerMock>(std::move(tokens)), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
 
-  std::vector<ast::FunctionParameter> params = {
+  Vec<ast::FunctionParameter> params = {
       {"a", VellumType::unresolved("Bool")}};
   ast::FunctionDeclaration expected(
       "qux", params, VellumType::unresolved("Int"), ast::FunctionBody{});
@@ -160,7 +164,7 @@ TEST_CASE("ParserFunctionDeclaration_Params_WithReturn") {
 }
 
 TEST_CASE("ParserFunctionDeclaration_MultipleParams_MixedTypes") {
-  std::vector<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
+  Vec<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
                             makeToken(TokenType::IDENTIFIER, 1, "mix"),
                             makeToken(TokenType::LEFT_PAREN, 1, "("),
                             makeToken(TokenType::IDENTIFIER, 1, "x"),
@@ -179,15 +183,15 @@ TEST_CASE("ParserFunctionDeclaration_MultipleParams_MixedTypes") {
                             makeToken(TokenType::RIGHT_BRACE, 1, "}"),
                             makeToken(TokenType::END_OF_FILE, 1, "")};
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+      Parser(makeUnique<LexerMock>(std::move(tokens)), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
 
-  std::vector<ast::FunctionParameter> params = {
+  Vec<ast::FunctionParameter> params = {
       {"x", VellumType::unresolved("Int")},
       {"flag", VellumType::unresolved("Bool")},
       {"name", VellumType::unresolved("String")}};
@@ -197,7 +201,7 @@ TEST_CASE("ParserFunctionDeclaration_MultipleParams_MixedTypes") {
 }
 
 TEST_CASE("ParserCall_NoArgs") {
-  std::vector<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
+  Vec<Token> tokens{makeToken(TokenType::FUN, 1, "fun"),
                             makeToken(TokenType::IDENTIFIER, 1, "test"),
                             makeToken(TokenType::LEFT_PAREN, 1, "("),
                             makeToken(TokenType::RIGHT_PAREN, 1, ")"),
@@ -208,19 +212,19 @@ TEST_CASE("ParserCall_NoArgs") {
                             makeToken(TokenType::RIGHT_BRACE, 1, "}"),
                             makeToken(TokenType::END_OF_FILE, 1, "")};
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+      Parser(makeUnique<LexerMock>(std::move(tokens)), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
 
-  auto expected_call_expr = std::make_unique<ast::CallExpression>(
-      std::make_unique<ast::IdentifierExpression>(VellumIdentifier("foo")),
-      std::vector<std::unique_ptr<ast::Expression>>{});
-  auto expected_body = std::vector<std::unique_ptr<ast::Statement>>{};
-  expected_body.emplace_back(std::make_unique<ast::ExpressionStatement>(
+  auto expected_call_expr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      Vec<Unique<ast::Expression>>{});
+  auto expected_body = Vec<Unique<ast::Statement>>{};
+  expected_body.emplace_back(makeUnique<ast::ExpressionStatement>(
       std::move(expected_call_expr)));
 
   ast::FunctionDeclaration expected("test", {}, VellumType::none(),
@@ -230,7 +234,7 @@ TEST_CASE("ParserCall_NoArgs") {
 }
 
 TEST_CASE("ParserCall_WithArgs") {
-  std::vector<Token> tokens{
+  Vec<Token> tokens{
       makeToken(TokenType::FUN, 1, "fun"),
       makeToken(TokenType::IDENTIFIER, 1, "test"),
       makeToken(TokenType::LEFT_PAREN, 1, "("),
@@ -245,26 +249,26 @@ TEST_CASE("ParserCall_WithArgs") {
       makeToken(TokenType::RIGHT_BRACE, 1, "}"),
       makeToken(TokenType::END_OF_FILE, 1, "")};
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   const auto result =
-      Parser(std::make_unique<LexerMock>(std::move(tokens)), errorHandler)
+      Parser(makeUnique<LexerMock>(std::move(tokens)), errorHandler)
           .parse();
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
 
-  auto args = std::vector<std::unique_ptr<ast::Expression>>{};
+  auto args = Vec<Unique<ast::Expression>>{};
   args.emplace_back(
-      std::make_unique<ast::IdentifierExpression>(VellumIdentifier("bar")));
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar")));
   args.emplace_back(
-      std::make_unique<ast::LiteralExpression>(VellumLiteral(42)));
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)));
 
-  auto expected_call_expr = std::make_unique<ast::CallExpression>(
-      std::make_unique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+  auto expected_call_expr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
       std::move(args));
 
-  auto expected_body = std::vector<std::unique_ptr<ast::Statement>>{};
-  expected_body.emplace_back(std::make_unique<ast::ExpressionStatement>(
+  auto expected_body = Vec<Unique<ast::Statement>>{};
+  expected_body.emplace_back(makeUnique<ast::ExpressionStatement>(
       std::move(expected_call_expr)));
 
   ast::FunctionDeclaration expected("test", {}, VellumType::none(),

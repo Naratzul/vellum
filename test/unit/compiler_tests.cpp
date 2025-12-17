@@ -1,23 +1,27 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
-#include <memory>
-#include <vector>
 
 #include "ast/decl/declaration.h"
+#include "common/types.h"
 #include "compiler/compiler.h"
 #include "compiler/compiler_error_handler.h"
 #include "pex/pex_file.h"
 #include "utils.h"
 
 using namespace vellum;
+using common::makeShared;
+using common::makeUnique;
+using common::Shared;
+using common::Unique;
+using common::Vec;
 
 TEST_CASE("CompileGlobalVarTest") {
-  std::vector<std::unique_ptr<ast::Declaration>> ast;
-  ast.emplace_back(std::make_unique<ast::GlobalVariableDeclaration>(
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
       "number", VellumType::literal(VellumLiteralType::Int),
-      std::make_unique<ast::LiteralExpression>(VellumLiteral(42))));
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   pex::PexFile file =
       Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
 
@@ -33,29 +37,29 @@ TEST_CASE("CompileGlobalVarTest") {
 }
 
 TEST_CASE("CompileFunctionCallTest") {
-  auto call_expr = std::make_unique<ast::CallExpression>(
-      std::make_unique<ast::IdentifierExpression>(VellumIdentifier("foo")),
-      std::vector<std::unique_ptr<ast::Expression>>{});
+  auto call_expr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      Vec<Unique<ast::Expression>>{});
   call_expr->setFunctionCall(VellumFunctionCall::staticCall(
       VellumType::identifier("TestScript"), VellumIdentifier("foo")));
 
-  auto body = std::vector<std::unique_ptr<ast::Statement>>{};
+  auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
-      std::make_unique<ast::ExpressionStatement>(std::move(call_expr)));
+      makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
 
-  auto foo_func = std::make_unique<ast::FunctionDeclaration>(
-      "foo", std::vector<ast::FunctionParameter>{}, VellumType::none(),
-      std::vector<std::unique_ptr<ast::Statement>>{});
+  auto foo_func = makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      Vec<Unique<ast::Statement>>{});
 
-  auto test_func = std::make_unique<ast::FunctionDeclaration>(
-      "test", std::vector<ast::FunctionParameter>{}, VellumType::none(),
+  auto test_func = makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body));
 
-  std::vector<std::unique_ptr<ast::Declaration>> ast;
+  Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(std::move(foo_func));
   ast.emplace_back(std::move(test_func));
 
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
   pex::PexFile file =
       Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
 
