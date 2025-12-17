@@ -1,18 +1,20 @@
 #include "semantic_analyzer.h"
 
 #include <cassert>
-#include <format>
 
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
+#include "common/types.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
 
 namespace vellum {
+using common::Shared;
+using common::Unique;
 
-SemanticAnalyzer::SemanticAnalyzer(
-    std::shared_ptr<CompilerErrorHandler> errorHandler,
-    std::shared_ptr<Resolver> resolver, std::string scriptFilename)
+SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
+                                   Shared<Resolver> resolver,
+                                   std::string scriptFilename)
     : errorHandler(errorHandler),
       resolver(resolver),
       scriptFilename(std::move(scriptFilename)) {
@@ -20,7 +22,7 @@ SemanticAnalyzer::SemanticAnalyzer(
 }
 
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
-    std::vector<std::unique_ptr<ast::Declaration>>&& declarations) {
+    std::vector<Unique<ast::Declaration>>&& declarations) {
   errorHandler->setCanEnterPanicMode(false);
 
   for (auto& declaration : declarations) {
@@ -533,7 +535,7 @@ VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {
 }
 
 VellumType SemanticAnalyzer::deduceType(
-    const std::unique_ptr<ast::Expression>& init) const {
+    const Unique<ast::Expression>& init) const {
   assert(init);
   return init->getType();
 }

@@ -6,6 +6,7 @@
 #include "common/fs.h"
 #include "common/os.h"
 #include "common/string_set.h"
+#include "common/types.h"
 #include "compiler/compiler.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
@@ -14,10 +15,14 @@
 #include "pex/pex_file.h"
 
 namespace vellum {
+using common::makeShared;
+using common::makeUnique;
+using common::Unique;
+
 void Vellum::run(std::string_view inputFile) {
   const std::string& sourceCode = common::readFileContent(inputFile);
-  auto lexer = std::make_unique<Lexer>(sourceCode);
-  auto errorHandler = std::make_shared<CompilerErrorHandler>();
+  auto lexer = makeUnique<Lexer>(sourceCode);
+  auto errorHandler = makeShared<CompilerErrorHandler>();
 
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();

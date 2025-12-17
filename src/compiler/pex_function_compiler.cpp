@@ -6,11 +6,13 @@
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
 #include "common/string_set.h"
+#include "common/types.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
+using common::makeUnique;
 
 namespace {
 pex::PexOpCode getBinaryOpCode(ast::BinaryExpression::Operator op,
@@ -55,8 +57,8 @@ pex::PexOpCode getBinaryOpCode(ast::BinaryExpression::Operator op,
 }
 }  // namespace
 
-PexFunctionCompiler::PexFunctionCompiler(
-    std::shared_ptr<CompilerErrorHandler> errorHandler, pex::PexFile& file)
+PexFunctionCompiler::PexFunctionCompiler(Shared<CompilerErrorHandler> errorHandler,
+                                         pex::PexFile& file)
     : errorHandler(errorHandler), file(file) {}
 
 pex::PexFunction PexFunctionCompiler::compile(
@@ -193,7 +195,7 @@ pex::PexValue PexFunctionCompiler::compile(
     const ast::IdentifierExpression& expr) {
   if (expr.getIdentifierType() == VellumValueType::Property) {
     ast::PropertyGetExpression getExpr(
-        std::make_unique<ast::IdentifierExpression>(VellumIdentifier("self"),
+        makeUnique<ast::IdentifierExpression>(VellumIdentifier("self"),
                                                     expr.getLocation()),
         expr.getIdentifier(), expr.getLocation());
     getExpr.setType(expr.getType());

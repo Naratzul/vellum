@@ -2,6 +2,7 @@
 
 #include "ast/decl/declaration.h"
 #include "common/string_set.h"
+#include "common/types.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
 #include "pex/pex_function.h"
@@ -10,13 +11,14 @@
 #include "pex_function_compiler.h"
 
 namespace vellum {
+using common::makeUnique;
 
-PexObjectCompiler::PexObjectCompiler(
-    std::shared_ptr<CompilerErrorHandler> errorHandler, pex::PexFile& file)
+PexObjectCompiler::PexObjectCompiler(Shared<CompilerErrorHandler> errorHandler,
+                                     pex::PexFile& file)
     : errorHandler(errorHandler), file(file) {}
 
 pex::PexObject PexObjectCompiler::compile(
-    const std::vector<std::unique_ptr<ast::Declaration>>& declarations) {
+    const std::vector<Unique<ast::Declaration>>& declarations) {
   object = pex::PexObject();
 
   pex::PexState rootState(file.getString(""));
@@ -78,8 +80,8 @@ void PexObjectCompiler::visitPropertyDeclaration(
     if (!getAccessor->empty()) {
       body = std::move(getAccessor.value());
     } else {
-      body.push_back(std::make_unique<ast::ReturnStatement>(
-          std::make_unique<ast::LiteralExpression>(
+      body.push_back(makeUnique<ast::ReturnStatement>(
+          makeUnique<ast::LiteralExpression>(
               declaration.getDefaultValue().asLiteral())));
     }
 

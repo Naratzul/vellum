@@ -6,9 +6,11 @@
 #include <vector>
 
 #include "ast/statement/statement.h"
+#include "common/types.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
+using common::Unique;
 
 namespace ast {
 
@@ -59,7 +61,7 @@ class GlobalVariableDeclaration : public Declaration {
  public:
   GlobalVariableDeclaration(std::string_view name,
                             std::optional<VellumType> typeName,
-                            std::unique_ptr<Expression> initializer)
+                            Unique<Expression> initializer)
       : name_(name),
         typeName_(typeName),
         initializer_(std::move(initializer)) {}
@@ -67,9 +69,7 @@ class GlobalVariableDeclaration : public Declaration {
   std::string_view name() const { return name_; }
   std::optional<VellumType> typeName() const { return typeName_; }
   std::optional<VellumType>& typeName() { return typeName_; }
-  const std::unique_ptr<Expression>& initializer() const {
-    return initializer_;
-  }
+  const Unique<Expression>& initializer() const { return initializer_; }
 
   VellumValue getValue() const;
 
@@ -79,7 +79,7 @@ class GlobalVariableDeclaration : public Declaration {
  private:
   std::string_view name_;
   std::optional<VellumType> typeName_;
-  std::unique_ptr<Expression> initializer_;
+  Unique<Expression> initializer_;
 };
 
 struct FunctionParameter {
@@ -90,7 +90,7 @@ struct FunctionParameter {
 bool operator==(const FunctionParameter& lhs, const FunctionParameter& rhs);
 bool operator!=(const FunctionParameter& lhs, const FunctionParameter& rhs);
 
-using FunctionBody = std::vector<std::unique_ptr<Statement>>;
+using FunctionBody = std::vector<Unique<Statement>>;
 
 class FunctionDeclaration : public Declaration {
  public:

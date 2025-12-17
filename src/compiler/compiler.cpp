@@ -3,18 +3,21 @@
 #include <filesystem>
 
 #include "ast/decl/declaration.h"
+#include "common/types.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
 #include "pex_object_compiler.h"
 
 namespace vellum {
+using common::Shared;
+using common::Unique;
 
-Compiler::Compiler(std::shared_ptr<CompilerErrorHandler> errorHandler)
+Compiler::Compiler(Shared<CompilerErrorHandler> errorHandler)
     : errorHandler(errorHandler) {}
 
 pex::PexFile Compiler::compile(
     const ScriptMetadata& metadata,
-    const std::vector<std::unique_ptr<ast::Declaration>>& declarations) {
+    const std::vector<Unique<ast::Declaration>>& declarations) {
   pex::PexFile file;
   fillHeader(file.header(), metadata);
 

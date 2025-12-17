@@ -2,10 +2,15 @@
 
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
+#include "common/types.h"
 #include "compiler/resolver.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
+using common::makeShared;
+using common::makeUnique;
+using common::Shared;
+using common::Unique;
 
 class ParseException : public std::runtime_error {
  public:
@@ -34,8 +39,7 @@ static std::string_view getFunctionTypeName(FunctionType type) {
   }
 }
 
-Parser::Parser(std::unique_ptr<ILexer> lexer,
-               std::shared_ptr<CompilerErrorHandler> errorHandler)
+Parser::Parser(Unique<ILexer> lexer, Shared<CompilerErrorHandler> errorHandler)
     : lexer(std::move(lexer)), errorHandler(errorHandler) {}
 
 ParserResult Parser::parse() {
@@ -68,8 +72,8 @@ void Parser::advance() {
   }
 }
 
-std::unique_ptr<ast::Declaration> Parser::declaration() {
-  std::unique_ptr<ast::Declaration> decl;
+Unique<ast::Declaration> Parser::declaration() {
+  Unique<ast::Declaration> decl;
 
   if (match(TokenType::SCRIPT)) {
     decl = scriptDeclaration();
@@ -110,7 +114,7 @@ bool Parser::match(std::initializer_list<TokenType> types) {
 
 bool Parser::check(TokenType type) const { return current.type == type; }
 
-std::unique_ptr<ast::Declaration> Parser::scriptDeclaration() {
+Unique<ast::Declaration> Parser::scriptDeclaration() {
   if (!match(TokenType::IDENTIFIER)) {
     errorHandler->errorAt(current, "Expect a script's name after 'script'.");
   }
@@ -134,15 +138,15 @@ std::unique_ptr<ast::Declaration> Parser::scriptDeclaration() {
     errorHandler->errorAt(current, "Unexpected token after script declaration");
   }
 
-  resolver = std::make_shared<Resolver>(
+  resolver = makeShared<Resolver>(
       VellumObject(VellumType::identifier(scriptName)), errorHandler);
 
-  return std::make_unique<ast::ScriptDeclaration>(
-      scriptName, scriptNameLocation, parentScriptName,
-      parentScriptNameLocation);
+  return makeUnique<ast::ScriptDeclaration>(scriptName, scriptNameLocation,
+                                            parentScriptName,
+                                            parentScriptNameLocation);
 }
 
-std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
+Unique<ast::Declaration> Parser::variableDeclaration() {
   consume(TokenType::IDENTIFIER, "Expect a variable name.");
   const std::string_view name = previous.lexeme;
 
@@ -162,7 +166,7 @@ std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
     }
   }
 
-  std::unique_ptr<ast::Expression> initializer;
+  Unique<ast::Expression> initializer;
   if (!isArray && match(TokenType::EQUAL)) {
     initializer = expression();
     if (!initializer->isLiteralExpression()) {
@@ -176,11 +180,11 @@ std::unique_ptr<ast::Declaration> Parser::variableDeclaration() {
     throw ParseException(previous, "Type annotation is missing.");
   }
 
-  return std::make_unique<ast::GlobalVariableDeclaration>(
-      name, typeName, std::move(initializer));
+  return makeUnique<ast::GlobalVariableDeclaration>(name, typeName,
+                                                    std::move(initializer));
 }
 
-std::unique_ptr<ast::Declaration> Parser::functionDeclaration(
+Unique<ast::Declaration> Parser::functionDeclaration(
     FunctionType functionType) {
   const std::string functionTypeName =
       functionType == FunctionType::Function ? "function" : "event";
@@ -214,11 +218,11 @@ std::unique_ptr<ast::Declaration> Parser::functionDeclaration(
     returnTypeName = VellumType::unresolved(previous.lexeme);
   }
 
-  return std::make_unique<ast::FunctionDeclaration>(
-      name, parameters, returnTypeName, functionBody(functionType));
+  return makeUnique<ast::FunctionDeclaration>(name, parameters, returnTypeName,
+                                              functionBody(functionType));
 }
 
-std::unique_ptr<ast::Declaration> Parser::propertyDeclaration() {
+Unique<ast::Declaration> Parser::propertyDeclaration() {
   const std::string_view name = previous.lexeme;
   consume(TokenType::COLON, "Expect ':' after property name.");
 
@@ -261,7 +265,7 @@ std::unique_ptr<ast::Declaration> Parser::propertyDeclaration() {
   consume(TokenType::RIGHT_BRACE, "Expect '}}' after property type.");
 
   std::string_view documentationString = "";
-  return std::make_unique<ast::PropertyDeclaration>(
+  return makeUnique<ast::PropertyDeclaration>(
       name, typeName, documentationString, std::move(getAccessor),
       std::move(setAccessor), VellumValue());  // TODO: fix default value
 }
@@ -288,8 +292,8 @@ ast::FunctionBody Parser::functionBody(FunctionType type) {
   return body;
 }
 
-std::unique_ptr<ast::Statement> Parser::statement() {
-  std::unique_ptr<ast::Statement> stmt;
+Unique<ast::Statement> Parser::statement() {
+  Unique<ast::Statement> stmt;
 
   if (match(TokenType::IF)) {
     stmt = ifStatement();
@@ -306,11 +310,11 @@ std::unique_ptr<ast::Statement> Parser::statement() {
   return stmt;
 }
 
-std::unique_ptr<ast::Statement> Parser::ifStatement() {
+Unique<ast::Statement> Parser::ifStatement() {
   auto condition = expression();
 
   consume(TokenType::LEFT_BRACE, "Expected '{{' after if condition.");
-  std::vector<std::unique_ptr<ast::Statement>> then_branch;
+  std::vector<Unique<ast::Statement>> then_branch;
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
     try {
       then_branch.push_back(std::move(statement()));
@@ -321,9 +325,9 @@ std::unique_ptr<ast::Statement> Parser::ifStatement() {
   }
   consume(TokenType::RIGHT_BRACE, "Expected '}}' after if block.");
 
-  std::optional<std::vector<std::unique_ptr<ast::Statement>>> else_branch;
+  std::optional<std::vector<Unique<ast::Statement>>> else_branch;
   if (match(TokenType::ELSE)) {
-    std::vector<std::unique_ptr<ast::Statement>> else_statements;
+    std::vector<Unique<ast::Statement>> else_statements;
     consume(TokenType::LEFT_BRACE, "Expected '{{' after 'else'.");
     while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
       try {
@@ -337,15 +341,15 @@ std::unique_ptr<ast::Statement> Parser::ifStatement() {
     else_branch = std::move(else_statements);
   }
 
-  return std::make_unique<ast::IfStatement>(
+  return makeUnique<ast::IfStatement>(
       std::move(condition), std::move(then_branch), std::move(else_branch));
 }
 
-std::unique_ptr<ast::Statement> Parser::returnStatement() {
-  return std::make_unique<ast::ReturnStatement>(expression());
+Unique<ast::Statement> Parser::returnStatement() {
+  return makeUnique<ast::ReturnStatement>(expression());
 }
 
-std::unique_ptr<ast::Statement> Parser::varStatement() {
+Unique<ast::Statement> Parser::varStatement() {
   consume(TokenType::IDENTIFIER, "Expect a variable name.");
   const VellumIdentifier name(previous.lexeme);
 
@@ -355,7 +359,7 @@ std::unique_ptr<ast::Statement> Parser::varStatement() {
     type = VellumType::unresolved(previous.lexeme);
   }
 
-  std::unique_ptr<ast::Expression> initializer;
+  Unique<ast::Expression> initializer;
   if (match(TokenType::EQUAL)) {
     initializer = expression();
   }
@@ -364,11 +368,11 @@ std::unique_ptr<ast::Statement> Parser::varStatement() {
     throw ParseException(previous, "Type annotation is missing.");
   }
 
-  return std::make_unique<ast::LocalVariableStatement>(name, type,
-                                                       std::move(initializer));
+  return makeUnique<ast::LocalVariableStatement>(name, type,
+                                                 std::move(initializer));
 }
 
-std::unique_ptr<ast::Statement> Parser::whileStatement() {
+Unique<ast::Statement> Parser::whileStatement() {
   auto condition = expression();
   consume(TokenType::LEFT_BRACE, "Expect '{{' after condition.");
 
@@ -384,28 +388,25 @@ std::unique_ptr<ast::Statement> Parser::whileStatement() {
 
   consume(TokenType::RIGHT_BRACE, "Expect '}}' after while loop.");
 
-  return std::make_unique<ast::WhileStatement>(std::move(condition),
-                                               std::move(body));
+  return makeUnique<ast::WhileStatement>(std::move(condition), std::move(body));
 }
 
-std::unique_ptr<ast::Statement> Parser::expressionStatement() {
-  return std::make_unique<ast::ExpressionStatement>(expression());
+Unique<ast::Statement> Parser::expressionStatement() {
+  return makeUnique<ast::ExpressionStatement>(expression());
 }
 
-std::unique_ptr<ast::Expression> Parser::expression() {
-  return assignExpression();
-}
+Unique<ast::Expression> Parser::expression() { return assignExpression(); }
 
-std::unique_ptr<ast::Expression> Parser::assignExpression() {
+Unique<ast::Expression> Parser::assignExpression() {
   auto expr = logicalOrExpression();
 
   if (match(TokenType::EQUAL)) {
     if (expr->isIdentifierExpression()) {
-      return std::make_unique<ast::AssignExpression>(
+      return makeUnique<ast::AssignExpression>(
           expr->asIdentifier().getIdentifier(), assignExpression(), previous);
     } else if (expr->isPropertyGetExpression()) {
       ast::PropertyGetExpression& getExpr = expr->asPropertyGet();
-      return std::make_unique<ast::PropertySetExpression>(
+      return makeUnique<ast::PropertySetExpression>(
           getExpr.releaseObject(), getExpr.getProperty(), assignExpression(),
           previous);
     } else {
@@ -416,11 +417,11 @@ std::unique_ptr<ast::Expression> Parser::assignExpression() {
   return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::logicalOrExpression() {
+Unique<ast::Expression> Parser::logicalOrExpression() {
   auto expr = logicalAndExpression();
 
   while (match(TokenType::OR)) {
-    expr = std::make_unique<ast::BinaryExpression>(
+    expr = makeUnique<ast::BinaryExpression>(
         ast::BinaryExpression::Operator::Or, std::move(expr),
         logicalAndExpression(), previous);
   }
@@ -428,11 +429,11 @@ std::unique_ptr<ast::Expression> Parser::logicalOrExpression() {
   return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::logicalAndExpression() {
+Unique<ast::Expression> Parser::logicalAndExpression() {
   auto expr = equalityExpression();
 
   while (match(TokenType::AND)) {
-    expr = std::make_unique<ast::BinaryExpression>(
+    expr = makeUnique<ast::BinaryExpression>(
         ast::BinaryExpression::Operator::And, std::move(expr),
         equalityExpression(), previous);
   }
@@ -440,12 +441,12 @@ std::unique_ptr<ast::Expression> Parser::logicalAndExpression() {
   return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::equalityExpression() {
+Unique<ast::Expression> Parser::equalityExpression() {
   auto expr = compareExpression();
 
   while (match({TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL})) {
     const Token op = previous;
-    expr = std::make_unique<ast::BinaryExpression>(
+    expr = makeUnique<ast::BinaryExpression>(
         op.type == TokenType::EQUAL_EQUAL
             ? ast::BinaryExpression::Operator::Equal
             : ast::BinaryExpression::Operator::NotEqual,
@@ -455,7 +456,7 @@ std::unique_ptr<ast::Expression> Parser::equalityExpression() {
   return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::compareExpression() {
+Unique<ast::Expression> Parser::compareExpression() {
   auto expr = termExpression();
 
   while (match({TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER,
@@ -469,19 +470,19 @@ std::unique_ptr<ast::Expression> Parser::compareExpression() {
     } else if (op.type == TokenType::GREATER_EQUAL) {
       binOp = ast::BinaryExpression::Operator::GreaterThanEqual;
     }
-    expr = std::make_unique<ast::BinaryExpression>(binOp, std::move(expr),
-                                                   termExpression(), op);
+    expr = makeUnique<ast::BinaryExpression>(binOp, std::move(expr),
+                                             termExpression(), op);
   }
 
   return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::termExpression() {
+Unique<ast::Expression> Parser::termExpression() {
   auto expr = factorExpression();
 
   while (match({TokenType::MINUS, TokenType::PLUS})) {
     const Token op = previous;
-    expr = std::make_unique<ast::BinaryExpression>(
+    expr = makeUnique<ast::BinaryExpression>(
         op.type == TokenType::MINUS ? ast::BinaryExpression::Operator::Subtract
                                     : ast::BinaryExpression::Operator::Add,
         std::move(expr), factorExpression(), op);
@@ -490,7 +491,7 @@ std::unique_ptr<ast::Expression> Parser::termExpression() {
   return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::factorExpression() {
+Unique<ast::Expression> Parser::factorExpression() {
   auto expr = unaryExpression();
 
   while (match({TokenType::STAR, TokenType::SLASH, TokenType::PERCENT})) {
@@ -509,17 +510,17 @@ std::unique_ptr<ast::Expression> Parser::factorExpression() {
       default:
         assert(false && "Unexpected operator type");
     }
-    expr = std::make_unique<ast::BinaryExpression>(binOp, std::move(expr),
-                                                   factorExpression(), op);
+    expr = makeUnique<ast::BinaryExpression>(binOp, std::move(expr),
+                                             factorExpression(), op);
   }
 
   return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::unaryExpression() {
+Unique<ast::Expression> Parser::unaryExpression() {
   if (match({TokenType::MINUS, TokenType::NOT})) {
     const Token op = previous;
-    return std::make_unique<ast::UnaryExpression>(
+    return makeUnique<ast::UnaryExpression>(
         op.type == TokenType::MINUS ? ast::UnaryExpression::Operator::Negate
                                     : ast::UnaryExpression::Operator::Not,
         op.type == TokenType::MINUS ? unaryExpression() : logicalOrExpression(),
@@ -528,20 +529,20 @@ std::unique_ptr<ast::Expression> Parser::unaryExpression() {
   return castExpression();
 }
 
-std::unique_ptr<ast::Expression> Parser::castExpression() {
+Unique<ast::Expression> Parser::castExpression() {
   auto expr = callOrGetExpression();
 
   if (match(TokenType::AS)) {
     const Token op = previous;
     consume(TokenType::IDENTIFIER, "Expect a target type for cast.");
-    return std::make_unique<ast::CastExpression>(
+    return makeUnique<ast::CastExpression>(
         std::move(expr), VellumType::unresolved(previous.lexeme), op);
   }
 
   return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::callOrGetExpression() {
+Unique<ast::Expression> Parser::callOrGetExpression() {
   auto expr = primaryExpression();
 
   while (true) {
@@ -551,7 +552,7 @@ std::unique_ptr<ast::Expression> Parser::callOrGetExpression() {
     } else if (match(TokenType::DOT)) {
       const Token op = previous;
       consume(TokenType::IDENTIFIER, "Expect a property name after '.'");
-      expr = std::make_unique<ast::PropertyGetExpression>(
+      expr = makeUnique<ast::PropertyGetExpression>(
           std::move(expr), VellumIdentifier(previous.lexeme), op);
     } else {
       break;
@@ -561,9 +562,9 @@ std::unique_ptr<ast::Expression> Parser::callOrGetExpression() {
   return expr;
 }
 
-std::unique_ptr<ast::Expression> Parser::callExpression(
-    std::unique_ptr<ast::Expression> callee, const Token& location) {
-  std::vector<std::unique_ptr<ast::Expression>> arguments;
+Unique<ast::Expression> Parser::callExpression(Unique<ast::Expression> callee,
+                                               const Token& location) {
+  std::vector<Unique<ast::Expression>> arguments;
 
   if (!check(TokenType::RIGHT_PAREN)) {
     do {
@@ -573,18 +574,18 @@ std::unique_ptr<ast::Expression> Parser::callExpression(
 
   consume(TokenType::RIGHT_PAREN, "Expect ')' after function call.");
 
-  return std::make_unique<ast::CallExpression>(std::move(callee),
-                                               std::move(arguments), location);
+  return makeUnique<ast::CallExpression>(std::move(callee),
+                                         std::move(arguments), location);
 }
 
-std::unique_ptr<ast::Expression> Parser::primaryExpression() {
+Unique<ast::Expression> Parser::primaryExpression() {
   if (match({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
              TokenType::TRUE, TokenType::STRING, TokenType::NIL})) {
-    return std::make_unique<ast::LiteralExpression>(*previous.value, previous);
+    return makeUnique<ast::LiteralExpression>(*previous.value, previous);
   }
 
   if (match(TokenType::IDENTIFIER)) {
-    return std::make_unique<ast::IdentifierExpression>(
+    return makeUnique<ast::IdentifierExpression>(
         VellumIdentifier(previous.lexeme), previous);
   }
 
@@ -592,7 +593,7 @@ std::unique_ptr<ast::Expression> Parser::primaryExpression() {
     const Token op = previous;
     auto expr = expression();
     consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-    return std::make_unique<ast::GroupingExpression>(std::move(expr), op);
+    return makeUnique<ast::GroupingExpression>(std::move(expr), op);
   }
 
   if (match(TokenType::LEFT_BRACK)) {
@@ -602,12 +603,12 @@ std::unique_ptr<ast::Expression> Parser::primaryExpression() {
   throw ParseException(current, "Expect an expression.");
 }
 
-std::unique_ptr<ast::Expression> Parser::arrayExpression() {
+Unique<ast::Expression> Parser::arrayExpression() {
   std::optional<VellumType> subtype;
 
   if (match(TokenType::RIGHT_BRACK)) {
-    return std::make_unique<ast::NewArrayExpression>(subtype, VellumLiteral(0),
-                                                     previous);
+    return makeUnique<ast::NewArrayExpression>(subtype, VellumLiteral(0),
+                                               previous);
   }
 
   consume(TokenType::IDENTIFIER, "Expect array elements type.");
@@ -624,7 +625,7 @@ std::unique_ptr<ast::Expression> Parser::arrayExpression() {
 
   consume(TokenType::RIGHT_BRACK, "Expect ']' after array.");
 
-  return std::make_unique<ast::NewArrayExpression>(subtype, length, previous);
+  return makeUnique<ast::NewArrayExpression>(subtype, length, previous);
 }
 
 void Parser::synchronizeDeclaration() {

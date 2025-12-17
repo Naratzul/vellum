@@ -5,10 +5,12 @@
 #include <string_view>
 #include <variant>
 
+#include "common/types.h"
 #include "vellum_identifier.h"
 #include "vellum_literal.h"
 
 namespace vellum {
+using common::Shared;
 
 enum class VellumTypeState { Unresolved, None, Literal, Identifier, Array };
 
@@ -27,7 +29,7 @@ class VellumType {
   std::string_view asRawType() const;
   VellumLiteralType asLiteralType() const;
   VellumIdentifier asIdentifier() const;
-  const std::shared_ptr<VellumType>& asArraySubtype() const;
+  const Shared<VellumType>& asArraySubtype() const;
 
   bool isInt() const;
   bool isFloat() const;
@@ -40,14 +42,14 @@ class VellumType {
  private:
   VellumTypeState state = VellumTypeState::None;
   std::variant<std::monostate, std::string_view, VellumLiteralType,
-               VellumIdentifier, std::shared_ptr<VellumType>>
+               VellumIdentifier, Shared<VellumType>>
       type;
 
   VellumType() = default;
   explicit VellumType(std::string_view type);
   explicit VellumType(VellumLiteralType type);
   explicit VellumType(VellumIdentifier type);
-  explicit VellumType(std::shared_ptr<VellumType> subtype);
+  explicit VellumType(Shared<VellumType> subtype);
 };
 
 bool operator==(const VellumType& lhs, const VellumType& rhs);

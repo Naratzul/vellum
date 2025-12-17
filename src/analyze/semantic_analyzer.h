@@ -6,9 +6,12 @@
 #include "ast/decl/declaration_visitor.h"
 #include "ast/expression/expression_visitor.h"
 #include "ast/statement/statement_visitor.h"
+#include "common/types.h"
 #include "vellum/vellum_type.h"
 
 namespace vellum {
+using common::Shared;
+using common::Unique;
 
 class CompilerErrorHandler;
 class Resolver;
@@ -20,19 +23,17 @@ class Statement;
 }  // namespace ast
 
 struct SemanticAnalyzeResult {
-  std::vector<std::unique_ptr<ast::Declaration>> declarations;
+  std::vector<Unique<ast::Declaration>> declarations;
 };
 
 class SemanticAnalyzer : public ast::DeclarationVisitor,
                          public ast::StatementVisitor,
                          public ast::ExpressionVisitor {
  public:
-  SemanticAnalyzer(std::shared_ptr<CompilerErrorHandler> errorHandler,
-                   std::shared_ptr<Resolver> resolver,
-                   std::string scriptFilename);
+  SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
+                   Shared<Resolver> resolver, std::string scriptFilename);
 
-  SemanticAnalyzeResult analyze(
-      std::vector<std::unique_ptr<ast::Declaration>>&& declarations);
+  SemanticAnalyzeResult analyze(std::vector<Unique<ast::Declaration>>&& declarations);
 
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
   void visitVariableDeclaration(
@@ -58,12 +59,12 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   void visitNewArrayExpression(ast::NewArrayExpression& expr) override;
 
  private:
-  std::shared_ptr<CompilerErrorHandler> errorHandler;
-  std::shared_ptr<Resolver> resolver;
+  Shared<CompilerErrorHandler> errorHandler;
+  Shared<Resolver> resolver;
   std::string scriptFilename;
 
   VellumType resolveType(VellumType unresolvedType) const;
-  VellumType deduceType(const std::unique_ptr<ast::Expression>& init) const;
+  VellumType deduceType(const Unique<ast::Expression>& init) const;
 
   VellumLiteralType resolveValueType(std::string_view rawType) const;
   VellumType resolveObjectType(std::string_view rawType) const;

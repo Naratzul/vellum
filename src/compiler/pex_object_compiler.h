@@ -4,11 +4,14 @@
 #include <vector>
 
 #include "ast/decl/declaration_visitor.h"
+#include "common/types.h"
 #include "pex/pex_object.h"
 #include "pex/pex_value.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
+using common::Shared;
+using common::Unique;
 
 namespace ast {
 class Declaration;
@@ -24,11 +27,11 @@ class PexFile;
 
 class PexObjectCompiler : public ast::DeclarationVisitor {
  public:
-  PexObjectCompiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
+  PexObjectCompiler(Shared<CompilerErrorHandler> errorHandler,
                     pex::PexFile& file);
 
   pex::PexObject compile(
-      const std::vector<std::unique_ptr<ast::Declaration>>& declarations);
+      const std::vector<Unique<ast::Declaration>>& declarations);
 
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
   void visitVariableDeclaration(
@@ -37,8 +40,8 @@ class PexObjectCompiler : public ast::DeclarationVisitor {
   void visitPropertyDeclaration(ast::PropertyDeclaration& declaration) override;
 
  private:
-  std::shared_ptr<CompilerErrorHandler> errorHandler;
-  std::shared_ptr<Resolver> resolver;
+  Shared<CompilerErrorHandler> errorHandler;
+  Shared<Resolver> resolver;
   pex::PexFile& file;
   pex::PexObject object;
 

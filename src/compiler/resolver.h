@@ -2,12 +2,14 @@
 
 #include <optional>
 
+#include "common/types.h"
 #include "compiler_error_handler.h"
 #include "scope.h"
 #include "vellum/vellum_object.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
+using common::Shared;
 
 class Resolver {
  public:
@@ -15,8 +17,7 @@ class Resolver {
     builtinObjects.push_back(std::move(object));
   }
 
-  Resolver(VellumObject object,
-           std::shared_ptr<CompilerErrorHandler> errorHandler)
+  Resolver(VellumObject object, Shared<CompilerErrorHandler> errorHandler)
       : object(std::move(object)), errorHandler(errorHandler) {}
 
   const VellumObject& getObject() const { return object; }
@@ -66,7 +67,7 @@ class Resolver {
 
  private:
   VellumObject object;
-  std::shared_ptr<CompilerErrorHandler> errorHandler;
+  Shared<CompilerErrorHandler> errorHandler;
 
   static std::vector<VellumObject> builtinObjects;
   std::vector<VellumObject> importedObjects;

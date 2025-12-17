@@ -5,12 +5,14 @@
 
 #include "ast/expression/expression_visitor.h"
 #include "ast/statement/statement_visitor.h"
+#include "common/types.h"
 #include "pex/pex_file.h"
 #include "pex/pex_function_parameter.h"
 #include "pex/pex_instruction.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
+using common::Shared;
 
 class CompilerErrorHandler;
 
@@ -27,7 +29,7 @@ class PexFunction;
 class PexFunctionCompiler : public ast::StatementVisitor,
                             public ast::ExpressionCompiler {
  public:
-  PexFunctionCompiler(std::shared_ptr<CompilerErrorHandler> errorHandler,
+  PexFunctionCompiler(Shared<CompilerErrorHandler> errorHandler,
                       pex::PexFile& file);
 
   pex::PexFunction compile(const ast::FunctionDeclaration& func);
@@ -51,7 +53,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::NewArrayExpression& expr) override;
 
  private:
-  std::shared_ptr<CompilerErrorHandler> errorHandler;
+  Shared<CompilerErrorHandler> errorHandler;
   pex::PexFile& file;
 
   std::vector<pex::PexFunctionParameter> localVariables;

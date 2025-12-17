@@ -5,10 +5,12 @@
 #include <vector>
 
 #include "ast/expression/expression.h"
+#include "common/types.h"
 
 namespace vellum {
 
 namespace ast {
+using common::Unique;
 
 class StatementVisitor;
 
@@ -24,52 +26,46 @@ bool operator!=(const Statement& lhs, const Statement& rhs);
 
 class ExpressionStatement : public Statement {
  public:
-  explicit ExpressionStatement(std::unique_ptr<Expression> expression)
+  explicit ExpressionStatement(Unique<Expression> expression)
       : expression(std::move(expression)) {}
 
-  const std::unique_ptr<Expression>& getExpression() const {
-    return expression;
-  }
+  const Unique<Expression>& getExpression() const { return expression; }
 
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
 
  private:
-  std::unique_ptr<Expression> expression;
+  Unique<Expression> expression;
 };
 
 class ReturnStatement : public Statement {
  public:
-  explicit ReturnStatement(std::unique_ptr<Expression> expression)
+  explicit ReturnStatement(Unique<Expression> expression)
       : expression(std::move(expression)) {}
 
-  const std::unique_ptr<Expression>& getExpression() const {
-    return expression;
-  }
+  const Unique<Expression>& getExpression() const { return expression; }
 
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
 
  private:
-  std::unique_ptr<Expression> expression;
+  Unique<Expression> expression;
 };
 
 class IfStatement : public Statement {
  public:
-  IfStatement(std::unique_ptr<Expression> condition,
-              std::vector<std::unique_ptr<Statement>> then_block,
-              std::optional<std::vector<std::unique_ptr<Statement>>>
-                  else_block = std::nullopt)
+  IfStatement(Unique<Expression> condition, std::vector<Unique<Statement>> then_block,
+              std::optional<std::vector<Unique<Statement>>> else_block =
+                  std::nullopt)
       : condition(std::move(condition)),
         then_block(std::move(then_block)),
         else_block(std::move(else_block)) {}
 
-  const std::unique_ptr<Expression>& getCondition() const { return condition; }
-  const std::vector<std::unique_ptr<Statement>>& getThenBlock() const {
+  const Unique<Expression>& getCondition() const { return condition; }
+  const std::vector<Unique<Statement>>& getThenBlock() const {
     return then_block;
   }
-  const std::optional<std::vector<std::unique_ptr<Statement>>>& getElseBlock()
-      const {
+  const std::optional<std::vector<Unique<Statement>>>& getElseBlock() const {
     return else_block;
   }
 
@@ -77,15 +73,15 @@ class IfStatement : public Statement {
   bool equals(const Statement& other) const override;
 
  private:
-  std::unique_ptr<Expression> condition;
-  std::vector<std::unique_ptr<Statement>> then_block;
-  std::optional<std::vector<std::unique_ptr<Statement>>> else_block;
+  Unique<Expression> condition;
+  std::vector<Unique<Statement>> then_block;
+  std::optional<std::vector<Unique<Statement>>> else_block;
 };
 
 class LocalVariableStatement : public Statement {
  public:
   LocalVariableStatement(VellumIdentifier name, std::optional<VellumType> type,
-                         std::unique_ptr<Expression> initializer)
+                         Unique<Expression> initializer)
       : name(name), type(type), initializer(std::move(initializer)) {}
 
   VellumIdentifier getName() const { return name; }
@@ -93,9 +89,7 @@ class LocalVariableStatement : public Statement {
   std::optional<VellumType> getType() const { return type; }
   void setType(VellumType type_) { type = type_; }
 
-  const std::unique_ptr<Expression>& getInitializer() const {
-    return initializer;
-  }
+  const Unique<Expression>& getInitializer() const { return initializer; }
 
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
@@ -103,19 +97,17 @@ class LocalVariableStatement : public Statement {
  private:
   VellumIdentifier name;
   std::optional<VellumType> type;
-  std::unique_ptr<Expression> initializer;
+  Unique<Expression> initializer;
 };
 
 class WhileStatement : public Statement {
  public:
-  using Body = std::vector<std::unique_ptr<ast::Statement>>;
+  using Body = std::vector<Unique<ast::Statement>>;
 
-  WhileStatement(std::unique_ptr<ast::Expression> condition, Body body)
+  WhileStatement(Unique<ast::Expression> condition, Body body)
       : condition(std::move(condition)), body(std::move(body)) {}
 
-  const std::unique_ptr<ast::Expression>& getCondition() const {
-    return condition;
-  }
+  const Unique<ast::Expression>& getCondition() const { return condition; }
 
   const Body& getBody() const { return body; }
 
@@ -123,7 +115,7 @@ class WhileStatement : public Statement {
   bool equals(const Statement& other) const override;
 
  private:
-  std::unique_ptr<ast::Expression> condition;
+  Unique<ast::Expression> condition;
   Body body;
 };
 

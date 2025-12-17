@@ -3,8 +3,10 @@
 #include <cassert>
 
 #include "common/string_set.h"
+#include "common/types.h"
 
 namespace vellum {
+using common::makeShared;
 
 bool operator==(const VellumType& lhs, const VellumType& rhs) {
   if (lhs.getState() != rhs.getState()) {
@@ -55,7 +57,7 @@ VellumType VellumType::unresolved(std::string_view type) {
 }
 
 VellumType VellumType::array(VellumType subtype) {
-  return VellumType(std::make_shared<VellumType>(subtype));
+  return VellumType(common::makeShared<VellumType>(subtype));
 }
 
 std::string_view VellumType::asRawType() const {
@@ -73,9 +75,9 @@ VellumIdentifier VellumType::asIdentifier() const {
   return std::get<VellumIdentifier>(type);
 }
 
-const std::shared_ptr<VellumType>& VellumType::asArraySubtype() const {
+const Shared<VellumType>& VellumType::asArraySubtype() const {
   assert(state == VellumTypeState::Array);
-  return std::get<std::shared_ptr<VellumType>>(type);
+  return std::get<Shared<VellumType>>(type);
 }
 
 std::string_view VellumType::toString() const {
@@ -127,6 +129,6 @@ VellumType::VellumType(VellumLiteralType type)
 VellumType::VellumType(VellumIdentifier type)
     : state(VellumTypeState::Identifier), type(type) {}
 
-VellumType::VellumType(std::shared_ptr<VellumType> subtype)
+VellumType::VellumType(Shared<VellumType> subtype)
     : state(VellumTypeState::Array), type(std::move(subtype)) {}
 }  // namespace vellum

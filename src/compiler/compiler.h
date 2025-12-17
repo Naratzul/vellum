@@ -4,9 +4,12 @@
 #include <string>
 #include <vector>
 
+#include "common/types.h"
 #include "game/game_id.h"
 
 namespace vellum {
+using common::Shared;
+using common::Unique;
 
 class CompilerErrorHandler;
 
@@ -31,14 +34,14 @@ struct ScriptMetadata {
 
 class Compiler {
  public:
-  Compiler(std::shared_ptr<CompilerErrorHandler> errorHandler);
+  Compiler(Shared<CompilerErrorHandler> errorHandler);
 
   pex::PexFile compile(
       const ScriptMetadata& metadata,
-      const std::vector<std::unique_ptr<ast::Declaration>>& declarations);
+      const std::vector<Unique<ast::Declaration>>& declarations);
 
  private:
-  std::shared_ptr<CompilerErrorHandler> errorHandler;
+  Shared<CompilerErrorHandler> errorHandler;
 
   void fillHeader(pex::PexHeader& header, const ScriptMetadata& metadata);
   void setCompilerVersion(game::GameID gameID, uint8_t& major,
