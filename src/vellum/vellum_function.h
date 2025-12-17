@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cassert>
+#include <optional>
 #include <vector>
 
 #include "vellum_identifier.h"
@@ -18,9 +20,7 @@ class VellumFunctionCall {
   static VellumFunctionCall staticCall(VellumType objectType,
                                        VellumIdentifier function);
 
-  VellumType getObjectType() const {
-    return objectType;
-  }
+  VellumType getObjectType() const { return objectType; }
 
   VellumIdentifier getObject() const {
     assert(!isStatic());
