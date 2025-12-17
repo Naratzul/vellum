@@ -2,26 +2,28 @@
 
 #include <vector>
 
+#include "common/types.h"
 #include "pex_function.h"
 #include "pex_string.h"
 
 namespace vellum {
 namespace pex {
+using common::Vec;
 
 class PexWriter;
 
 class PexState {
  public:
-  PexState(PexString name, std::vector<PexFunction> functions = {})
+  PexState(PexString name, Vec<PexFunction> functions = {})
       : name(name), functions(std::move(functions)) {}
 
   PexString getName() const { return name; }
-  const std::vector<PexFunction>& getFunctions() const { return functions; }
-  std::vector<PexFunction>& getFunctions() { return functions; }
+  const Vec<PexFunction>& getFunctions() const { return functions; }
+  Vec<PexFunction>& getFunctions() { return functions; }
 
  private:
   PexString name;
-  std::vector<PexFunction> functions;
+  Vec<PexFunction> functions;
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexState& state);

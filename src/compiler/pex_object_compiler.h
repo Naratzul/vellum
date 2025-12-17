@@ -12,6 +12,7 @@
 namespace vellum {
 using common::Shared;
 using common::Unique;
+using common::Vec;
 
 namespace ast {
 class Declaration;
@@ -30,8 +31,7 @@ class PexObjectCompiler : public ast::DeclarationVisitor {
   PexObjectCompiler(Shared<CompilerErrorHandler> errorHandler,
                     pex::PexFile& file);
 
-  pex::PexObject compile(
-      const std::vector<Unique<ast::Declaration>>& declarations);
+  pex::PexObject compile(const Vec<Unique<ast::Declaration>>& declarations);
 
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
   void visitVariableDeclaration(

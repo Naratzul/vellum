@@ -2,10 +2,12 @@
 
 #include <vector>
 
+#include "common/types.h"
 #include "pex_value.h"
 
 namespace vellum {
 namespace pex {
+using common::Vec;
 
 class PexWriter;
 
@@ -52,22 +54,22 @@ enum class PexOpCode : uint8_t {
 
 class PexInstruction {
  public:
-  PexInstruction(PexOpCode code, std::vector<PexValue> args,
-                 std::vector<PexValue> variadicArgs = {})
+  PexInstruction(PexOpCode code, Vec<PexValue> args,
+                 Vec<PexValue> variadicArgs = {})
       : code(code),
         args(std::move(args)),
         variadicArgs(std::move(variadicArgs)) {}
 
   PexOpCode getOpCode() const { return code; }
-  const std::vector<PexValue>& getArgs() const { return args; }
-  const std::vector<PexValue>& getVariadicArgs() const { return variadicArgs; }
+  const Vec<PexValue>& getArgs() const { return args; }
+  const Vec<PexValue>& getVariadicArgs() const { return variadicArgs; }
 
   void setArg(int index, pex::PexValue value) { args[index] = value; }
 
  private:
   PexOpCode code;
-  std::vector<PexValue> args;
-  std::vector<PexValue> variadicArgs;
+  Vec<PexValue> args;
+  Vec<PexValue> variadicArgs;
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexInstruction& instruction);

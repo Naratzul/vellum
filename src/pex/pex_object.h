@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "common/types.h"
 #include "pex_property.h"
 #include "pex_state.h"
 #include "pex_string.h"
@@ -10,6 +11,7 @@
 
 namespace vellum {
 namespace pex {
+using common::Vec;
 
 class PexWriter;
 
@@ -33,14 +35,14 @@ class PexObject final {
   PexString getAutoStateName() const { return autoStateName; }
   void setAutoStateName(PexString name) { autoStateName = name; }
 
-  const std::vector<PexVariable>& getVariables() const { return variables; }
-  std::vector<PexVariable>& getVariables() { return variables; }
+  const Vec<PexVariable>& getVariables() const { return variables; }
+  Vec<PexVariable>& getVariables() { return variables; }
 
-  const std::vector<PexProperty>& getProperties() const { return properties; }
-  std::vector<PexProperty>& getProperties() { return properties; }
+  const Vec<PexProperty>& getProperties() const { return properties; }
+  Vec<PexProperty>& getProperties() { return properties; }
 
-  const std::vector<PexState>& getStates() const { return states; }
-  std::vector<PexState>& getStates() { return states; }
+  const Vec<PexState>& getStates() const { return states; }
+  Vec<PexState>& getStates() { return states; }
 
   const PexState& getRootState() const {
     assert(!states.empty());
@@ -58,9 +60,9 @@ class PexObject final {
   PexString documentationString;
   PexString autoStateName;
 
-  std::vector<PexVariable> variables;
-  std::vector<PexProperty> properties;
-  std::vector<PexState> states;
+  Vec<PexVariable> variables;
+  Vec<PexProperty> properties;
+  Vec<PexState> states;
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexObject& object);

@@ -13,6 +13,7 @@
 
 namespace vellum {
 using common::Shared;
+using common::Vec;
 
 class CompilerErrorHandler;
 
@@ -56,8 +57,8 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   Shared<CompilerErrorHandler> errorHandler;
   pex::PexFile& file;
 
-  std::vector<pex::PexFunctionParameter> localVariables;
-  std::vector<pex::PexInstruction> instructions;
+  Vec<pex::PexFunctionParameter> localVariables;
+  Vec<pex::PexInstruction> instructions;
   int tempVarCount = 0;
 
   pex::PexValue makeValueFromToken(VellumValue value);

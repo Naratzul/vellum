@@ -5,12 +5,14 @@
 #include <vector>
 
 #include "common/binary_writer.h"
+#include "common/types.h"
 #include "game/game_id.h"
 #include "pex_string.h"
 #include "pex_value.h"
 
 namespace vellum {
 namespace pex {
+using common::Vec;
 
 class PexWriter final : public common::BinaryWriter {
  public:
@@ -21,7 +23,7 @@ class PexWriter final : public common::BinaryWriter {
   PexWriter& operator<<(T value);
 
   template <typename T>
-  PexWriter& operator<<(const std::vector<T>& value);
+  PexWriter& operator<<(const Vec<T>& value);
 };
 
 template <typename T>
@@ -31,7 +33,7 @@ inline PexWriter& PexWriter::operator<<(T value) {
 }
 
 template <typename T>
-inline PexWriter& PexWriter::operator<<(const std::vector<T>& value) {
+inline PexWriter& PexWriter::operator<<(const Vec<T>& value) {
   *this << (uint16_t)value.size();
   for (const auto& v : value) {
     *this << v;

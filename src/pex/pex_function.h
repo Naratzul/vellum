@@ -3,6 +3,7 @@
 #include <optional>
 #include <vector>
 
+#include "common/types.h"
 #include "pex_function_parameter.h"
 #include "pex_instruction.h"
 #include "pex_string.h"
@@ -10,13 +11,15 @@
 
 namespace vellum {
 namespace pex {
+using common::Opt;
+using common::Vec;
 class PexFunction {
  public:
-  PexFunction(std::optional<PexString> name, PexString returnTypeName,
+  PexFunction(Opt<PexString> name, PexString returnTypeName,
               PexString documentationString, PexUserFlags userFlags,
-              std::vector<PexFunctionParameter> parameters,
-              std::vector<PexFunctionParameter> localVariables,
-              std::vector<PexInstruction> instructions)
+              Vec<PexFunctionParameter> parameters,
+              Vec<PexFunctionParameter> localVariables,
+              Vec<PexInstruction> instructions)
       : name(name),
         returnTypeName(returnTypeName),
         documentationString(documentationString),
@@ -25,32 +28,28 @@ class PexFunction {
         localVariables(std::move(localVariables)),
         instructions(std::move(instructions)) {}
 
-  std::optional<PexString> getName() const { return name; }
+  Opt<PexString> getName() const { return name; }
   PexString getReturnTypeName() const { return returnTypeName; }
   PexString getDocumentationString() const { return documentationString; }
   PexUserFlags getUserFlags() const { return PexUserFlags(); }
 
-  const std::vector<PexFunctionParameter>& getParameters() const {
-    return parameters;
-  }
+  const Vec<PexFunctionParameter>& getParameters() const { return parameters; }
 
-  const std::vector<PexFunctionParameter>& getLocalVariables() const {
+  const Vec<PexFunctionParameter>& getLocalVariables() const {
     return localVariables;
   }
 
-  const std::vector<PexInstruction>& getInstructions() const {
-    return instructions;
-  }
+  const Vec<PexInstruction>& getInstructions() const { return instructions; }
 
  private:
-  std::optional<PexString> name;
+  Opt<PexString> name;
   PexString returnTypeName;
   PexString documentationString;
   PexUserFlags userFlags;
 
-  std::vector<PexFunctionParameter> parameters;
-  std::vector<PexFunctionParameter> localVariables;
-  std::vector<PexInstruction> instructions;
+  Vec<PexFunctionParameter> parameters;
+  Vec<PexFunctionParameter> localVariables;
+  Vec<PexInstruction> instructions;
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexFunction& fun);

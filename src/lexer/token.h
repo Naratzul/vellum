@@ -100,7 +100,7 @@ struct Token {
   TokenType type = TokenType::END_OF_FILE;
   std::string_view lexeme;
   LocationRange location;
-  std::optional<VellumLiteral> value;
+  common::Opt<VellumLiteral> value;
 };
 
 inline bool operator==(const Token& lhs, const Token& rhs) {

@@ -3,10 +3,12 @@
 #include <string_view>
 #include <vector>
 
+#include "common/types.h"
 #include "pex_string.h"
 
 namespace vellum {
 namespace pex {
+using common::Vec;
 
 class PexWriter;
 
@@ -25,7 +27,7 @@ class PexStringTable {
     std::string_view str;
   };
 
-  std::vector<Entry> strings;
+  Vec<Entry> strings;
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexStringTable& table);

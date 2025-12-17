@@ -7,6 +7,7 @@
 #include "lexer/token.h"
 
 namespace vellum {
+using common::Vec;
 
 enum class DiagnosticMessageType { Warning, Error };
 
@@ -28,14 +29,14 @@ class CompilerErrorHandler {
   void enablePanicMode() { panicMode_ = true; }
   void disablePanicMode() { panicMode_ = false; }
 
-  const std::vector<DiagnosticMessage>& getErrors() const { return errors; }
+  const Vec<DiagnosticMessage>& getErrors() const { return errors; }
 
  private:
   bool hadError_ = false;
   bool panicMode_ = false;
   bool canEnterPanicMode = true;
 
-  std::vector<DiagnosticMessage> errors;
+  Vec<DiagnosticMessage> errors;
 
   void printError(const Token& token, std::string_view message);
 };

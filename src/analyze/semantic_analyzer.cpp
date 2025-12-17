@@ -9,8 +9,10 @@
 #include "compiler/resolver.h"
 
 namespace vellum {
+using common::Opt;
 using common::Shared;
 using common::Unique;
+using common::Vec;
 
 SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
                                    Shared<Resolver> resolver,
@@ -22,7 +24,7 @@ SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
 }
 
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
-    std::vector<Unique<ast::Declaration>>&& declarations) {
+    Vec<Unique<ast::Declaration>>&& declarations) {
   errorHandler->setCanEnterPanicMode(false);
 
   for (auto& declaration : declarations) {
@@ -45,13 +47,13 @@ void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
 
 void SemanticAnalyzer::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& statement) {
-  std::optional<VellumType> annotatedType;
+  Opt<VellumType> annotatedType;
   if (auto type = statement.typeName()) {
     annotatedType = resolveType(type.value());
     statement.typeName() = annotatedType;
   }
 
-  std::optional<VellumType> deducedType;
+  Opt<VellumType> deducedType;
   if (statement.initializer()) {
     deducedType = deduceType(statement.initializer());
     if (!annotatedType) {
@@ -79,7 +81,7 @@ void SemanticAnalyzer::visitVariableDeclaration(
 
 void SemanticAnalyzer::visitFunctionDeclaration(
     ast::FunctionDeclaration& declaration) {
-  std::vector<VellumVariable> parameters;
+  Vec<VellumVariable> parameters;
   parameters.reserve(declaration.getParameters().size());
 
   for (auto& param : declaration.getParameters()) {
@@ -158,13 +160,13 @@ void SemanticAnalyzer::visitIfStatement(ast::IfStatement& statement) {
 
 void SemanticAnalyzer::visitLocalVariableStatement(
     ast::LocalVariableStatement& statement) {
-  std::optional<VellumType> annotatedType;
+  Opt<VellumType> annotatedType;
   if (auto type = statement.getType()) {
     annotatedType = resolveType(type.value());
     statement.setType(annotatedType.value());
   }
 
-  std::optional<VellumType> deducedType;
+  Opt<VellumType> deducedType;
   if (statement.getInitializer()) {
     statement.getInitializer()->accept(*this);
     deducedType = deduceType(statement.getInitializer());

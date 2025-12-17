@@ -9,7 +9,9 @@
 #include "vellum/vellum_value.h"
 
 namespace vellum {
+using common::Opt;
 using common::Shared;
+using common::Vec;
 
 class Resolver {
  public:
@@ -38,9 +40,7 @@ class Resolver {
     importedObjects.push_back(std::move(importedObject));
   }
 
-  const std::optional<VellumFunction>& getCurrentFunction() {
-    return currentFunction;
-  }
+  const Opt<VellumFunction>& getCurrentFunction() { return currentFunction; }
 
   void startFunction(const VellumFunction& func);
   void endFunction();
@@ -52,26 +52,25 @@ class Resolver {
   void popLocalVar();
   void popLocalVar(int count);
 
-  std::optional<VellumValue> resolveIdentifier(
-      VellumIdentifier identifier) const;
+  Opt<VellumValue> resolveIdentifier(VellumIdentifier identifier) const;
 
-  std::optional<VellumValue> resolveProperty(VellumType type,
-                                             VellumIdentifier member) const;
+  Opt<VellumValue> resolveProperty(VellumType type,
+                                   VellumIdentifier member) const;
 
-  std::optional<VellumFunction> resolveFunction(
-      VellumType type, VellumIdentifier function) const;
+  Opt<VellumFunction> resolveFunction(VellumType type,
+                                      VellumIdentifier function) const;
 
-  std::optional<VellumVariable> resolveVariable(VellumIdentifier name) const;
+  Opt<VellumVariable> resolveVariable(VellumIdentifier name) const;
 
-  std::optional<VellumType> resolveScriptType(VellumIdentifier identifier) const;
+  Opt<VellumType> resolveScriptType(VellumIdentifier identifier) const;
 
  private:
   VellumObject object;
   Shared<CompilerErrorHandler> errorHandler;
 
-  static std::vector<VellumObject> builtinObjects;
-  std::vector<VellumObject> importedObjects;
-  std::vector<Scope> scopes;
-  std::optional<VellumFunction> currentFunction;
+  static Vec<VellumObject> builtinObjects;
+  Vec<VellumObject> importedObjects;
+  Vec<Scope> scopes;
+  Opt<VellumFunction> currentFunction;
 };
 }  // namespace vellum

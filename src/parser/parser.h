@@ -10,8 +10,10 @@
 #include "lexer/ilexer.h"
 
 namespace vellum {
+using common::Opt;
 using common::Shared;
 using common::Unique;
+using common::Vec;
 
 namespace ast {
 class Expression;
@@ -22,7 +24,7 @@ class Resolver;
 
 struct ParserResult {
   Shared<Resolver> resolver;
-  std::vector<Unique<ast::Declaration>> declarations;
+  Vec<Unique<ast::Declaration>> declarations;
 };
 
 enum class FunctionType { Function, Event, Getter, Setter };

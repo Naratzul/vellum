@@ -10,8 +10,10 @@
 #include "vellum/vellum_type.h"
 
 namespace vellum {
+using common::Opt;
 using common::Shared;
 using common::Unique;
+using common::Vec;
 
 class CompilerErrorHandler;
 class Resolver;
@@ -23,7 +25,7 @@ class Statement;
 }  // namespace ast
 
 struct SemanticAnalyzeResult {
-  std::vector<Unique<ast::Declaration>> declarations;
+  Vec<Unique<ast::Declaration>> declarations;
 };
 
 class SemanticAnalyzer : public ast::DeclarationVisitor,
@@ -33,7 +35,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
                    Shared<Resolver> resolver, std::string scriptFilename);
 
-  SemanticAnalyzeResult analyze(std::vector<Unique<ast::Declaration>>&& declarations);
+  SemanticAnalyzeResult analyze(Vec<Unique<ast::Declaration>>&& declarations);
 
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
   void visitVariableDeclaration(

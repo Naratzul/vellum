@@ -10,6 +10,7 @@
 namespace vellum {
 using common::Shared;
 using common::Unique;
+using common::Vec;
 
 class CompilerErrorHandler;
 
@@ -38,7 +39,7 @@ class Compiler {
 
   pex::PexFile compile(
       const ScriptMetadata& metadata,
-      const std::vector<Unique<ast::Declaration>>& declarations);
+      const Vec<Unique<ast::Declaration>>& declarations);
 
  private:
   Shared<CompilerErrorHandler> errorHandler;

@@ -30,7 +30,7 @@ std::string_view literalTypeToString(VellumLiteralType type) {
   assert(false && "Unknown literal type");
 }
 
-std::optional<VellumLiteralType> literalTypeFromString(std::string_view name) {
+common::Opt<VellumLiteralType> literalTypeFromString(std::string_view name) {
   if (name == "String") {
     return VellumLiteralType::String;
   } else if (name == "Int") {

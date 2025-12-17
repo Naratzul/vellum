@@ -1,10 +1,14 @@
 #include "scope.h"
 
+#include "common/types.h"
+
 namespace vellum {
+using common::Opt;
+using common::Vec;
 
 void Scope::pushVar(const VellumVariable var) { variables.push_back(var); }
 
-void Scope::pushVar(const std::vector<VellumVariable>& vars) {
+void Scope::pushVar(const Vec<VellumVariable>& vars) {
   variables.insert(variables.end(), vars.begin(), vars.end());
 }
 
@@ -23,7 +27,7 @@ bool Scope::contains(VellumIdentifier name) {
   return false;
 }
 
-std::optional<VellumVariable> Scope::getVariable(VellumIdentifier name) const {
+Opt<VellumVariable> Scope::getVariable(VellumIdentifier name) const {
   for (const auto& var : variables) {
     if (var.getName() == name) {
       return var;

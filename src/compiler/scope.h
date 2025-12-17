@@ -3,22 +3,25 @@
 #include <optional>
 #include <vector>
 
+#include "common/types.h"
 #include "vellum/vellum_variable.h"
 
 namespace vellum {
+using common::Opt;
+using common::Vec;
 
 class Scope {
  public:
   void pushVar(const VellumVariable var);
-  void pushVar(const std::vector<VellumVariable>& vars);
+  void pushVar(const Vec<VellumVariable>& vars);
 
   void popVar();
   void popVar(int count);
 
   bool contains(VellumIdentifier name);
-  std::optional<VellumVariable> getVariable(VellumIdentifier name) const;
+  Opt<VellumVariable> getVariable(VellumIdentifier name) const;
 
  private:
-  std::vector<VellumVariable> variables;
+  Vec<VellumVariable> variables;
 };
 }  // namespace vellum

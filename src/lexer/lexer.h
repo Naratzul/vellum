@@ -19,7 +19,7 @@ class Lexer : public ILexer {
   int position = 0;
 
   Token makeToken(TokenType type,
-                  std::optional<VellumLiteral> value = std::nullopt) const;
+                  common::Opt<VellumLiteral> value = std::nullopt) const;
   Token errorToken(std::string_view message) const;
   Token string();
   Token number();

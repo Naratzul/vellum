@@ -9,6 +9,7 @@
 #include "pex_object_compiler.h"
 
 namespace vellum {
+using common::Vec;
 using common::Shared;
 using common::Unique;
 
@@ -17,7 +18,7 @@ Compiler::Compiler(Shared<CompilerErrorHandler> errorHandler)
 
 pex::PexFile Compiler::compile(
     const ScriptMetadata& metadata,
-    const std::vector<Unique<ast::Declaration>>& declarations) {
+    const Vec<Unique<ast::Declaration>>& declarations) {
   pex::PexFile file;
   fillHeader(file.header(), metadata);
 

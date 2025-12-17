@@ -29,20 +29,18 @@ bool operator!=(const Declaration& lhs, const Declaration& rhs);
 class ScriptDeclaration : public Declaration {
  public:
   ScriptDeclaration(std::string_view scriptName, Token scriptNameLocation,
-                    std::optional<std::string_view> parentScriptName,
-                    std::optional<Token> parentScriptNameLocation)
+                    Opt<std::string_view> parentScriptName,
+                    Opt<Token> parentScriptNameLocation)
       : scriptName_(scriptName),
         scriptNameLocation(scriptNameLocation),
         parentScriptName_(parentScriptName),
         parentScriptNameLocation(parentScriptNameLocation) {}
 
   std::string_view scriptName() const { return scriptName_; }
-  std::optional<std::string_view> parentScriptName() const {
-    return parentScriptName_;
-  }
+  Opt<std::string_view> parentScriptName() const { return parentScriptName_; }
 
   Token getScriptNameLocation() const { return scriptNameLocation; }
-  std::optional<Token> getParentScriptNameLocation() const {
+  Opt<Token> getParentScriptNameLocation() const {
     return parentScriptNameLocation;
   }
 
@@ -51,24 +49,23 @@ class ScriptDeclaration : public Declaration {
 
  private:
   std::string_view scriptName_;
-  std::optional<std::string_view> parentScriptName_;
+  Opt<std::string_view> parentScriptName_;
 
   Token scriptNameLocation;
-  std::optional<Token> parentScriptNameLocation;
+  Opt<Token> parentScriptNameLocation;
 };
 
 class GlobalVariableDeclaration : public Declaration {
  public:
-  GlobalVariableDeclaration(std::string_view name,
-                            std::optional<VellumType> typeName,
+  GlobalVariableDeclaration(std::string_view name, Opt<VellumType> typeName,
                             Unique<Expression> initializer)
       : name_(name),
         typeName_(typeName),
         initializer_(std::move(initializer)) {}
 
   std::string_view name() const { return name_; }
-  std::optional<VellumType> typeName() const { return typeName_; }
-  std::optional<VellumType>& typeName() { return typeName_; }
+  Opt<VellumType> typeName() const { return typeName_; }
+  Opt<VellumType>& typeName() { return typeName_; }
   const Unique<Expression>& initializer() const { return initializer_; }
 
   VellumValue getValue() const;
@@ -78,7 +75,7 @@ class GlobalVariableDeclaration : public Declaration {
 
  private:
   std::string_view name_;
-  std::optional<VellumType> typeName_;
+  Opt<VellumType> typeName_;
   Unique<Expression> initializer_;
 };
 
@@ -90,23 +87,20 @@ struct FunctionParameter {
 bool operator==(const FunctionParameter& lhs, const FunctionParameter& rhs);
 bool operator!=(const FunctionParameter& lhs, const FunctionParameter& rhs);
 
-using FunctionBody = std::vector<Unique<Statement>>;
+using FunctionBody = Vec<Unique<Statement>>;
 
 class FunctionDeclaration : public Declaration {
  public:
-  FunctionDeclaration(std::optional<std::string_view> name,
-                      std::vector<FunctionParameter> parameters,
+  FunctionDeclaration(Opt<std::string_view> name, Vec<FunctionParameter> parameters,
                       VellumType returnTypeName, FunctionBody body)
       : name(name),
         parameters(std::move(parameters)),
         returnTypeName(returnTypeName),
         body(std::move(body)) {}
 
-  std::optional<std::string_view> getName() const { return name; }
-  const std::vector<FunctionParameter>& getParameters() const {
-    return parameters;
-  }
-  std::vector<FunctionParameter>& getParameters() { return parameters; }
+  Opt<std::string_view> getName() const { return name; }
+  const Vec<FunctionParameter>& getParameters() const { return parameters; }
+  Vec<FunctionParameter>& getParameters() { return parameters; }
   const VellumType& getReturnTypeName() const { return returnTypeName; }
   VellumType& getReturnTypeName() { return returnTypeName; }
   const FunctionBody& getBody() const { return body; }
@@ -115,8 +109,8 @@ class FunctionDeclaration : public Declaration {
   bool equals(const Declaration& other) const override;
 
  private:
-  std::optional<std::string_view> name;
-  std::vector<FunctionParameter> parameters;
+  Opt<std::string_view> name;
+  Vec<FunctionParameter> parameters;
   VellumType returnTypeName;
   FunctionBody body;
 };
@@ -125,8 +119,8 @@ class PropertyDeclaration : public Declaration {
  public:
   PropertyDeclaration(std::string_view name, VellumType typeName,
                       std::string_view documentationString,
-                      std::optional<ast::FunctionBody> getAccessor,
-                      std::optional<ast::FunctionBody> setAccessor,
+                      Opt<ast::FunctionBody> getAccessor,
+                      Opt<ast::FunctionBody> setAccessor,
                       VellumValue defaultValue)
       : name(name),
         typeName(typeName),
@@ -151,19 +145,11 @@ class PropertyDeclaration : public Declaration {
     return documentationString;
   }
 
-  const std::optional<ast::FunctionBody>& getGetAccessor() const {
-    return getAccessor;
-  }
-  std::optional<ast::FunctionBody> getGetAccessor() {
-    return std::move(getAccessor);
-  }
+  const Opt<ast::FunctionBody>& getGetAccessor() const { return getAccessor; }
+  Opt<ast::FunctionBody> getGetAccessor() { return std::move(getAccessor); }
 
-  const std::optional<ast::FunctionBody>& getSetAccessor() const {
-    return setAccessor;
-  }
-  std::optional<ast::FunctionBody> getSetAccessor() {
-    return std::move(setAccessor);
-  }
+  const Opt<ast::FunctionBody>& getSetAccessor() const { return setAccessor; }
+  Opt<ast::FunctionBody> getSetAccessor() { return std::move(setAccessor); }
 
   VellumValue getDefaultValue() const { return defaultValue; }
 
@@ -172,8 +158,8 @@ class PropertyDeclaration : public Declaration {
   VellumType typeName;
   std::string_view documentationString;
 
-  std::optional<ast::FunctionBody> getAccessor;
-  std::optional<ast::FunctionBody> setAccessor;
+  Opt<ast::FunctionBody> getAccessor;
+  Opt<ast::FunctionBody> setAccessor;
 
   VellumValue defaultValue;
 };

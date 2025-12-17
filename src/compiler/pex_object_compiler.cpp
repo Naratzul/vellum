@@ -11,6 +11,8 @@
 #include "pex_function_compiler.h"
 
 namespace vellum {
+using common::Opt;
+using common::Vec;
 using common::makeUnique;
 
 PexObjectCompiler::PexObjectCompiler(Shared<CompilerErrorHandler> errorHandler,
@@ -18,7 +20,7 @@ PexObjectCompiler::PexObjectCompiler(Shared<CompilerErrorHandler> errorHandler,
     : errorHandler(errorHandler), file(file) {}
 
 pex::PexObject PexObjectCompiler::compile(
-    const std::vector<Unique<ast::Declaration>>& declarations) {
+    const Vec<Unique<ast::Declaration>>& declarations) {
   object = pex::PexObject();
 
   pex::PexState rootState(file.getString(""));
@@ -71,8 +73,8 @@ void PexObjectCompiler::visitPropertyDeclaration(
   const pex::PexString documentationString =
       file.getString(declaration.getDocumentationString());
 
-  std::optional<pex::PexFunction> getAccessorFunc;
-  std::optional<pex::PexFunction> setAccessorFunc;
+  Opt<pex::PexFunction> getAccessorFunc;
+  Opt<pex::PexFunction> setAccessorFunc;
 
   if (auto getAccessor = declaration.getGetAccessor();
       !declaration.isAutoProperty()) {
@@ -99,7 +101,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
     }
   }
 
-  std::optional<pex::PexString> backedVariableName;
+    Opt<pex::PexString> backedVariableName;
   if (declaration.isAutoProperty()) {
     const std::string_view varName = common::StringSet::insert(
         "::" + std::string(declaration.getName()) + "_var");
@@ -116,7 +118,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
 }
 
 pex::PexValue PexObjectCompiler::makeValueFromToken(VellumValue value) {
-  std::optional<pex::PexValue> pexValue = makePexValue(value, file);
+    Opt<pex::PexValue> pexValue = makePexValue(value, file);
   if (!pexValue) {
     errorHandler->errorAt(Token(), "Unexpected variable initializer type.");
     return pex::PexValue();

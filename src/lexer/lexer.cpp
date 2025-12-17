@@ -80,7 +80,7 @@ Token Lexer::scanToken() {
 }
 
 Token Lexer::makeToken(TokenType type,
-                       std::optional<VellumLiteral> value) const {
+                       common::Opt<VellumLiteral> value) const {
   Token token;
   token.type = type;
   token.lexeme = currentLexeme();

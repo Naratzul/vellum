@@ -13,7 +13,9 @@
 
 namespace vellum {
 namespace ast {
+using common::Opt;
 using common::Unique;
+using common::Vec;
 
 class ExpressionVisitor;
 class ExpressionCompiler;
@@ -97,8 +99,7 @@ class IdentifierExpression : public Expression {
 
 class CallExpression : public Expression {
  public:
-  CallExpression(Unique<Expression> callee,
-                 std::vector<Unique<Expression>> arguments,
+  CallExpression(Unique<Expression> callee, Vec<Unique<Expression>> arguments,
                  Token location = Token{})
       : Expression(location),
         callee(std::move(callee)),
@@ -106,12 +107,10 @@ class CallExpression : public Expression {
 
   const Unique<Expression>& getCallee() const { return callee; }
 
-  const std::vector<Unique<Expression>>& getArguments() const {
-    return arguments;
-  }
+  const Vec<Unique<Expression>>& getArguments() const { return arguments; }
 
   void setFunctionCall(VellumFunctionCall function_) { function = function_; }
-  std::optional<VellumFunctionCall> getFunctionCall() const { return function; }
+  Opt<VellumFunctionCall> getFunctionCall() const { return function; }
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
@@ -119,8 +118,8 @@ class CallExpression : public Expression {
 
  private:
   Unique<Expression> callee;
-  std::vector<Unique<Expression>> arguments;
-  std::optional<VellumFunctionCall> function;
+  Vec<Unique<Expression>> arguments;
+  Opt<VellumFunctionCall> function;
 };
 
 class AssignExpression : public Expression {
@@ -301,20 +300,20 @@ class CastExpression : public Expression {
 
 class NewArrayExpression : public Expression {
  public:
-  NewArrayExpression(std::optional<VellumType> subtype, VellumLiteral length, Token location)
+  NewArrayExpression(Opt<VellumType> subtype, VellumLiteral length, Token location)
       : Expression(location), subtype(subtype), length(length) {}
 
   bool equals(const Expression& other) const override;
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
-  const std::optional<VellumType>& getSubtype() const { return subtype; }
+  const Opt<VellumType>& getSubtype() const { return subtype; }
   void setSubtype(VellumType type) { subtype = type; }
 
   const VellumLiteral& getLength() const { return length; }
 
  private:
-  std::optional<VellumType> subtype;
+  Opt<VellumType> subtype;
   VellumLiteral length;
 };
 }  // namespace ast

@@ -1,8 +1,12 @@
 #include "resolver.h"
 
-namespace vellum {
+#include "common/types.h"
 
-std::vector<VellumObject> Resolver::builtinObjects;
+namespace vellum {
+using common::Opt;
+using common::Vec;
+
+Vec<VellumObject> Resolver::builtinObjects;
 
 void Resolver::startFunction(const VellumFunction& func) {
   currentFunction = func;
@@ -36,7 +40,7 @@ void Resolver::pushLocalVar(const VellumVariable& var) {
 void Resolver::popLocalVar() { scopes.back().popVar(); }
 void Resolver::popLocalVar(int count) { scopes.back().popVar(count); }
 
-std::optional<VellumValue> Resolver::resolveIdentifier(
+Opt<VellumValue> Resolver::resolveIdentifier(
     VellumIdentifier identifier) const {
   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
     if (auto var = it->getVariable(identifier)) {
@@ -51,7 +55,7 @@ std::optional<VellumValue> Resolver::resolveIdentifier(
   return resolveScriptType(identifier);
 }
 
-std::optional<VellumValue> Resolver::resolveProperty(
+Opt<VellumValue> Resolver::resolveProperty(
     VellumType type, VellumIdentifier member) const {
   if (type == object.getType()) {
     return this->object.findProperty(member);
@@ -72,8 +76,8 @@ std::optional<VellumValue> Resolver::resolveProperty(
   return std::nullopt;
 }
 
-std::optional<VellumFunction> Resolver::resolveFunction(
-    VellumType type, VellumIdentifier function) const {
+Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
+                                              VellumIdentifier function) const {
   if (type == object.getType()) {
     return this->object.findFunction(function);
   }
@@ -87,7 +91,7 @@ std::optional<VellumFunction> Resolver::resolveFunction(
   return std::nullopt;
 }
 
-std::optional<VellumVariable> Resolver::resolveVariable(
+Opt<VellumVariable> Resolver::resolveVariable(
     VellumIdentifier name) const {
   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
     if (auto var = it->getVariable(name)) {
@@ -97,7 +101,7 @@ std::optional<VellumVariable> Resolver::resolveVariable(
   return object.findVariable(name);
 }
 
-std::optional<VellumType> Resolver::resolveScriptType(
+Opt<VellumType> Resolver::resolveScriptType(
     VellumIdentifier identifier) const {
   auto type = VellumType::identifier(identifier);
 

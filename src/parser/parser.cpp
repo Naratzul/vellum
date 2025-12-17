@@ -9,8 +9,10 @@
 namespace vellum {
 using common::makeShared;
 using common::makeUnique;
+using common::Opt;
 using common::Shared;
 using common::Unique;
+using common::Vec;
 
 class ParseException : public std::runtime_error {
  public:
@@ -122,8 +124,8 @@ Unique<ast::Declaration> Parser::scriptDeclaration() {
   Token scriptNameLocation = previous;
   std::string_view scriptName = previous.lexeme;
 
-  std::optional<std::string_view> parentScriptName;
-  std::optional<Token> parentScriptNameLocation;
+  Opt<std::string_view> parentScriptName;
+  Opt<Token> parentScriptNameLocation;
   if (match(TokenType::COLON)) {
     if (!match(TokenType::IDENTIFIER)) {
       errorHandler->errorAt(current,
@@ -151,7 +153,7 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
   const std::string_view name = previous.lexeme;
 
   bool isArray = false;
-  std::optional<VellumType> typeName;
+  Opt<VellumType> typeName;
   if (match(TokenType::COLON)) {
     isArray = match(TokenType::LEFT_BRACK);
 
@@ -194,7 +196,7 @@ Unique<ast::Declaration> Parser::functionDeclaration(
 
   consume(TokenType::LEFT_PAREN, "Expect '(' after {} name.", functionTypeName);
 
-  std::vector<ast::FunctionParameter> parameters;
+  Vec<ast::FunctionParameter> parameters;
   if (!check(TokenType::RIGHT_PAREN)) {
     do {
       consume(TokenType::IDENTIFIER, "Expect a parameter name.");
@@ -231,8 +233,8 @@ Unique<ast::Declaration> Parser::propertyDeclaration() {
 
   consume(TokenType::LEFT_BRACE, "Expect '{{' after property type.");
 
-  std::optional<ast::FunctionBody> getAccessor;
-  std::optional<ast::FunctionBody> setAccessor;
+  Opt<ast::FunctionBody> getAccessor;
+  Opt<ast::FunctionBody> setAccessor;
 
   for (int i = 0; i < 2; ++i) {
     if (match(TokenType::GET)) {
@@ -314,7 +316,7 @@ Unique<ast::Statement> Parser::ifStatement() {
   auto condition = expression();
 
   consume(TokenType::LEFT_BRACE, "Expected '{{' after if condition.");
-  std::vector<Unique<ast::Statement>> then_branch;
+  Vec<Unique<ast::Statement>> then_branch;
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
     try {
       then_branch.push_back(std::move(statement()));
@@ -325,9 +327,9 @@ Unique<ast::Statement> Parser::ifStatement() {
   }
   consume(TokenType::RIGHT_BRACE, "Expected '}}' after if block.");
 
-  std::optional<std::vector<Unique<ast::Statement>>> else_branch;
+  Opt<Vec<Unique<ast::Statement>>> else_branch;
   if (match(TokenType::ELSE)) {
-    std::vector<Unique<ast::Statement>> else_statements;
+    Vec<Unique<ast::Statement>> else_statements;
     consume(TokenType::LEFT_BRACE, "Expected '{{' after 'else'.");
     while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
       try {
@@ -353,7 +355,7 @@ Unique<ast::Statement> Parser::varStatement() {
   consume(TokenType::IDENTIFIER, "Expect a variable name.");
   const VellumIdentifier name(previous.lexeme);
 
-  std::optional<VellumType> type;
+  Opt<VellumType> type;
   if (match(TokenType::COLON)) {
     consume(TokenType::IDENTIFIER, "Expect a type name.");
     type = VellumType::unresolved(previous.lexeme);
@@ -564,7 +566,7 @@ Unique<ast::Expression> Parser::callOrGetExpression() {
 
 Unique<ast::Expression> Parser::callExpression(Unique<ast::Expression> callee,
                                                const Token& location) {
-  std::vector<Unique<ast::Expression>> arguments;
+  Vec<Unique<ast::Expression>> arguments;
 
   if (!check(TokenType::RIGHT_PAREN)) {
     do {
@@ -604,7 +606,7 @@ Unique<ast::Expression> Parser::primaryExpression() {
 }
 
 Unique<ast::Expression> Parser::arrayExpression() {
-  std::optional<VellumType> subtype;
+  Opt<VellumType> subtype;
 
   if (match(TokenType::RIGHT_BRACK)) {
     return makeUnique<ast::NewArrayExpression>(subtype, VellumLiteral(0),

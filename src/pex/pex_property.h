@@ -2,21 +2,22 @@
 
 #include <optional>
 
+#include "common/types.h"
 #include "pex_function.h"
 #include "pex_string.h"
 #include "pex_user_flag.h"
 
 namespace vellum {
 namespace pex {
+using common::Opt;
 
 class PexWriter;
 
 class PexProperty {
  public:
   PexProperty(PexString name, PexString typeName, PexString documentationString,
-              PexUserFlags userFlags, std::optional<PexFunction> getAccessor,
-              std::optional<PexFunction> setAccessor,
-              std::optional<PexString> backedVariableName)
+              PexUserFlags userFlags, Opt<PexFunction> getAccessor,
+              Opt<PexFunction> setAccessor, Opt<PexString> backedVariableName)
       : name(name),
         typeName(typeName),
         documentationString(documentationString),
@@ -30,12 +31,10 @@ class PexProperty {
   PexString getDocumentationString() const { return documentationString; }
   PexUserFlags getUserFlags() const { return userFlags; }
 
-  std::optional<PexFunction> getGetAccessor() const { return getAccessor; }
-  std::optional<PexFunction> getSetAccessor() const { return setAccessor; }
+  Opt<PexFunction> getGetAccessor() const { return getAccessor; }
+  Opt<PexFunction> getSetAccessor() const { return setAccessor; }
 
-  std::optional<PexString> getBackedVariableName() const {
-    return backedVariableName;
-  }
+  Opt<PexString> getBackedVariableName() const { return backedVariableName; }
 
  private:
   PexString name;
@@ -43,10 +42,10 @@ class PexProperty {
   PexString documentationString;
   PexUserFlags userFlags;
 
-  std::optional<PexFunction> getAccessor;
-  std::optional<PexFunction> setAccessor;
+  Opt<PexFunction> getAccessor;
+  Opt<PexFunction> setAccessor;
 
-  std::optional<PexString> backedVariableName;
+  Opt<PexString> backedVariableName;
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexProperty& property);

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "common/binary_writer.h"
+#include "common/types.h"
 #include "game/game_id.h"
 #include "pex_object.h"
 #include "pex_string.h"
@@ -12,6 +13,7 @@
 
 namespace vellum {
 namespace pex {
+using common::Vec;
 
 constexpr uint32_t PEX_MAGIC_NUM = 0xFA57C0DE;
 constexpr uint32_t PEX_MAGIC_NUM_BE = 0xDE57C0FA;
@@ -36,8 +38,8 @@ struct PexUserFlagTableEntry {
 
 class PexFile {
  public:
-  using Objects = std::vector<PexObject>;
-  using PexUserFlagTable = std::vector<PexUserFlagTableEntry>;
+  using Objects = Vec<PexObject>;
+  using PexUserFlagTable = Vec<PexUserFlagTableEntry>;
 
   PexHeader& header() { return header_; }
   const PexHeader& header() const { return header_; }

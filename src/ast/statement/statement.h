@@ -10,7 +10,9 @@
 namespace vellum {
 
 namespace ast {
+using common::Opt;
 using common::Unique;
+using common::Vec;
 
 class StatementVisitor;
 
@@ -54,39 +56,34 @@ class ReturnStatement : public Statement {
 
 class IfStatement : public Statement {
  public:
-  IfStatement(Unique<Expression> condition, std::vector<Unique<Statement>> then_block,
-              std::optional<std::vector<Unique<Statement>>> else_block =
-                  std::nullopt)
+  IfStatement(Unique<Expression> condition, Vec<Unique<Statement>> then_block,
+              Opt<Vec<Unique<Statement>>> else_block = std::nullopt)
       : condition(std::move(condition)),
         then_block(std::move(then_block)),
         else_block(std::move(else_block)) {}
 
   const Unique<Expression>& getCondition() const { return condition; }
-  const std::vector<Unique<Statement>>& getThenBlock() const {
-    return then_block;
-  }
-  const std::optional<std::vector<Unique<Statement>>>& getElseBlock() const {
-    return else_block;
-  }
+  const Vec<Unique<Statement>>& getThenBlock() const { return then_block; }
+  const Opt<Vec<Unique<Statement>>>& getElseBlock() const { return else_block; }
 
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
 
  private:
   Unique<Expression> condition;
-  std::vector<Unique<Statement>> then_block;
-  std::optional<std::vector<Unique<Statement>>> else_block;
+  Vec<Unique<Statement>> then_block;
+  Opt<Vec<Unique<Statement>>> else_block;
 };
 
 class LocalVariableStatement : public Statement {
  public:
-  LocalVariableStatement(VellumIdentifier name, std::optional<VellumType> type,
+  LocalVariableStatement(VellumIdentifier name, Opt<VellumType> type,
                          Unique<Expression> initializer)
       : name(name), type(type), initializer(std::move(initializer)) {}
 
   VellumIdentifier getName() const { return name; }
 
-  std::optional<VellumType> getType() const { return type; }
+  Opt<VellumType> getType() const { return type; }
   void setType(VellumType type_) { type = type_; }
 
   const Unique<Expression>& getInitializer() const { return initializer; }
@@ -96,13 +93,13 @@ class LocalVariableStatement : public Statement {
 
  private:
   VellumIdentifier name;
-  std::optional<VellumType> type;
+  Opt<VellumType> type;
   Unique<Expression> initializer;
 };
 
 class WhileStatement : public Statement {
  public:
-  using Body = std::vector<Unique<ast::Statement>>;
+  using Body = Vec<Unique<ast::Statement>>;
 
   WhileStatement(Unique<ast::Expression> condition, Body body)
       : condition(std::move(condition)), body(std::move(body)) {}
