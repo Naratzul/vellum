@@ -30,11 +30,13 @@ class ScriptDeclaration : public Declaration {
  public:
   ScriptDeclaration(std::string_view scriptName, Token scriptNameLocation,
                     Opt<std::string_view> parentScriptName,
-                    Opt<Token> parentScriptNameLocation)
+                    Opt<Token> parentScriptNameLocation,
+                    Vec<Unique<ast::Declaration>> members)
       : scriptName_(scriptName),
         scriptNameLocation(scriptNameLocation),
         parentScriptName_(parentScriptName),
-        parentScriptNameLocation(parentScriptNameLocation) {}
+        parentScriptNameLocation(parentScriptNameLocation),
+        members(std::move(members)) {}
 
   std::string_view scriptName() const { return scriptName_; }
   Opt<std::string_view> parentScriptName() const { return parentScriptName_; }
@@ -43,6 +45,8 @@ class ScriptDeclaration : public Declaration {
   Opt<Token> getParentScriptNameLocation() const {
     return parentScriptNameLocation;
   }
+
+  const Vec<Unique<ast::Declaration>>& getMemberDecls() const { return members; }
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
@@ -53,6 +57,8 @@ class ScriptDeclaration : public Declaration {
 
   Token scriptNameLocation;
   Opt<Token> parentScriptNameLocation;
+
+  Vec<Unique<ast::Declaration>> members;
 };
 
 class GlobalVariableDeclaration : public Declaration {
@@ -91,7 +97,8 @@ using FunctionBody = Vec<Unique<Statement>>;
 
 class FunctionDeclaration : public Declaration {
  public:
-  FunctionDeclaration(Opt<std::string_view> name, Vec<FunctionParameter> parameters,
+  FunctionDeclaration(Opt<std::string_view> name,
+                      Vec<FunctionParameter> parameters,
                       VellumType returnTypeName, FunctionBody body)
       : name(name),
         parameters(std::move(parameters)),

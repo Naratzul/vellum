@@ -6,7 +6,7 @@
 namespace vellum {
 class StaticAnalyze {
  public:
-  std::vector<DiagnosticMessage> analyze(std::string_view sourceCode);
+  std::vector<DiagnosticMessage> analyze(std::string_view filename, std::string_view sourceCode);
  private:
 };
 }  // namespace vellum

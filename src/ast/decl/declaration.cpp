@@ -11,8 +11,25 @@ void ScriptDeclaration::accept(DeclarationVisitor& visitor) {
 
 bool ScriptDeclaration::equals(const Declaration& other_) const {
   auto& other = static_cast<const ScriptDeclaration&>(other_);
-  return scriptName() == other.scriptName() &&
-         parentScriptName() == other.parentScriptName();
+  if (scriptName() != other.scriptName()) {
+    return false;
+  }
+
+  if (parentScriptName() != other.parentScriptName()) {
+    return false;
+  }
+
+  if (members.size() != other.members.size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < members.size(); ++i) {
+    if (!members[i]->equals(*other.members[i])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 VellumValue GlobalVariableDeclaration::getValue() const {

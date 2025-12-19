@@ -45,7 +45,10 @@ class Parser {
 
   void advance();
 
-  Unique<ast::Declaration> declaration();
+  Unique<ast::Declaration> topDeclaration();
+  Unique<ast::Declaration> scriptDeclaration();
+
+  Unique<ast::Declaration> scriptMemberDeclaration();
 
   bool match(TokenType type);
   bool match(std::initializer_list<TokenType> types);
@@ -55,7 +58,6 @@ class Parser {
   template <typename... Args>
   void consume(TokenType type, std::format_string<Args...> fmt, Args&&... args);
 
-  Unique<ast::Declaration> scriptDeclaration();
   Unique<ast::Declaration> variableDeclaration();
   Unique<ast::Declaration> functionDeclaration(FunctionType functionType);
   Unique<ast::Declaration> propertyDeclaration();
@@ -85,6 +87,7 @@ class Parser {
   Unique<ast::Expression> primaryExpression();
   Unique<ast::Expression> arrayExpression();
 
+  void synchronizeTopDeclaration();
   void synchronizeDeclaration();
   void synchronizeStatement();
 };

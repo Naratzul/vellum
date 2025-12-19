@@ -14,6 +14,8 @@ template <typename T>
 using Opt = std::optional<T>;
 template <typename T>
 using Vec = std::vector<T>;
+template <typename K, typename V>
+using Map = std::unordered_map<K, V>;
 
 template <typename Type, typename... Args>
 Unique<Type> makeUnique(Args&&... args) {

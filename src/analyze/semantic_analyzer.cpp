@@ -43,6 +43,10 @@ void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
         std::format("Filename '{}' doesn't match scriptname '{}'.",
                     scriptFilename, decl.scriptName()));
   }
+
+  for (const auto& memberDecl : decl.getMemberDecls()) {
+    memberDecl->accept(*this);
+  }
 }
 
 void SemanticAnalyzer::visitVariableDeclaration(

@@ -20,9 +20,10 @@ static lsp::Diagnostic convert(const DiagnosticMessage& message) {
 }
 
 lsp::requests::TextDocument_Diagnostic::Result Diagnostics::getDiagnostics(
-    std::string_view sourceCode) {
+    std::string_view filename, std::string_view sourceCode) {
   StaticAnalyze analyzer;
-  const std::vector<DiagnosticMessage> messages = analyzer.analyze(sourceCode);
+  const std::vector<DiagnosticMessage> messages =
+      analyzer.analyze(filename, sourceCode);
 
   lsp::RelatedFullDocumentDiagnosticReport result;
   for (const auto& message : messages) {

@@ -51,10 +51,10 @@ ParserResult Parser::parse() {
 
   while (!check(TokenType::END_OF_FILE)) {
     try {
-      result.declarations.push_back(declaration());
+      result.declarations.push_back(topDeclaration());
     } catch (const ParseException& e) {
       errorHandler->errorAt(e.getToken(), e.getMessage());
-      synchronizeDeclaration();
+      synchronizeTopDeclaration();
     }
   }
 
@@ -74,24 +74,13 @@ void Parser::advance() {
   }
 }
 
-Unique<ast::Declaration> Parser::declaration() {
-  Unique<ast::Declaration> decl;
-
+Unique<ast::Declaration> Parser::topDeclaration() {
   if (match(TokenType::SCRIPT)) {
-    decl = scriptDeclaration();
-  } else if (match(TokenType::VAR)) {
-    decl = variableDeclaration();
-  } else if (match(TokenType::FUN)) {
-    decl = functionDeclaration(FunctionType::Function);
-  } else if (match(TokenType::EVENT)) {
-    decl = functionDeclaration(FunctionType::Event);
-  } else if (match(TokenType::IDENTIFIER)) {
-    decl = propertyDeclaration();
-  } else {
-    throw ParseException(current, "Expect a declaraion.");
+    return scriptDeclaration();
   }
 
-  return decl;
+  throw ParseException(
+      previous, "Expect a top-level declaration: script, state or import.");
 }
 
 bool Parser::match(TokenType type) {
@@ -135,17 +124,45 @@ Unique<ast::Declaration> Parser::scriptDeclaration() {
     parentScriptNameLocation = previous;
   }
 
-  if (!check(TokenType::END_OF_FILE) &&
-      previous.location.start.line == current.location.start.line) {
-    errorHandler->errorAt(current, "Unexpected token after script declaration");
+  Vec<Unique<ast::Declaration>> scriptMembers;
+
+  if (match(TokenType::LEFT_BRACE)) {
+    while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
+      try {
+        scriptMembers.push_back(scriptMemberDeclaration());
+      } catch (const ParseException& e) {
+        errorHandler->errorAt(e.getToken(), e.getMessage());
+        synchronizeDeclaration();
+      }
+    }
+
+    consume(TokenType::RIGHT_BRACE, "Expect '}}' after script declaration.");
+  } else if (!check(TokenType::END_OF_FILE) &&
+             previous.location.start.line == current.location.start.line) {
+    throw ParseException(current, "Unexpected token after script declaration.");
   }
 
   resolver = makeShared<Resolver>(
       VellumObject(VellumType::identifier(scriptName)), errorHandler);
 
-  return makeUnique<ast::ScriptDeclaration>(scriptName, scriptNameLocation,
-                                            parentScriptName,
-                                            parentScriptNameLocation);
+  return makeUnique<ast::ScriptDeclaration>(
+      scriptName, scriptNameLocation, parentScriptName,
+      parentScriptNameLocation, std::move(scriptMembers));
+}
+
+Unique<ast::Declaration> Parser::scriptMemberDeclaration() {
+  if (match(TokenType::VAR)) {
+    return variableDeclaration();
+  } else if (match(TokenType::FUN)) {
+    return functionDeclaration(FunctionType::Function);
+  } else if (match(TokenType::EVENT)) {
+    return functionDeclaration(FunctionType::Event);
+  } else if (match(TokenType::IDENTIFIER)) {
+    return propertyDeclaration();
+  }
+
+  throw ParseException(current,
+                       "Expect a declaraion: var, property or fun/event.");
 }
 
 Unique<ast::Declaration> Parser::variableDeclaration() {
@@ -630,6 +647,19 @@ Unique<ast::Expression> Parser::arrayExpression() {
   return makeUnique<ast::NewArrayExpression>(subtype, length, previous);
 }
 
+void Parser::synchronizeTopDeclaration() {
+  errorHandler->disablePanicMode();
+  while (!check(TokenType::END_OF_FILE)) {
+    switch (current.type) {
+      case TokenType::SCRIPT:
+        return;
+      default:
+        break;
+    }
+    advance();
+  }
+}
+
 void Parser::synchronizeDeclaration() {
   errorHandler->disablePanicMode();
   while (!check(TokenType::END_OF_FILE)) {
@@ -638,7 +668,6 @@ void Parser::synchronizeDeclaration() {
       case TokenType::EVENT:
       case TokenType::IDENTIFIER:
       case TokenType::VAR:
-      case TokenType::SCRIPT:
         return;
       default:
         break;

@@ -6,13 +6,17 @@
 #include <format>
 #include <unordered_map>
 
+#include "common/fs.h"
 #include "common/os.h"
+#include "common/types.h"
 #include "diagnostics.h"
 
 auto connection = lsp::Connection(lsp::io::standardIO());
 auto messageHandler = lsp::MessageHandler(connection);
 
-std::unordered_map<std::string, std::string> documents;
+using namespace vellum::common;
+
+Map<std::string, std::string> documents;
 
 void logMsg(const std::string& msg) {
   lsp::LogMessageParams params{.type = lsp::MessageType::Info, .message = msg};
@@ -82,8 +86,10 @@ int main() {
               return lsp::requests::TextDocument_Diagnostic::Result{};
             }
 
+            std::string path(params.textDocument.uri.path());
+
             return vellum::Diagnostics().getDiagnostics(
-                documents.at(std::string(params.textDocument.uri.path())));
+                filenameWithoutExt(path), documents.at(path));
           });
 
   bool isShutdownRequested = false;
@@ -99,8 +105,8 @@ int main() {
 
   logMsg("Hello from server");
 
-  while (!vellum::common::isDebuggerPresent()) {
-  }
+  /*while (!vellum::common::isDebuggerPresent()) {
+  }*/
 
   while (isRunning) {
     messageHandler.processIncomingMessages();
