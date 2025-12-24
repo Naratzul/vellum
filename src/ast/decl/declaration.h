@@ -16,11 +16,20 @@ namespace ast {
 
 class DeclarationVisitor;
 
+enum class DeclarationOrder {
+  Import,
+  Script,
+  Variable,
+  Function,
+  Property
+};
+
 class Declaration {
  public:
   virtual ~Declaration() = default;
   virtual void accept(DeclarationVisitor& visitor) = 0;
   virtual bool equals(const Declaration& other) const = 0;
+  virtual DeclarationOrder getOrder() const = 0;
 };
 
 bool operator==(const Declaration& lhs, const Declaration& rhs);
@@ -51,6 +60,10 @@ class ScriptDeclaration : public Declaration {
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
 
+  DeclarationOrder getOrder() const override {
+    return DeclarationOrder::Script;
+  }
+
  private:
   std::string_view scriptName_;
   Opt<std::string_view> parentScriptName_;
@@ -78,6 +91,10 @@ class GlobalVariableDeclaration : public Declaration {
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
+
+  DeclarationOrder getOrder() const override {
+    return DeclarationOrder::Variable;
+  }
 
  private:
   std::string_view name_;
@@ -115,6 +132,10 @@ class FunctionDeclaration : public Declaration {
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
 
+  DeclarationOrder getOrder() const override {
+    return DeclarationOrder::Function;
+  }
+
  private:
   Opt<std::string_view> name;
   Vec<FunctionParameter> parameters;
@@ -138,6 +159,10 @@ class PropertyDeclaration : public Declaration {
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
+
+  DeclarationOrder getOrder() const override {
+    return DeclarationOrder::Property;
+  }
 
   bool isAutoProperty() const {
     return getAccessor && setAccessor && getAccessor->empty() &&

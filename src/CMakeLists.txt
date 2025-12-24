@@ -1,4 +1,5 @@
 ﻿add_library(vellum_compiler STATIC
+    analyze/declaration_collector.cpp
     analyze/semantic_analyzer.cpp
     ast/decl/declaration.cpp
     ast/expression/expression.cpp
