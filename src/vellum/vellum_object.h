@@ -24,10 +24,14 @@ class VellumObject {
     functions.push_back(std::move(function));
   }
 
+  Opt<VellumFunction> getFunction(VellumIdentifier id) const;
+
   const Vec<VellumProperty>& getProperties() const { return properties; }
   void addProperty(VellumProperty property) {
     properties.push_back(std::move(property));
   }
+
+  Opt<VellumProperty> getProperty(VellumIdentifier id) const;
 
   const Vec<VellumVariable>& getVariables() const { return variables; }
   void addVariable(VellumVariable variable) {

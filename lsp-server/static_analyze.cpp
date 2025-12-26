@@ -11,10 +11,12 @@ using common::makeShared;
 using common::makeUnique;
 using common::Vec;
 
-Vec<DiagnosticMessage> StaticAnalyze::analyze(
-    std::string_view filename, std::string_view sourceCode) {
+Vec<DiagnosticMessage> StaticAnalyze::analyze(std::string_view filename,
+                                              std::string_view sourceCode) {
   auto lexer = makeUnique<Lexer>(sourceCode);
   auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier(filename)), errorHandler);
 
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();
@@ -33,10 +35,9 @@ Vec<DiagnosticMessage> StaticAnalyze::analyze(
       {VellumVariable(VellumIdentifier("message"),
                       VellumType::literal(VellumLiteralType::String))}));
 
-  parseResult.resolver->importObject(debug);
+  resolver->importObject(debug);
 
-  SemanticAnalyzer semantic(errorHandler, parseResult.resolver,
-                            std::string(filename));
+  SemanticAnalyzer semantic(errorHandler, resolver, filename);
   const SemanticAnalyzeResult semanticResult =
       semantic.analyze(std::move(parseResult.declarations));
   if (errorHandler->hadError()) {

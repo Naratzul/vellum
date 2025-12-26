@@ -37,7 +37,7 @@ class VellumFunctionCall {
  private:
   VellumFunctionCall(VellumType objectType, Opt<VellumIdentifier> object,
                      VellumIdentifier function)
-      : object(object), function(function), objectType(objectType) {}
+      : objectType(objectType), function(function), object(object) {}
 
   VellumType objectType;
   VellumIdentifier function;

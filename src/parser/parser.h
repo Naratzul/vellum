@@ -20,10 +20,7 @@ class Expression;
 class Statement;
 }  // namespace ast
 
-class Resolver;
-
 struct ParserResult {
-  Shared<Resolver> resolver;
   Vec<Unique<ast::Declaration>> declarations;
 };
 
@@ -38,7 +35,6 @@ class Parser {
  private:
   Unique<ILexer> lexer;
   Shared<CompilerErrorHandler> errorHandler;
-  Shared<Resolver> resolver;
 
   Token previous;
   Token current;

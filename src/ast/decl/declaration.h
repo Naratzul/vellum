@@ -16,13 +16,7 @@ namespace ast {
 
 class DeclarationVisitor;
 
-enum class DeclarationOrder {
-  Import,
-  Script,
-  Variable,
-  Function,
-  Property
-};
+enum class DeclarationOrder { Import, Script, Variable, Function, Property };
 
 class Declaration {
  public:
@@ -42,8 +36,8 @@ class ScriptDeclaration : public Declaration {
                     Opt<Token> parentScriptNameLocation,
                     Vec<Unique<ast::Declaration>> members)
       : scriptName_(scriptName),
-        scriptNameLocation(scriptNameLocation),
         parentScriptName_(parentScriptName),
+        scriptNameLocation(scriptNameLocation),
         parentScriptNameLocation(parentScriptNameLocation),
         members(std::move(members)) {}
 
@@ -55,7 +49,9 @@ class ScriptDeclaration : public Declaration {
     return parentScriptNameLocation;
   }
 
-  const Vec<Unique<ast::Declaration>>& getMemberDecls() const { return members; }
+  const Vec<Unique<ast::Declaration>>& getMemberDecls() const {
+    return members;
+  }
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;

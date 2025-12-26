@@ -3,7 +3,6 @@
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
 #include "common/types.h"
-#include "compiler/resolver.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -57,8 +56,6 @@ ParserResult Parser::parse() {
       synchronizeTopDeclaration();
     }
   }
-
-  result.resolver = resolver;
 
   return result;
 }
@@ -141,9 +138,6 @@ Unique<ast::Declaration> Parser::scriptDeclaration() {
              previous.location.start.line == current.location.start.line) {
     throw ParseException(current, "Unexpected token after script declaration.");
   }
-
-  resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier(scriptName)), errorHandler);
 
   return makeUnique<ast::ScriptDeclaration>(
       scriptName, scriptNameLocation, parentScriptName,

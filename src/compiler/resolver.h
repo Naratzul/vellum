@@ -19,17 +19,27 @@ class Resolver {
     builtinObjects.push_back(std::move(object));
   }
 
-  Resolver(VellumObject object, Shared<CompilerErrorHandler> errorHandler)
+  explicit Resolver(VellumObject object,
+                    Shared<CompilerErrorHandler> errorHandler)
       : object(std::move(object)), errorHandler(errorHandler) {}
 
+  void setObject(const VellumObject& obj) { object = obj; }
   const VellumObject& getObject() const { return object; }
 
   void addFunction(VellumFunction function) {
     object.addFunction(std::move(function));
   }
 
+  Opt<VellumFunction> getFunction(VellumIdentifier id) const {
+    return object.getFunction(id);
+  }
+
   void addProperty(VellumProperty property) {
     object.addProperty(std::move(property));
+  }
+
+  Opt<VellumProperty> getProperty(VellumIdentifier id) const {
+    return object.getProperty(id);
   }
 
   void addVariable(VellumVariable variable) {
@@ -64,6 +74,8 @@ class Resolver {
 
   Opt<VellumType> resolveScriptType(VellumIdentifier identifier) const;
 
+  VellumType resolveType(VellumType unresolvedType) const;
+
  private:
   VellumObject object;
   Shared<CompilerErrorHandler> errorHandler;
@@ -72,5 +84,8 @@ class Resolver {
   Vec<VellumObject> importedObjects;
   Vec<Scope> scopes;
   Opt<VellumFunction> currentFunction;
+
+  VellumLiteralType resolveValueType(std::string_view rawType) const;
+  VellumType resolveObjectType(std::string_view rawType) const;
 };
 }  // namespace vellum

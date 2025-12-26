@@ -33,7 +33,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
                          public ast::ExpressionVisitor {
  public:
   SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
-                   Shared<Resolver> resolver, std::string scriptFilename);
+                   Shared<Resolver> resolver, std::string_view scriptFilename);
 
   SemanticAnalyzeResult analyze(Vec<Unique<ast::Declaration>>&& declarations);
 
@@ -63,12 +63,6 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
  private:
   Shared<CompilerErrorHandler> errorHandler;
   Shared<Resolver> resolver;
-  std::string scriptFilename;
-
-  VellumType resolveType(VellumType unresolvedType) const;
-  VellumType deduceType(const Unique<ast::Expression>& init) const;
-
-  VellumLiteralType resolveValueType(std::string_view rawType) const;
-  VellumType resolveObjectType(std::string_view rawType) const;
+  std::string_view scriptFilename;
 };
 }  // namespace vellum

@@ -17,7 +17,7 @@ using common::Vec;
 
 SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
                                    Shared<Resolver> resolver,
-                                   std::string scriptFilename)
+                                   std::string_view scriptFilename)
     : errorHandler(errorHandler),
       resolver(resolver),
       scriptFilename(std::move(scriptFilename)) {
@@ -26,7 +26,8 @@ SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
 
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
     Vec<Unique<ast::Declaration>>&& declarations) {
-  DeclarationCollector collector(resolver);
+  DeclarationCollector collector(errorHandler, resolver);
+  collector.collect(declarations);
 
   errorHandler->setCanEnterPanicMode(false);
 
@@ -54,60 +55,18 @@ void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
 
 void SemanticAnalyzer::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& statement) {
-  Opt<VellumType> annotatedType;
-  if (auto type = statement.typeName()) {
-    annotatedType = resolveType(type.value());
-    statement.typeName() = annotatedType;
-  }
-
-  Opt<VellumType> deducedType;
-  if (statement.initializer()) {
-    deducedType = deduceType(statement.initializer());
-    if (!annotatedType) {
-      statement.typeName() = deducedType;
-    }
-  }
-
-  if (annotatedType && deducedType) {
-    if (annotatedType != deducedType) {
-      std::string gotType;
-      if (deducedType->isResolved()) {
-        gotType = std::format(", got '{}'.", deducedType->toString());
-      }
-
-      errorHandler->errorAt(
-          statement.initializer()->getLocation(),
-          std::format("Variable type mismatch: expected '{}'{}.",
-                      annotatedType->toString(), gotType));
-    }
-  }
-
-  resolver->addVariable(VellumVariable(VellumIdentifier(statement.name()),
-                                       statement.typeName().value()));
+  (void)statement;
 }
 
 void SemanticAnalyzer::visitFunctionDeclaration(
     ast::FunctionDeclaration& declaration) {
-  Vec<VellumVariable> parameters;
-  parameters.reserve(declaration.getParameters().size());
+  assert(declaration.getName().has_value());
+  Opt<VellumFunction> func =
+      resolver->getFunction(VellumIdentifier(declaration.getName().value()));
 
-  for (auto& param : declaration.getParameters()) {
-    if (!param.type.isResolved()) {
-      param.type = resolveType(param.type);
-    }
-    parameters.emplace_back(VellumIdentifier(param.name), param.type);
-  }
+  assert(func.has_value());
 
-  if (!declaration.getReturnTypeName().isResolved()) {
-    declaration.getReturnTypeName() =
-        resolveType(declaration.getReturnTypeName());
-  }
-
-  VellumFunction func(VellumIdentifier(declaration.getName().value()),
-                      declaration.getReturnTypeName(), std::move(parameters));
-  resolver->addFunction(func);
-
-  resolver->startFunction(func);
+  resolver->startFunction(func.value());
   for (auto& statement : declaration.getBody()) {
     statement->accept(*this);
   }
@@ -116,12 +75,24 @@ void SemanticAnalyzer::visitFunctionDeclaration(
 
 void SemanticAnalyzer::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
-  if (!declaration.getTypeName().isResolved()) {
-    declaration.getTypeName() = resolveType(declaration.getTypeName());
+  VellumFunction dummyFunc(VellumIdentifier(declaration.getName()),
+                           declaration.getTypeName(), {});
+
+  if (auto getFunc = declaration.getGetAccessor()) {
+    resolver->startFunction(dummyFunc);
+    for (auto& statement : getFunc.value()) {
+      statement->accept(*this);
+    }
+    resolver->endFunction();
   }
 
-  resolver->addProperty(VellumProperty(VellumIdentifier(declaration.getName()),
-                                       declaration.getTypeName()));
+  if (auto setFunc = declaration.getSetAccessor()) {
+    resolver->startFunction(dummyFunc);
+    for (auto& statement : setFunc.value()) {
+      statement->accept(*this);
+    }
+    resolver->endFunction();
+  }
 }
 
 void SemanticAnalyzer::visitExpressionStatement(
@@ -169,14 +140,14 @@ void SemanticAnalyzer::visitLocalVariableStatement(
     ast::LocalVariableStatement& statement) {
   Opt<VellumType> annotatedType;
   if (auto type = statement.getType()) {
-    annotatedType = resolveType(type.value());
+    annotatedType = resolver->resolveType(type.value());
     statement.setType(annotatedType.value());
   }
 
   Opt<VellumType> deducedType;
   if (statement.getInitializer()) {
     statement.getInitializer()->accept(*this);
-    deducedType = deduceType(statement.getInitializer());
+    deducedType = statement.getInitializer()->getType();
     if (!annotatedType) {
       statement.setType(deducedType.value());
     }
@@ -229,6 +200,7 @@ void SemanticAnalyzer::visitIdentifierExpression(
       break;
     case VellumValueType::ScriptType:
       expr.setType(value->asScriptType());
+      break;
     default:
       assert(false && "Unsupported identifier type");
   }
@@ -495,12 +467,12 @@ void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
   expr.getExpression()->accept(*this);
 
   assert(!expr.getTargetType().isResolved());
-  expr.setTargetType(resolveType(expr.getTargetType()));
+  expr.setTargetType(resolver->resolveType(expr.getTargetType()));
 }
 
 void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   if (const auto& subtype = expr.getSubtype(); subtype.has_value()) {
-    VellumType resolvedSubtype = resolveType(subtype.value());
+    VellumType resolvedSubtype = resolver->resolveType(subtype.value());
     expr.setSubtype(resolvedSubtype);
     expr.setType(VellumType::array(resolvedSubtype));
   }
@@ -522,47 +494,5 @@ void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
     errorHandler->errorAt(expr.getLocation(),
                           "Maximum array length (128) is exceeded.");
   }
-}
-
-VellumType SemanticAnalyzer::resolveType(VellumType unresolvedType) const {
-  if (unresolvedType.isArray()) {
-    return VellumType::array(resolveType(*unresolvedType.asArraySubtype()));
-  }
-
-  assert(!unresolvedType.isResolved());
-  const std::string_view rawType = unresolvedType.asRawType();
-  assert(!rawType.empty());
-
-  VellumType type = VellumType::unresolved("");
-  if (literalTypeFromString(unresolvedType.asRawType()).has_value()) {
-    type = VellumType::literal(resolveValueType(unresolvedType.asRawType()));
-  } else {
-    type = resolveObjectType(unresolvedType.asRawType());
-  }
-
-  return type;
-}
-
-VellumType SemanticAnalyzer::deduceType(
-    const Unique<ast::Expression>& init) const {
-  assert(init);
-  return init->getType();
-}
-
-VellumLiteralType SemanticAnalyzer::resolveValueType(
-    std::string_view rawType) const {
-  return literalTypeFromString(rawType).value();
-}
-
-VellumType SemanticAnalyzer::resolveObjectType(std::string_view rawType) const {
-  VellumIdentifier identifier(rawType);
-  if (auto type = resolver->resolveScriptType(identifier)) {
-    return type.value();
-  }
-
-  // TODO: pass location
-  errorHandler->errorAt(Token(), std::format("Undefined type '{}'.", rawType));
-
-  return VellumType::unresolved(rawType);
 }
 }  // namespace vellum

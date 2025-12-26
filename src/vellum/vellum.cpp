@@ -21,8 +21,12 @@ using common::Unique;
 
 void Vellum::run(std::string_view inputFile) {
   const std::string& sourceCode = common::readFileContent(inputFile);
+  std::string filename = common::filenameWithoutExt(inputFile);
+
   auto lexer = makeUnique<Lexer>(sourceCode);
   auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier(filename)), errorHandler);
 
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();
@@ -41,9 +45,9 @@ void Vellum::run(std::string_view inputFile) {
       {VellumVariable(VellumIdentifier("message"),
                       VellumType::literal(VellumLiteralType::String))}));
 
-  parseResult.resolver->importObject(debug);
+  resolver->importObject(debug);
 
-  SemanticAnalyzer semantic(errorHandler, parseResult.resolver, common::filenameWithoutExt(inputFile));
+  SemanticAnalyzer semantic(errorHandler, resolver, filename);
   const SemanticAnalyzeResult semanticResult =
       semantic.analyze(std::move(parseResult.declarations));
   if (errorHandler->hadError()) {

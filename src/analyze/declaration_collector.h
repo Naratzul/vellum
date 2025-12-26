@@ -5,20 +5,22 @@
 
 namespace vellum {
 using common::Shared;
-using common::Vec;
 using common::Unique;
+using common::Vec;
 
 namespace ast {
 class Declaration;
 }  // namespace ast
+class CompilerErrorHandler;
 class Resolver;
 
 class DeclarationCollector : public ast::DeclarationVisitor {
  public:
-  explicit DeclarationCollector(const Shared<Resolver>& resolver)
-      : resolver(resolver) {}
+  explicit DeclarationCollector(
+      const Shared<CompilerErrorHandler>& errorHandler,
+      const Shared<Resolver>& resolver)
+      : errorHandler(errorHandler), resolver(resolver) {}
 
-  
   void collect(Vec<Unique<ast::Declaration>>& declarations);
 
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
@@ -28,6 +30,7 @@ class DeclarationCollector : public ast::DeclarationVisitor {
   void visitPropertyDeclaration(ast::PropertyDeclaration& declaration) override;
 
  private:
+  Shared<CompilerErrorHandler> errorHandler;
   Shared<Resolver> resolver;
 };
 }  // namespace vellum
