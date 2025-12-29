@@ -30,8 +30,8 @@ void Resolver::pushLocalVar(const VellumVariable& var) {
   if (scope.contains(var.getName())) {
     errorHandler->errorAt(
         Token(),
-        std::format("Variable with name '{}' aleady defined in this scope.",
-                    var.getName().toString()));
+        "Variable with name '{}' aleady defined in this scope.",
+        var.getName().toString());
     return;
   }
   scopes.back().pushVar(var);
@@ -146,7 +146,7 @@ VellumType Resolver::resolveObjectType(std::string_view rawType) const {
   }
 
   // TODO: pass location
-  errorHandler->errorAt(Token(), std::format("Undefined type '{}'.", rawType));
+  errorHandler->errorAt(Token(), "Undefined type '{}'.", rawType);
 
   return VellumType::unresolved(rawType);
 }

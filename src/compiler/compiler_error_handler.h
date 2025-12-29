@@ -1,9 +1,14 @@
 #pragma once
 
+#include <format>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <utility>
 #include <vector>
 
+#include "common/types.h"
 #include "lexer/token.h"
 
 namespace vellum {
@@ -18,8 +23,35 @@ struct DiagnosticMessage {
 };
 
 class CompilerErrorHandler {
+ private:
+  template <typename... Args>
+  static std::string formatMessage(std::string_view fmt, const Args&... args) {
+    if constexpr (sizeof...(Args) == 0) {
+      return std::string(fmt);
+    } else {
+      // Create format_args and use vformat with string_view
+      auto format_args = std::make_format_args(args...);
+      return std::vformat(fmt, format_args);
+    }
+  }
+
  public:
-  void errorAt(const Token& token, std::string_view message);
+  template <typename... Args>
+  void errorAt(const Token& token, std::string_view fmt, const Args&... args) {
+    if (isPanicMode()) {
+      return;
+    }
+
+    enablePanicMode();
+    hadError_ = true;
+
+    std::string message = formatMessage(fmt, args...);
+
+    errors.push_back(DiagnosticMessage{.type = DiagnosticMessageType::Error,
+                                       .token = token,
+                                       .message = message});
+    printError(token, message);
+  }
 
   bool hadError() const { return hadError_; }
 

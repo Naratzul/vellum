@@ -10,21 +10,6 @@
 
 namespace vellum {
 
-void CompilerErrorHandler::errorAt(const Token& token,
-                                   std::string_view message) {
-  if (isPanicMode()) {
-    return;
-  }
-
-  enablePanicMode();
-  hadError_ = true;
-
-  errors.push_back(DiagnosticMessage{.type = DiagnosticMessageType::Error,
-                                     .token = token,
-                                     .message = std::string(message)});
-  printError(token, message);
-}
-
 void CompilerErrorHandler::printError(const Token& token,
                                       std::string_view message) {
   std::ostringstream stream;

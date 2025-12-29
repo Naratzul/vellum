@@ -42,10 +42,9 @@ SemanticAnalyzeResult SemanticAnalyzer::analyze(
 
 void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
   if (decl.scriptName() != scriptFilename) {
-    errorHandler->errorAt(
-        decl.getScriptNameLocation(),
-        std::format("Filename '{}' doesn't match scriptname '{}'.",
-                    scriptFilename, decl.scriptName()));
+    errorHandler->errorAt(decl.getScriptNameLocation(),
+                          "Filename '{}' doesn't match scriptname '{}'.",
+                          scriptFilename, decl.scriptName());
   }
 
   for (const auto& memberDecl : decl.getMemberDecls()) {
@@ -110,10 +109,9 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
       gotType = std::format("Got type is '{}'.",
                             statement.getExpression()->getType().toString());
     }
-    errorHandler->errorAt(
-        statement.getExpression()->getLocation(),
-        std::format("Return type mismatch. Expected type is '{}'. {}",
-                    func->getReturnType().toString(), gotType));
+    errorHandler->errorAt(statement.getExpression()->getLocation(),
+                          "Return type mismatch. Expected type is '{}'. {}",
+                          func->getReturnType().toString(), gotType);
     return;
   }
 }
@@ -160,10 +158,9 @@ void SemanticAnalyzer::visitLocalVariableStatement(
         gotType = std::format(", got '{}'.", deducedType->toString());
       }
 
-      errorHandler->errorAt(
-          statement.getInitializer()->getLocation(),
-          std::format("Variable type mismatch: expected '{}'{}.",
-                      annotatedType->toString(), gotType));
+      errorHandler->errorAt(statement.getInitializer()->getLocation(),
+                            "Variable type mismatch: expected '{}'{}.",
+                            annotatedType->toString(), gotType);
     }
   }
 
@@ -182,9 +179,8 @@ void SemanticAnalyzer::visitIdentifierExpression(
     ast::IdentifierExpression& expr) {
   const auto value = resolver->resolveIdentifier(expr.getIdentifier());
   if (!value) {
-    errorHandler->errorAt(expr.getLocation(),
-                          std::format("Undefined identifier '{}'",
-                                      expr.getIdentifier().toString()));
+    errorHandler->errorAt(expr.getLocation(), "Undefined identifier '{}'",
+                          expr.getIdentifier().toString());
     return;
   }
 
@@ -237,20 +233,18 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
       resolver->resolveFunction(expr.getFunctionCall()->getObjectType(),
                                 expr.getFunctionCall()->getFunction());
   if (!func) {
-    errorHandler->errorAt(
-        expr.getCallee()->getLocation(),
-        std::format("Undefined function '{}'.",
-                    expr.getFunctionCall()->getFunction().toString()));
+    errorHandler->errorAt(expr.getCallee()->getLocation(),
+                          "Undefined function '{}'.",
+                          expr.getFunctionCall()->getFunction().toString());
     return;
   }
 
   if (func->getParameters().size() != expr.getArguments().size()) {
     errorHandler->errorAt(
         expr.getLocation(),
-        std::format("Function '{}' expects {} arguments, but {} were "
-                    "provided.",
-                    func->getName().toString(), func->getParameters().size(),
-                    expr.getArguments().size()));
+        "Function '{}' expects {} arguments, but {} were provided.",
+        func->getName().toString(), func->getParameters().size(),
+        expr.getArguments().size());
     return;
   }
 
@@ -260,11 +254,10 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     if (arg->getType() != func->getParameters()[i].getType()) {
       errorHandler->errorAt(
           arg->getLocation(),
-          std::format("Argument {} of function '{}' expects type '{}', "
-                      "but got type '{}'.",
-                      i, func->getName().toString(),
-                      func->getParameters()[i].getType().toString(),
-                      arg->getType().toString()));
+          "Argument {} of function '{}' expects type '{}', but got type '{}'.",
+          i, func->getName().toString(),
+          func->getParameters()[i].getType().toString(),
+          arg->getType().toString());
       return;
     }
   }
@@ -285,9 +278,8 @@ void SemanticAnalyzer::visitPropertyGetExpression(
   }
 
   if (!property) {
-    errorHandler->errorAt(
-        expr.getLocation(),
-        std::format("Undefined property '{}'.", expr.getProperty().toString()));
+    errorHandler->errorAt(expr.getLocation(), "Undefined property '{}'.",
+                          expr.getProperty().toString());
     return;
   }
 
@@ -300,8 +292,8 @@ void SemanticAnalyzer::visitPropertyGetExpression(
       break;
     default:
       errorHandler->errorAt(expr.getLocation(),
-                            std::format("Property '{}' is not accessible.",
-                                        expr.getProperty().toString()));
+                            "Property '{}' is not accessible.",
+                            expr.getProperty().toString());
       break;
   }
 }
@@ -319,9 +311,8 @@ void SemanticAnalyzer::visitPropertySetExpression(
   }
 
   if (!property) {
-    errorHandler->errorAt(
-        expr.getLocation(),
-        std::format("Undefined property '{}'.", expr.getProperty().toString()));
+    errorHandler->errorAt(expr.getLocation(), "Undefined property '{}'.",
+                          expr.getProperty().toString());
     return;
   }
 
@@ -330,21 +321,21 @@ void SemanticAnalyzer::visitPropertySetExpression(
       expr.setType(property->asProperty().getType());
       break;
     default:
-      errorHandler->errorAt(expr.getLocation(),
-                            std::format("'{}' is not assignable.",
-                                        expr.getProperty().toString()));
+      errorHandler->errorAt(expr.getLocation(), "'{}' is not assignable.",
+                            expr.getProperty().toString());
       return;
   }
+
+  // TODO: check if value is assignable
 
   expr.getValue()->accept(*this);
 
   if (expr.getType() != expr.getValue()->getType()) {
     errorHandler->errorAt(
         expr.getLocation(),
-        std::format("Can't assign a value of type '{}' to a property '{}' of "
-                    "type '{}'.",
-                    expr.getValue()->getType().toString(),
-                    expr.getProperty().toString(), expr.getType().toString()));
+        "Can't assign a value of type '{}' to a property '{}' of type '{}'.",
+        expr.getValue()->getType().toString(), expr.getProperty().toString(),
+        expr.getType().toString());
     return;
   }
 }
@@ -352,9 +343,8 @@ void SemanticAnalyzer::visitPropertySetExpression(
 void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
   const auto variable = resolver->resolveVariable(expr.getName());
   if (!variable) {
-    errorHandler->errorAt(
-        expr.getLocation(),
-        std::format("Undefined variable '{}'.", expr.getName().toString()));
+    errorHandler->errorAt(expr.getLocation(), "Undefined variable '{}'.",
+                          expr.getName().toString());
     return;
   }
 
@@ -364,10 +354,9 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
   if (expr.getType() != expr.getValue()->getType()) {
     errorHandler->errorAt(
         expr.getLocation(),
-        std::format("Can't assign a value of type '{}' to a variable '{}' of "
-                    "type '{}'.",
-                    expr.getValue()->getType().toString(),
-                    expr.getName().toString(), expr.getType().toString()));
+        "Can't assign a value of type '{}' to a variable '{}' of type '{}'.",
+        expr.getValue()->getType().toString(), expr.getName().toString(),
+        expr.getType().toString());
     return;
   }
 }
@@ -382,12 +371,10 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
   if (expr.getOperator() == ast::BinaryExpression::Operator::And ||
       expr.getOperator() == ast::BinaryExpression::Operator::Or) {
     if (!(leftType.isBool() && rightType.isBool())) {
-      errorHandler->errorAt(
-          expr.getLocation(),
-          std::format(
-              "Cannot perform logical operation on "
-              "types: '{}' and '{}'. Both operands must be of Bool type.",
-              leftType.toString(), rightType.toString()));
+      errorHandler->errorAt(expr.getLocation(),
+                            "Cannot perform logical operation on types: '{}' "
+                            "and '{}'. Both operands must be of Bool type.",
+                            leftType.toString(), rightType.toString());
       return;
     }
     expr.setType(VellumType::literal(VellumLiteralType::Bool));
@@ -423,9 +410,8 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
     if (leftType != rightType || !(leftType.isInt() || leftType.isFloat())) {
       errorHandler->errorAt(
           expr.getLocation(),
-          std::format("Cannot perform arithmetic operation on "
-                      "types: '{}' and '{}'",
-                      leftType.toString(), rightType.toString()));
+          "Cannot perform arithmetic operation on types: '{}' and '{}'",
+          leftType.toString(), rightType.toString());
       return;
     }
     // Result type is the same as the left operand
@@ -445,19 +431,17 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
       if (!expr.getType().isInt() || expr.getType().isFloat()) {
         errorHandler->errorAt(
             expr.getOperand()->getLocation(),
-            std::format(
-                "Unary operator '-' can be applied only to expressions with "
-                "numeric types (Int, Float). Got type is '{}'",
-                expr.getType().toString()));
+            "Unary operator '-' can be applied only to expressions with "
+            "numeric types (Int, Float). Got type is '{}'",
+            expr.getType().toString());
       }
       break;
     case ast::UnaryExpression::Operator::Not:
       if (!expr.getType().isBool()) {
         errorHandler->errorAt(expr.getOperand()->getLocation(),
-                              std::format("Unary operator 'not' can be "
-                                          "applied only to expressions with "
-                                          "Bool type. Got type is '{}'",
-                                          expr.getType().toString()));
+                              "Unary operator 'not' can be applied only to "
+                              "expressions with Bool type. Got type is '{}'",
+                              expr.getType().toString());
       }
       break;
   }
@@ -481,8 +465,8 @@ void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   if (length.getType() != VellumLiteralType::Int) {
     errorHandler->errorAt(
         expr.getLocation(),
-        std::format("Array length is expected to be 'Int'. Got type is '{}'",
-                    literalTypeToString(length.getType())));
+        "Array length is expected to be 'Int'. Got type is '{}'",
+        literalTypeToString(length.getType()));
   }
 
   const int lengthInt = length.asInt();
