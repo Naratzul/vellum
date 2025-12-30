@@ -29,8 +29,7 @@ void Resolver::pushLocalVar(const VellumVariable& var) {
   auto& scope = scopes.back();
   if (scope.contains(var.getName())) {
     errorHandler->errorAt(
-        Token(),
-        "Variable with name '{}' aleady defined in this scope.",
+        Token(), "Variable with name '{}' aleady defined in this scope.",
         var.getName().toString());
     return;
   }
