@@ -78,41 +78,25 @@ struct DiagnosticMessage {
 };
 
 class CompilerErrorHandler {
- private:
-  template <typename... Args>
-  static std::string formatMessage(std::string_view fmt, const Args&... args) {
-    if constexpr (sizeof...(Args) == 0) {
-      return std::string(fmt);
-    } else {
-      // Create format_args and use vformat with string_view
-      auto format_args = std::make_format_args(args...);
-      return std::vformat(fmt, format_args);
-    }
-  }
-
  public:
-  template <typename... Args>
   void errorAt(const Token& token, CompilerErrorKind errorKind,
-               std::string_view fmt, const Args&... args) {
-    if (isPanicMode()) {
-      return;
-    }
+               std::string_view message);
 
-    enablePanicMode();
-    hadError_ = true;
-
-    std::string message = formatMessage(fmt, args...);
-
-    errors.push_back(DiagnosticMessage{.type = DiagnosticMessageType::Error,
-                                       .errorKind = errorKind,
-                                       .token = token,
-                                       .message = message});
-    printError(token, message);
+  void errorAt(const Token& token, std::string_view message) {
+    errorAt(token, CompilerErrorKind::UnexpectedToken, message);
   }
 
   template <typename... Args>
-  void errorAt(const Token& token, std::string_view fmt, const Args&... args) {
-    errorAt(token, CompilerErrorKind::UnexpectedToken, fmt, args...);
+  void errorAt(const Token& token, std::format_string<Args...> fmt,
+               Args&&... args) {
+    errorAt(token, CompilerErrorKind::UnexpectedToken, fmt,
+            std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  void errorAt(const Token& token, CompilerErrorKind error,
+               std::format_string<Args...> fmt, Args&&... args) {
+    errorAt(token, error, std::format(fmt, std::forward<Args>(args)...));
   }
 
   bool hadError() const { return hadError_; }

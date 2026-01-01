@@ -9,6 +9,23 @@
 #include "common/os.h"
 
 namespace vellum {
+void CompilerErrorHandler::errorAt(const Token& token,
+                                   CompilerErrorKind errorKind,
+                                   std::string_view message) {
+  if (isPanicMode()) {
+    return;
+  }
+
+  enablePanicMode();
+  hadError_ = true;
+
+  errors.push_back(DiagnosticMessage{.type = DiagnosticMessageType::Error,
+                                     .errorKind = errorKind,
+                                     .token = token,
+                                     .message = std::string(message)});
+  printError(token, message);
+}
+
 bool CompilerErrorHandler::hasError(CompilerErrorKind kind) {
   return std::ranges::any_of(
       errors, [kind](const auto& error) { return error.errorKind == kind; });
