@@ -104,8 +104,8 @@ class CompilerErrorHandler {
     std::string message = formatMessage(fmt, args...);
 
     errors.push_back(DiagnosticMessage{.type = DiagnosticMessageType::Error,
-                                       .token = token,
                                        .errorKind = errorKind,
+                                       .token = token,
                                        .message = message});
     printError(token, message);
   }
