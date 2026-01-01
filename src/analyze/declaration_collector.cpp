@@ -20,8 +20,14 @@ void DeclarationCollector::collect(
 
 void DeclarationCollector::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
-  // TODO: check if type with that name (scriptname) has been already defined
-  // (among imports)
+  if (resolver->getObject().getType().isResolved()) {
+    errorHandler->errorAt(declaration.getScriptNameLocation(),
+                          CompilerErrorKind::MultipleScriptsDefinition,
+                          "Only 1 Script is allowed per file.");
+    return;
+  }
+
+  // TODO: self import check
   resolver->setObject(
       VellumObject(VellumType::identifier(declaration.scriptName())));
 
@@ -55,6 +61,7 @@ void DeclarationCollector::visitVariableDeclaration(
 
       errorHandler->errorAt(
           declaration.initializer()->getLocation(),
+          CompilerErrorKind::VariableTypeMismatch,
           std::format("Variable type mismatch: expected '{}'{}.",
                       annotatedType->toString(), gotType));
     }

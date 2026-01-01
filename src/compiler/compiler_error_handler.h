@@ -19,6 +19,7 @@ enum class DiagnosticMessageType { Warning, Error };
 enum class CompilerErrorKind {
   UnexpectedToken,
   ExpectTopLevelDeclaration,
+  MultipleScriptsDefinition,
   ExpectExpression,
   ExpectDeclaration,
   ExpectLiteralValue,
