@@ -16,8 +16,63 @@ using common::Vec;
 
 enum class DiagnosticMessageType { Warning, Error };
 
+enum class CompilerErrorKind {
+  UnexpectedToken,
+  ExpectTopLevelDeclaration,
+  ExpectExpression,
+  ExpectDeclaration,
+  ExpectLiteralValue,
+  TypeAnnotationMissing,
+  ArrayLengthMissing,
+  ExpectVarName,
+  ExpectTypeName,
+  ExpectFunctionName,
+  ExpectLeftBrace,
+  ExpectRightBrace,
+  ExpectLeftParen,
+  ExpectRightParen,
+  ExpectRightBracket,
+  ExpectParamName,
+  ExpectColon,
+  ExpectReturnType,
+
+  PropertySetAlreadyDefined,
+  PropertyGetAlreadyDefined,
+
+  ExpectCastTargetType,
+  ArrayTypeMissing,
+  ArraySemicolonMissing,
+  ArrayLengthAsIntExpected,
+  ArrayLengthMustBeProvided,
+
+  FilenameMismatch,
+  ReturnTypeMismatch,
+  VariableTypeMismatch,
+  UndefinedIdentifier,
+  UndefinedFunction,
+  UndefinedProperty,
+  UndefinedVariable,
+  FunctionArgumentsCountMismatch,
+  FunctionArgumentTypeMismatch,
+  PropertyNotAccessible,
+  NotAssignable,
+  AssignTypeMismatch,
+
+  LogicalOperationTypeMismatch,
+  ArithmeticOperationTypeMismatch,
+  UnaryOperatorTypeMismatch,
+  UnsupportedBinaryOperator,
+
+  ArrayLengthTypeMismatch,
+  ArrayLengthMustBePositive,
+  ArrayLengthMaximumExceeded
+};
+
+enum class CompilerWarningKind {};
+
 struct DiagnosticMessage {
   DiagnosticMessageType type;
+  CompilerErrorKind errorKind;
   Token token;
   std::string message;
 };
@@ -37,7 +92,8 @@ class CompilerErrorHandler {
 
  public:
   template <typename... Args>
-  void errorAt(const Token& token, std::string_view fmt, const Args&... args) {
+  void errorAt(const Token& token, CompilerErrorKind errorKind,
+               std::string_view fmt, const Args&... args) {
     if (isPanicMode()) {
       return;
     }
@@ -49,11 +105,18 @@ class CompilerErrorHandler {
 
     errors.push_back(DiagnosticMessage{.type = DiagnosticMessageType::Error,
                                        .token = token,
+                                       .errorKind = errorKind,
                                        .message = message});
     printError(token, message);
   }
 
+  template <typename... Args>
+  void errorAt(const Token& token, std::string_view fmt, const Args&... args) {
+    errorAt(token, CompilerErrorKind::UnexpectedToken, fmt, args...);
+  }
+
   bool hadError() const { return hadError_; }
+  bool hasError(CompilerErrorKind kind);
 
   void setCanEnterPanicMode(bool value) { canEnterPanicMode = value; }
 

@@ -43,6 +43,7 @@ SemanticAnalyzeResult SemanticAnalyzer::analyze(
 void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
   if (decl.scriptName() != scriptFilename) {
     errorHandler->errorAt(decl.getScriptNameLocation(),
+                          CompilerErrorKind::FilenameMismatch,
                           "Filename '{}' doesn't match scriptname '{}'.",
                           scriptFilename, decl.scriptName());
   }
@@ -110,6 +111,7 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
                             statement.getExpression()->getType().toString());
     }
     errorHandler->errorAt(statement.getExpression()->getLocation(),
+                          CompilerErrorKind::ReturnTypeMismatch,
                           "Return type mismatch. Expected type is '{}'. {}",
                           func->getReturnType().toString(), gotType);
     return;
@@ -159,6 +161,7 @@ void SemanticAnalyzer::visitLocalVariableStatement(
       }
 
       errorHandler->errorAt(statement.getInitializer()->getLocation(),
+                            CompilerErrorKind::VariableTypeMismatch,
                             "Variable type mismatch: expected '{}'{}.",
                             annotatedType->toString(), gotType);
     }
@@ -179,8 +182,9 @@ void SemanticAnalyzer::visitIdentifierExpression(
     ast::IdentifierExpression& expr) {
   const auto value = resolver->resolveIdentifier(expr.getIdentifier());
   if (!value) {
-    errorHandler->errorAt(expr.getLocation(), "Undefined identifier '{}'",
-                          expr.getIdentifier().toString());
+    errorHandler->errorAt(
+        expr.getLocation(), CompilerErrorKind::UndefinedIdentifier,
+        "Undefined identifier '{}'", expr.getIdentifier().toString());
     return;
   }
 
@@ -234,6 +238,7 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
                                 expr.getFunctionCall()->getFunction());
   if (!func) {
     errorHandler->errorAt(expr.getCallee()->getLocation(),
+                          CompilerErrorKind::UndefinedFunction,
                           "Undefined function '{}'.",
                           expr.getFunctionCall()->getFunction().toString());
     return;
@@ -241,7 +246,7 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
 
   if (func->getParameters().size() != expr.getArguments().size()) {
     errorHandler->errorAt(
-        expr.getLocation(),
+        expr.getLocation(), CompilerErrorKind::FunctionArgumentsCountMismatch,
         "Function '{}' expects {} arguments, but {} were provided.",
         func->getName().toString(), func->getParameters().size(),
         expr.getArguments().size());
@@ -253,7 +258,7 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     arg->accept(*this);
     if (arg->getType() != func->getParameters()[i].getType()) {
       errorHandler->errorAt(
-          arg->getLocation(),
+          arg->getLocation(), CompilerErrorKind::FunctionArgumentTypeMismatch,
           "Argument {} of function '{}' expects type '{}', but got type '{}'.",
           i, func->getName().toString(),
           func->getParameters()[i].getType().toString(),
@@ -278,8 +283,9 @@ void SemanticAnalyzer::visitPropertyGetExpression(
   }
 
   if (!property) {
-    errorHandler->errorAt(expr.getLocation(), "Undefined property '{}'.",
-                          expr.getProperty().toString());
+    errorHandler->errorAt(
+        expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+        "Undefined property '{}'.", expr.getProperty().toString());
     return;
   }
 
@@ -291,9 +297,9 @@ void SemanticAnalyzer::visitPropertyGetExpression(
       expr.setType(property->asFunction().getReturnType());
       break;
     default:
-      errorHandler->errorAt(expr.getLocation(),
-                            "Property '{}' is not accessible.",
-                            expr.getProperty().toString());
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::PropertyNotAccessible,
+          "Property '{}' is not accessible.", expr.getProperty().toString());
       break;
   }
 }
@@ -311,8 +317,9 @@ void SemanticAnalyzer::visitPropertySetExpression(
   }
 
   if (!property) {
-    errorHandler->errorAt(expr.getLocation(), "Undefined property '{}'.",
-                          expr.getProperty().toString());
+    errorHandler->errorAt(
+        expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+        "Undefined property '{}'.", expr.getProperty().toString());
     return;
   }
 
@@ -321,8 +328,9 @@ void SemanticAnalyzer::visitPropertySetExpression(
       expr.setType(property->asProperty().getType());
       break;
     default:
-      errorHandler->errorAt(expr.getLocation(), "'{}' is not assignable.",
-                            expr.getProperty().toString());
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::NotAssignable,
+          "'{}' is not assignable.", expr.getProperty().toString());
       return;
   }
 
@@ -332,7 +340,7 @@ void SemanticAnalyzer::visitPropertySetExpression(
 
   if (expr.getType() != expr.getValue()->getType()) {
     errorHandler->errorAt(
-        expr.getLocation(),
+        expr.getLocation(), CompilerErrorKind::AssignTypeMismatch,
         "Can't assign a value of type '{}' to a property '{}' of type '{}'.",
         expr.getValue()->getType().toString(), expr.getProperty().toString(),
         expr.getType().toString());
@@ -343,8 +351,9 @@ void SemanticAnalyzer::visitPropertySetExpression(
 void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
   const auto variable = resolver->resolveVariable(expr.getName());
   if (!variable) {
-    errorHandler->errorAt(expr.getLocation(), "Undefined variable '{}'.",
-                          expr.getName().toString());
+    errorHandler->errorAt(
+        expr.getLocation(), CompilerErrorKind::UndefinedVariable,
+        "Undefined variable '{}'.", expr.getName().toString());
     return;
   }
 
@@ -353,7 +362,7 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
 
   if (expr.getType() != expr.getValue()->getType()) {
     errorHandler->errorAt(
-        expr.getLocation(),
+        expr.getLocation(), CompilerErrorKind::AssignTypeMismatch,
         "Can't assign a value of type '{}' to a variable '{}' of type '{}'.",
         expr.getValue()->getType().toString(), expr.getName().toString(),
         expr.getType().toString());
@@ -372,6 +381,7 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
       expr.getOperator() == ast::BinaryExpression::Operator::Or) {
     if (!(leftType.isBool() && rightType.isBool())) {
       errorHandler->errorAt(expr.getLocation(),
+                            CompilerErrorKind::LogicalOperationTypeMismatch,
                             "Cannot perform logical operation on types: '{}' "
                             "and '{}'. Both operands must be of Bool type.",
                             leftType.toString(), rightType.toString());
@@ -410,6 +420,7 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
     if (leftType != rightType || !(leftType.isInt() || leftType.isFloat())) {
       errorHandler->errorAt(
           expr.getLocation(),
+          CompilerErrorKind::ArithmeticOperationTypeMismatch,
           "Cannot perform arithmetic operation on types: '{}' and '{}'",
           leftType.toString(), rightType.toString());
       return;
@@ -419,7 +430,9 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
     return;
   }
 
-  errorHandler->errorAt(expr.getLocation(), "Unsupported binary operator");
+  errorHandler->errorAt(expr.getLocation(),
+                        CompilerErrorKind::UnsupportedBinaryOperator,
+                        "Unsupported binary operator");
 }
 
 void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
@@ -431,6 +444,7 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
       if (!expr.getType().isInt() || expr.getType().isFloat()) {
         errorHandler->errorAt(
             expr.getOperand()->getLocation(),
+            CompilerErrorKind::UnaryOperatorTypeMismatch,
             "Unary operator '-' can be applied only to expressions with "
             "numeric types (Int, Float). Got type is '{}'",
             expr.getType().toString());
@@ -439,6 +453,7 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
     case ast::UnaryExpression::Operator::Not:
       if (!expr.getType().isBool()) {
         errorHandler->errorAt(expr.getOperand()->getLocation(),
+                              CompilerErrorKind::UnaryOperatorTypeMismatch,
                               "Unary operator 'not' can be applied only to "
                               "expressions with Bool type. Got type is '{}'",
                               expr.getType().toString());
@@ -464,7 +479,7 @@ void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   const auto& length = expr.getLength();
   if (length.getType() != VellumLiteralType::Int) {
     errorHandler->errorAt(
-        expr.getLocation(),
+        expr.getLocation(), CompilerErrorKind::ArrayLengthTypeMismatch,
         "Array length is expected to be 'Int'. Got type is '{}'",
         literalTypeToString(length.getType()));
   }
@@ -473,9 +488,11 @@ void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
 
   if (lengthInt < 0) {
     errorHandler->errorAt(expr.getLocation(),
+                          CompilerErrorKind::ArrayLengthMustBePositive,
                           "Array length must be a positive number.");
   } else if (lengthInt > 128) {
     errorHandler->errorAt(expr.getLocation(),
+                          CompilerErrorKind::ArrayLengthMaximumExceeded,
                           "Maximum array length (128) is exceeded.");
   }
 }

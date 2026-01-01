@@ -169,7 +169,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_UndefinedFunction") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedFunction));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_ArgumentTypeMismatch") {
@@ -199,7 +199,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_ArgumentTypeMismatch") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(
+      errorHandler->hasError(CompilerErrorKind::FunctionArgumentTypeMismatch));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooFewArguments") {
@@ -227,7 +228,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooFewArguments") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::FunctionArgumentsCountMismatch));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooManyArguments") {
@@ -255,7 +257,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooManyArguments") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::FunctionArgumentsCountMismatch));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
@@ -272,7 +275,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ReturnTypeMismatch));
 }
 
 // Assignment target validation tests
@@ -349,7 +352,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToFunction_Error") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::NotAssignable));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToMethod_Error") {
@@ -378,7 +381,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToMethod_Error") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::NotAssignable));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToTypeName_Error") {
@@ -396,7 +399,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToTypeName_Error") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedVariable));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
@@ -415,7 +418,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedVariable));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
@@ -440,7 +443,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedProperty));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_TypeMismatch_Error") {
@@ -465,7 +468,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_TypeMismatch_Error") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
@@ -494,5 +497,5 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
 }

@@ -52,7 +52,8 @@ class Parser {
   bool check(TokenType type) const;
 
   template <typename... Args>
-  void consume(TokenType type, std::string_view fmt, Args&&... args);
+  void consume(TokenType type, CompilerErrorKind error, std::string_view fmt,
+               Args&&... args);
 
   Unique<ast::Declaration> variableDeclaration();
   Unique<ast::Declaration> functionDeclaration(FunctionType functionType);
@@ -88,12 +89,12 @@ class Parser {
   void synchronizeStatement();
 };
 template <typename... Args>
-inline void Parser::consume(TokenType type, std::string_view fmt,
-                            Args&&... args) {
+inline void Parser::consume(TokenType type, CompilerErrorKind error,
+                            std::string_view fmt, Args&&... args) {
   if (check(type)) {
     advance();
     return;
   }
-  errorHandler->errorAt(current, fmt, args...);
+  errorHandler->errorAt(current, error, fmt, args...);
 }
 }  // namespace vellum

@@ -133,7 +133,8 @@ Unique<ast::Declaration> Parser::scriptDeclaration() {
       }
     }
 
-    consume(TokenType::RIGHT_BRACE, "Expect '}}' after script declaration.");
+    consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+            "Expect '}}' after script declaration.");
   } else if (!check(TokenType::END_OF_FILE) &&
              previous.location.start.line == current.location.start.line) {
     throw ParseException(current, "Unexpected token after script declaration.");
@@ -160,7 +161,8 @@ Unique<ast::Declaration> Parser::scriptMemberDeclaration() {
 }
 
 Unique<ast::Declaration> Parser::variableDeclaration() {
-  consume(TokenType::IDENTIFIER, "Expect a variable name.");
+  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
+          "Expect a variable name.");
   const std::string_view name = previous.lexeme;
 
   bool isArray = false;
@@ -168,14 +170,16 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
   if (match(TokenType::COLON)) {
     isArray = match(TokenType::LEFT_BRACK);
 
-    consume(TokenType::IDENTIFIER, "Expect a type name.");
+    consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
+            "Expect a type name.");
 
     auto subtype = VellumType::unresolved(previous.lexeme);
 
     typeName = isArray ? VellumType::array(subtype) : subtype;
 
     if (isArray) {
-      consume(TokenType::RIGHT_BRACK, "Expect ']' after array type.");
+      consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
+              "Expect ']' after array type.");
     }
   }
 
@@ -202,31 +206,36 @@ Unique<ast::Declaration> Parser::functionDeclaration(
   const std::string functionTypeName =
       functionType == FunctionType::Function ? "function" : "event";
 
-  consume(TokenType::IDENTIFIER, "Expect a {} name.", functionTypeName);
+  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectFunctionName,
+          "Expect a {} name.", functionTypeName);
   const std::string_view name = previous.lexeme;
 
-  consume(TokenType::LEFT_PAREN, "Expect '(' after {} name.", functionTypeName);
+  consume(TokenType::LEFT_PAREN, CompilerErrorKind::ExpectLeftParen,
+          "Expect '(' after {} name.", functionTypeName);
 
   Vec<ast::FunctionParameter> parameters;
   if (!check(TokenType::RIGHT_PAREN)) {
     do {
-      consume(TokenType::IDENTIFIER, "Expect a parameter name.");
+      consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectParamName,
+              "Expect a parameter name.");
       std::string_view paramName = previous.lexeme;
 
-      consume(TokenType::COLON, "Expect ':' after parameter name.");
-      consume(TokenType::IDENTIFIER, "Expect a parameter type.");
+      consume(TokenType::COLON, CompilerErrorKind::ExpectColon,
+              "Expect ':' after parameter name.");
+      consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
+              "Expect a parameter type.");
       std::string_view paramType = previous.lexeme;
 
       parameters.emplace_back(paramName, VellumType::unresolved(paramType));
     } while (match(TokenType::COMMA));
   }
 
-  consume(TokenType::RIGHT_PAREN, "Expect ')' after {} declaration.",
-          functionTypeName);
+  consume(TokenType::RIGHT_PAREN, CompilerErrorKind::ExpectRightParen,
+          "Expect ')' after {} declaration.", functionTypeName);
 
   auto returnTypeName = VellumType::none();
   if (functionType == FunctionType::Function && match(TokenType::ARROW)) {
-    consume(TokenType::IDENTIFIER,
+    consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectReturnType,
             "Expect a function return type name after '->'.");
     returnTypeName = VellumType::unresolved(previous.lexeme);
   }
@@ -237,12 +246,15 @@ Unique<ast::Declaration> Parser::functionDeclaration(
 
 Unique<ast::Declaration> Parser::propertyDeclaration() {
   const std::string_view name = previous.lexeme;
-  consume(TokenType::COLON, "Expect ':' after property name.");
+  consume(TokenType::COLON, CompilerErrorKind::ExpectColon,
+          "Expect ':' after property name.");
 
-  consume(TokenType::IDENTIFIER, "Expect a property type name.");
+  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
+          "Expect a property type name.");
   const auto typeName = VellumType::unresolved(previous.lexeme);
 
-  consume(TokenType::LEFT_BRACE, "Expect '{{' after property type.");
+  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
+          "Expect '{{' after property type.");
 
   Opt<ast::FunctionBody> getAccessor;
   Opt<ast::FunctionBody> setAccessor;
@@ -275,7 +287,8 @@ Unique<ast::Declaration> Parser::propertyDeclaration() {
     }
   }
 
-  consume(TokenType::RIGHT_BRACE, "Expect '}}' after property type.");
+  consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+          "Expect '}}' after property type.");
 
   std::string_view documentationString = "";
   return makeUnique<ast::PropertyDeclaration>(
@@ -285,22 +298,22 @@ Unique<ast::Declaration> Parser::propertyDeclaration() {
 
 ast::FunctionBody Parser::functionBody(FunctionType type) {
   const std::string_view functionTypeName = getFunctionTypeName(type);
-  consume(TokenType::LEFT_BRACE, "Expect '{{' before {} body.",
-          functionTypeName);
+  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
+          "Expect '{{' before {} body.", functionTypeName);
 
   ast::FunctionBody body;
 
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
     try {
-      body.push_back(std::move(statement()));
+      body.push_back(statement());
     } catch (const ParseException& e) {
       errorHandler->errorAt(e.getToken(), e.getMessage());
       synchronizeStatement();
     }
   }
 
-  consume(TokenType::RIGHT_BRACE, "Expect '}}' after {} body.",
-          functionTypeName);
+  consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+          "Expect '}}' after {} body.", functionTypeName);
 
   return body;
 }
@@ -326,31 +339,35 @@ Unique<ast::Statement> Parser::statement() {
 Unique<ast::Statement> Parser::ifStatement() {
   auto condition = expression();
 
-  consume(TokenType::LEFT_BRACE, "Expected '{{' after if condition.");
+  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
+          "Expected '{{' after if condition.");
   Vec<Unique<ast::Statement>> then_branch;
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
     try {
-      then_branch.push_back(std::move(statement()));
+      then_branch.push_back(statement());
     } catch (const ParseException& e) {
       errorHandler->errorAt(e.getToken(), e.getMessage());
       synchronizeStatement();
     }
   }
-  consume(TokenType::RIGHT_BRACE, "Expected '}}' after if block.");
+  consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+          "Expected '}}' after if block.");
 
   Opt<Vec<Unique<ast::Statement>>> else_branch;
   if (match(TokenType::ELSE)) {
     Vec<Unique<ast::Statement>> else_statements;
-    consume(TokenType::LEFT_BRACE, "Expected '{{' after 'else'.");
+    consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
+            "Expected '{{' after 'else'.");
     while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
       try {
-        else_statements.push_back(std::move(statement()));
+        else_statements.push_back(statement());
       } catch (const ParseException& e) {
         errorHandler->errorAt(e.getToken(), e.getMessage());
         synchronizeStatement();
       }
     }
-    consume(TokenType::RIGHT_BRACE, "Expected '}}' after else block.");
+    consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+            "Expected '}}' after else block.");
     else_branch = std::move(else_statements);
   }
 
@@ -363,12 +380,14 @@ Unique<ast::Statement> Parser::returnStatement() {
 }
 
 Unique<ast::Statement> Parser::varStatement() {
-  consume(TokenType::IDENTIFIER, "Expect a variable name.");
+  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
+          "Expect a variable name.");
   const VellumIdentifier name(previous.lexeme);
 
   Opt<VellumType> type;
   if (match(TokenType::COLON)) {
-    consume(TokenType::IDENTIFIER, "Expect a type name.");
+    consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
+            "Expect a type name.");
     type = VellumType::unresolved(previous.lexeme);
   }
 
@@ -387,19 +406,21 @@ Unique<ast::Statement> Parser::varStatement() {
 
 Unique<ast::Statement> Parser::whileStatement() {
   auto condition = expression();
-  consume(TokenType::LEFT_BRACE, "Expect '{{' after condition.");
+  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
+          "Expect '{{' after condition.");
 
   ast::WhileStatement::Body body;
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
     try {
-      body.push_back(std::move(statement()));
+      body.push_back(statement());
     } catch (const ParseException& e) {
       errorHandler->errorAt(e.getToken(), e.getMessage());
       synchronizeStatement();
     }
   }
 
-  consume(TokenType::RIGHT_BRACE, "Expect '}}' after while loop.");
+  consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+          "Expect '}}' after while loop.");
 
   return makeUnique<ast::WhileStatement>(std::move(condition), std::move(body));
 }
@@ -547,7 +568,8 @@ Unique<ast::Expression> Parser::castExpression() {
 
   if (match(TokenType::AS)) {
     const Token op = previous;
-    consume(TokenType::IDENTIFIER, "Expect a target type for cast.");
+    consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectCastTargetType,
+            "Expect a target type for cast.");
     return makeUnique<ast::CastExpression>(
         std::move(expr), VellumType::unresolved(previous.lexeme), op);
   }
@@ -564,7 +586,8 @@ Unique<ast::Expression> Parser::callOrGetExpression() {
       expr = callExpression(std::move(expr), op);
     } else if (match(TokenType::DOT)) {
       const Token op = previous;
-      consume(TokenType::IDENTIFIER, "Expect a property name after '.'");
+      consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
+              "Expect a property name after '.'");
       expr = makeUnique<ast::PropertyGetExpression>(
           std::move(expr), VellumIdentifier(previous.lexeme), op);
     } else {
@@ -585,7 +608,8 @@ Unique<ast::Expression> Parser::callExpression(Unique<ast::Expression> callee,
     } while (match(TokenType::COMMA));
   }
 
-  consume(TokenType::RIGHT_PAREN, "Expect ')' after function call.");
+  consume(TokenType::RIGHT_PAREN, CompilerErrorKind::ExpectRightParen,
+          "Expect ')' after function call.");
 
   return makeUnique<ast::CallExpression>(std::move(callee),
                                          std::move(arguments), location);
@@ -605,7 +629,8 @@ Unique<ast::Expression> Parser::primaryExpression() {
   if (match(TokenType::LEFT_PAREN)) {
     const Token op = previous;
     auto expr = expression();
-    consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+    consume(TokenType::RIGHT_PAREN, CompilerErrorKind::ExpectRightParen,
+            "Expect ')' after expression.");
     return makeUnique<ast::GroupingExpression>(std::move(expr), op);
   }
 
@@ -624,19 +649,23 @@ Unique<ast::Expression> Parser::arrayExpression() {
                                                previous);
   }
 
-  consume(TokenType::IDENTIFIER, "Expect array elements type.");
+  consume(TokenType::IDENTIFIER, CompilerErrorKind::ArrayTypeMissing,
+          "Expect array elements type.");
   subtype = VellumType::unresolved(previous.lexeme);
 
-  consume(TokenType::SEMICOLON, "Expect ';' after array elements type.");
+  consume(TokenType::SEMICOLON, CompilerErrorKind::ArraySemicolonMissing,
+          "Expect ';' after array elements type.");
 
-  consume(TokenType::INT, "Expect array length as Int value.");
+  consume(TokenType::INT, CompilerErrorKind::ArrayLengthAsIntExpected,
+          "Expect array length as Int value.");
   if (!previous.value.has_value()) {
     throw ParseException(previous, "Array length must be provided.");
   }
 
   const VellumLiteral length = previous.value.value();
 
-  consume(TokenType::RIGHT_BRACK, "Expect ']' after array.");
+  consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
+          "Expect ']' after array.");
 
   return makeUnique<ast::NewArrayExpression>(subtype, length, previous);
 }

@@ -9,6 +9,10 @@
 #include "common/os.h"
 
 namespace vellum {
+bool CompilerErrorHandler::hasError(CompilerErrorKind kind) {
+  return std::ranges::any_of(
+      errors, [kind](const auto& error) { return error.errorKind == kind; });
+}
 
 void CompilerErrorHandler::printError(const Token& token,
                                       std::string_view message) {
