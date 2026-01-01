@@ -26,7 +26,7 @@ SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
 
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
     Vec<Unique<ast::Declaration>>&& declarations) {
-  DeclarationCollector collector(errorHandler, resolver);
+  DeclarationCollector collector(errorHandler, resolver, scriptFilename);
   collector.collect(declarations);
 
   errorHandler->setCanEnterPanicMode(false);
@@ -41,13 +41,6 @@ SemanticAnalyzeResult SemanticAnalyzer::analyze(
 }
 
 void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
-  if (decl.scriptName() != scriptFilename) {
-    errorHandler->errorAt(decl.getScriptNameLocation(),
-                          CompilerErrorKind::FilenameMismatch,
-                          "Filename '{}' doesn't match scriptname '{}'.",
-                          scriptFilename, decl.scriptName());
-  }
-
   for (const auto& memberDecl : decl.getMemberDecls()) {
     memberDecl->accept(*this);
   }

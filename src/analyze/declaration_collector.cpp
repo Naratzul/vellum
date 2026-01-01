@@ -20,12 +20,22 @@ void DeclarationCollector::collect(
 
 void DeclarationCollector::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
-  if (resolver->getObject().getType().isResolved()) {
+  if (scriptDeclCount > 0) {
     errorHandler->errorAt(declaration.getScriptNameLocation(),
                           CompilerErrorKind::MultipleScriptsDefinition,
                           "Only 1 Script is allowed per file.");
     return;
   }
+
+  if (declaration.scriptName() != scriptFilename) {
+    errorHandler->errorAt(declaration.getScriptNameLocation(),
+                          CompilerErrorKind::FilenameMismatch,
+                          "Filename '{}' doesn't match scriptname '{}'.",
+                          scriptFilename, declaration.scriptName());
+    return;
+  }
+
+  scriptDeclCount++;
 
   // TODO: self import check
   resolver->setObject(

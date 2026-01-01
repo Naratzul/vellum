@@ -23,7 +23,7 @@ class SemanticTestsFixture {
   SemanticTestsFixture() {
     errorHandler = makeShared<CompilerErrorHandler>();
     resolver = makeShared<Resolver>(
-        VellumObject(VellumType::identifier("TestScript")), errorHandler);
+        VellumObject(VellumType::identifier("testscript")), errorHandler);
     analyzer =
         makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
   }
@@ -500,27 +500,20 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
 }
 
-TEST_CASE("SemanticMultipleScriptsDefinition_Error") {
-  // Create a fresh error handler and resolver with unresolved type
-  // so that the first script declaration can be processed
-  auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto resolver = makeShared<Resolver>(VellumObject(VellumType::unresolved("")),
-                                       errorHandler);
-  auto analyzer =
-      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
-
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticMultipleScriptsDefinition_Error") {
   Vec<Unique<ast::Declaration>> ast;
 
   // First script declaration
-  Token script1Token = makeToken(TokenType::IDENTIFIER, 1, "FirstScript");
+  Token script1Token = makeToken(TokenType::IDENTIFIER, 1, "testscript");
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
-      "FirstScript", script1Token, std::nullopt, std::nullopt,
+      "testscript", script1Token, std::nullopt, std::nullopt,
       Vec<Unique<ast::Declaration>>{}));
 
   // Second script declaration (should trigger error)
-  Token script2Token = makeToken(TokenType::IDENTIFIER, 2, "SecondScript");
+  Token script2Token = makeToken(TokenType::IDENTIFIER, 2, "AnotherScript");
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
-      "SecondScript", script2Token, std::nullopt, std::nullopt,
+      "AnotherScript", script2Token, std::nullopt, std::nullopt,
       Vec<Unique<ast::Declaration>>{}));
 
   const auto result = analyzer->analyze(std::move(ast));

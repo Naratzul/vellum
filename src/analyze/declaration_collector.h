@@ -18,8 +18,10 @@ class DeclarationCollector : public ast::DeclarationVisitor {
  public:
   explicit DeclarationCollector(
       const Shared<CompilerErrorHandler>& errorHandler,
-      const Shared<Resolver>& resolver)
-      : errorHandler(errorHandler), resolver(resolver) {}
+      const Shared<Resolver>& resolver, std::string_view scriptFileName)
+      : errorHandler(errorHandler),
+        resolver(resolver),
+        scriptFilename(scriptFileName) {}
 
   void collect(Vec<Unique<ast::Declaration>>& declarations);
 
@@ -32,5 +34,7 @@ class DeclarationCollector : public ast::DeclarationVisitor {
  private:
   Shared<CompilerErrorHandler> errorHandler;
   Shared<Resolver> resolver;
+  std::string_view scriptFilename;
+  int scriptDeclCount = 0;
 };
 }  // namespace vellum
