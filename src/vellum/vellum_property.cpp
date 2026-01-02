@@ -18,7 +18,8 @@ std::ostream& operator<<(std::ostream& os, const VellumPropertyAccess& value) {
 }
 
 bool operator==(const VellumProperty& lhs, const VellumProperty& rhs) {
-  return lhs.getName() == rhs.getName() && lhs.getType() == rhs.getType();
+  return lhs.getName() == rhs.getName() && lhs.getType() == rhs.getType() &&
+         lhs.isReadonly() == rhs.isReadonly();
 }
 
 bool operator!=(const VellumProperty& lhs, const VellumProperty& rhs) {

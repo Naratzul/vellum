@@ -112,6 +112,7 @@ void DeclarationCollector::visitPropertyDeclaration(
   }
 
   resolver->addProperty(VellumProperty(VellumIdentifier(declaration.getName()),
-                                       declaration.getTypeName()));
+                                       declaration.getTypeName(),
+                                       declaration.isReadonly()));
 }
 }  // namespace vellum

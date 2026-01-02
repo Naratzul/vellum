@@ -55,6 +55,7 @@ enum class CompilerErrorKind {
   UndefinedVariable,
   FunctionArgumentsCountMismatch,
   FunctionArgumentTypeMismatch,
+  InvalidArgumentType,
   PropertyNotAccessible,
   NotAssignable,
   AssignTypeMismatch,

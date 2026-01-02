@@ -306,8 +306,9 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToProperty_Success") {
   Vec<Unique<ast::Declaration>> ast;
   // Create an object with a property
   VellumObject testObject(VellumType::identifier("TestObject"));
-  testObject.addProperty(VellumProperty(
-      VellumIdentifier("myProp"), VellumType::literal(VellumLiteralType::Int)));
+  testObject.addProperty(
+      VellumProperty(VellumIdentifier("myProp"),
+                     VellumType::literal(VellumLiteralType::Int), false));
   resolver->importObject(testObject);
 
   // test() { TestObject.myProp = 42; }
@@ -399,7 +400,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToTypeName_Error") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedVariable));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedIdentifier));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
@@ -418,7 +419,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedVariable));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedIdentifier));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
@@ -476,8 +477,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> ast;
   // Create an object with an Int property
   VellumObject testObject(VellumType::identifier("TestObject"));
-  testObject.addProperty(VellumProperty(
-      VellumIdentifier("myProp"), VellumType::literal(VellumLiteralType::Int)));
+  testObject.addProperty(
+      VellumProperty(VellumIdentifier("myProp"),
+                     VellumType::literal(VellumLiteralType::Int), false));
   resolver->importObject(testObject);
 
   // test() { TestObject.myProp = "not an int"; }  // Error: type mismatch
@@ -519,4 +521,81 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hasError(CompilerErrorKind::MultipleScriptsDefinition));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticCall_PassFunctionAsParameter_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define a function that takes an Int parameter
+  // fun foo(fn: Int): Int
+  Vec<ast::FunctionParameter> params = {{"fn", VellumType::unresolved("Int")}};
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", params, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}));
+
+  // Define a function that returns Int
+  // fun bar(): Int
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "bar", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}));
+
+  // test() { foo(bar); }  // Error: cannot pass function as argument
+  auto bar_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar"));
+  Vec<Unique<ast::Expression>> call_args;
+  call_args.push_back(std::move(bar_expr));
+  auto call_expr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      std::move(call_args));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: passing a function as an argument is not allowed
+  // Even though bar returns Int and foo expects Int, you cannot pass the
+  // function itself - only values can be passed as arguments
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidArgumentType));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticCall_PassScriptTypeAsInstance_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Create a script type for the test object
+  VellumObject testScript(VellumType::identifier("TestScript"));
+  resolver->importObject(testScript);
+
+  // Define a function that takes a TestScript instance parameter
+  // fun foo(obj: TestScript): Int
+  Vec<ast::FunctionParameter> params = {
+      {"obj", VellumType::unresolved("TestScript")}};
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", params, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}));
+
+  // test() { foo(TestScript); }  // Error: cannot pass script type as instance
+  auto scriptType_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestScript"));
+  Vec<Unique<ast::Expression>> call_args;
+  call_args.push_back(std::move(scriptType_expr));
+  auto call_expr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      std::move(call_args));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: passing a script type as an argument where an instance
+  // is expected is not allowed. Even though TestScript type matches TestScript
+  // type, you cannot pass the type itself - only instances can be passed
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidArgumentType));
 }

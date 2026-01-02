@@ -249,7 +249,29 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   for (size_t i = 0; i < expr.getArguments().size(); i++) {
     auto& arg = expr.getArguments()[i];
     arg->accept(*this);
-    if (arg->getType() != func->getParameters()[i].getType()) {
+
+    if (arg->isIdentifierExpression()) {
+      const auto& identifierType = arg->asIdentifier().getIdentifierType();
+      if (identifierType == VellumValueType::Function) {
+        errorHandler->errorAt(arg->getLocation(),
+                              CompilerErrorKind::InvalidArgumentType,
+                              "Cannot pass a function '{}' as an argument. Did "
+                              "you mean to call it?",
+                              arg->asIdentifier().getIdentifier().toString());
+        return;
+      }
+      if (identifierType == VellumValueType::ScriptType) {
+        errorHandler->errorAt(arg->getLocation(),
+                              CompilerErrorKind::InvalidArgumentType,
+                              "Cannot pass a script type '{}' as an argument. "
+                              "Expected an instance.",
+                              arg->asIdentifier().getIdentifier().toString());
+        return;
+      }
+    }
+
+    const auto& argType = arg->getType();
+    if (argType.isResolved() && argType != func->getParameters()[i].getType()) {
       errorHandler->errorAt(
           arg->getLocation(), CompilerErrorKind::FunctionArgumentTypeMismatch,
           "Argument {} of function '{}' expects type '{}', but got type '{}'.",
@@ -267,13 +289,8 @@ void SemanticAnalyzer::visitPropertyGetExpression(
     ast::PropertyGetExpression& expr) {
   expr.getObject()->accept(*this);
 
-  auto property = resolver->resolveProperty(expr.getObject()->getType(),
-                                            expr.getProperty());
-
-  if (!property) {
-    property = resolver->resolveFunction(expr.getObject()->getType(),
-                                         expr.getProperty());
-  }
+  const auto property = resolver->resolveProperty(expr.getObject()->getType(),
+                                                  expr.getProperty());
 
   if (!property) {
     errorHandler->errorAt(
@@ -301,13 +318,8 @@ void SemanticAnalyzer::visitPropertySetExpression(
     ast::PropertySetExpression& expr) {
   expr.getObject()->accept(*this);
 
-  auto property = resolver->resolveProperty(expr.getObject()->getType(),
-                                            expr.getProperty());
-
-  if (!property) {
-    property = resolver->resolveFunction(expr.getObject()->getType(),
-                                         expr.getProperty());
-  }
+  const auto property = resolver->resolveProperty(expr.getObject()->getType(),
+                                                  expr.getProperty());
 
   if (!property) {
     errorHandler->errorAt(
@@ -318,6 +330,12 @@ void SemanticAnalyzer::visitPropertySetExpression(
 
   switch (property->getType()) {
     case VellumValueType::Property:
+      if (property->asProperty().isReadonly()) {
+        errorHandler->errorAt(expr.getLocation(),
+                              CompilerErrorKind::NotAssignable,
+                              "Can't assign to readonly property '{}'",
+                              expr.getProperty().toString());
+      }
       expr.setType(property->asProperty().getType());
       break;
     default:
@@ -326,8 +344,6 @@ void SemanticAnalyzer::visitPropertySetExpression(
           "'{}' is not assignable.", expr.getProperty().toString());
       return;
   }
-
-  // TODO: check if value is assignable
 
   expr.getValue()->accept(*this);
 
@@ -342,15 +358,35 @@ void SemanticAnalyzer::visitPropertySetExpression(
 }
 
 void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
-  const auto variable = resolver->resolveVariable(expr.getName());
-  if (!variable) {
+  const auto identifier = resolver->resolveIdentifier(expr.getName());
+  if (!identifier) {
     errorHandler->errorAt(
-        expr.getLocation(), CompilerErrorKind::UndefinedVariable,
-        "Undefined variable '{}'.", expr.getName().toString());
+        expr.getLocation(), CompilerErrorKind::UndefinedIdentifier,
+        "Undefined identifier '{}'.", expr.getName().toString());
     return;
   }
 
-  expr.setType(variable->getType());
+  switch (identifier->getType()) {
+    case VellumValueType::Property:
+      if (identifier->asProperty().isReadonly()) {
+        errorHandler->errorAt(expr.getLocation(),
+                              CompilerErrorKind::NotAssignable,
+                              "Can't assign to readonly property '{}'",
+                              expr.getName().toString());
+      }
+      expr.setType(identifier->asProperty().getType());
+      break;
+
+    case VellumValueType::Variable:
+      expr.setType(identifier->asVariable().getType());
+      break;
+    default:
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::NotAssignable,
+          "'{}' is not assignable.", expr.getName().toString());
+      return;
+  }
+
   expr.getValue()->accept(*this);
 
   if (expr.getType() != expr.getValue()->getType()) {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 #include "ast/decl/declaration_visitor.h"
 #include "common/types.h"
 

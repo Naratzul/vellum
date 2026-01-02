@@ -101,7 +101,7 @@ bool WhileStatement::equals(const Statement& other_) const {
   if (getBody().size() != other.getBody().size()) {
     return false;
   }
-  for (int i = 0; i < getBody().size(); ++i) {
+  for (std::size_t i = 0; i < getBody().size(); ++i) {
     if (!getBody()[i]->equals(*other.getBody()[i])) {
       return false;
     }
