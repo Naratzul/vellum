@@ -19,14 +19,16 @@ class PexFunction {
               PexString documentationString, PexUserFlags userFlags,
               Vec<PexFunctionParameter> parameters,
               Vec<PexFunctionParameter> localVariables,
-              Vec<PexInstruction> instructions)
+              Vec<PexInstruction> instructions, bool global, bool native)
       : name(name),
         returnTypeName(returnTypeName),
         documentationString(documentationString),
         userFlags(userFlags),
         parameters(std::move(parameters)),
         localVariables(std::move(localVariables)),
-        instructions(std::move(instructions)) {}
+        instructions(std::move(instructions)),
+        global(global),
+        native(native) {}
 
   Opt<PexString> getName() const { return name; }
   PexString getReturnTypeName() const { return returnTypeName; }
@@ -41,6 +43,9 @@ class PexFunction {
 
   const Vec<PexInstruction>& getInstructions() const { return instructions; }
 
+  bool isGlobal() const { return global; }
+  bool isNative() const { return native; }
+
  private:
   Opt<PexString> name;
   PexString returnTypeName;
@@ -50,6 +55,8 @@ class PexFunction {
   Vec<PexFunctionParameter> parameters;
   Vec<PexFunctionParameter> localVariables;
   Vec<PexInstruction> instructions;
+  bool global;
+  bool native;
 };
 
 PexWriter& operator<<(PexWriter& writer, const PexFunction& fun);

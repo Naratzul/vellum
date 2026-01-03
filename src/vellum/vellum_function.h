@@ -51,19 +51,24 @@ std::ostream& operator<<(std::ostream& os, const VellumFunctionCall& value);
 class VellumFunction {
  public:
   VellumFunction(VellumIdentifier name, VellumType returnType,
-                 Vec<VellumVariable> parameters)
-      : name(name), returnType(returnType), parameters(parameters) {}
+                 Vec<VellumVariable> parameters, bool staticFunc)
+      : name(name),
+        returnType(returnType),
+        parameters(parameters),
+        staticFunc(staticFunc) {}
 
   VellumIdentifier getName() const { return name; }
   VellumType getReturnType() const { return returnType; }
   const Vec<VellumVariable>& getParameters() const { return parameters; }
 
   int getArity() const { return parameters.size(); }
+  bool isStatic() const { return staticFunc; }
 
  private:
   VellumIdentifier name;
   VellumType returnType;
   Vec<VellumVariable> parameters;
+  bool staticFunc;
 };
 
 bool operator==(const VellumFunction& lhs, const VellumFunction& rhs);

@@ -86,7 +86,7 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      ast::FunctionBody{}));
+      ast::FunctionBody{}, false));
 
   ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
                                   std::move(members));
@@ -126,8 +126,7 @@ TEST_CASE("ParserFunctionDeclaration_Params_NoReturn") {
 
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
-      "bar", params, VellumType::none(),
-      ast::FunctionBody{}));
+      "bar", params, VellumType::none(), ast::FunctionBody{}, false));
 
   ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
                                   std::move(members));
@@ -160,7 +159,7 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_WithReturn") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "baz", Vec<ast::FunctionParameter>{}, VellumType::unresolved("String"),
-      ast::FunctionBody{}));
+      ast::FunctionBody{}, false));
 
   ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
                                   std::move(members));
@@ -197,8 +196,8 @@ TEST_CASE("ParserFunctionDeclaration_Params_WithReturn") {
 
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
-      "qux", params, VellumType::unresolved("Int"),
-      ast::FunctionBody{}));
+      "qux", params, VellumType::unresolved("Int"), ast::FunctionBody{},
+      false));
 
   ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
                                   std::move(members));
@@ -241,10 +240,10 @@ TEST_CASE("ParserFunctionDeclaration_MultipleParams_MixedTypes") {
       {"x", VellumType::unresolved("Int")},
       {"flag", VellumType::unresolved("Bool")},
       {"name", VellumType::unresolved("String")}};
- 
+
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
-      "mix", params, VellumType::none(), ast::FunctionBody{}));
+      "mix", params, VellumType::none(), ast::FunctionBody{}, false));
 
   ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
                                   std::move(members));
@@ -285,7 +284,7 @@ TEST_CASE("ParserCall_NoArgs") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(expected_body)));
+      std::move(expected_body), false));
 
   ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
                                   std::move(members));
@@ -335,7 +334,7 @@ TEST_CASE("ParserCall_WithArgs") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(expected_body)));
+      std::move(expected_body), false));
 
   ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
                                   std::move(members));

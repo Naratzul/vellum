@@ -12,6 +12,12 @@ PexWriter& operator<<(PexWriter& writer, const PexFunction& fun) {
   writer << fun.getReturnTypeName() << fun.getDocumentationString()
          << fun.getUserFlags();
   uint8_t flags = 0;
+  if (fun.isGlobal()) {
+    flags |= 1;
+  }
+  if (fun.isNative()) {
+    flags |= 2;
+  }
   writer << flags;
 
   writer << fun.getParameters();

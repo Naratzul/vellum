@@ -79,8 +79,7 @@ Token Lexer::scanToken() {
       common::StringSet::insert(std::format("Unexpected character '{}'.", c)));
 }
 
-Token Lexer::makeToken(TokenType type,
-                       common::Opt<VellumLiteral> value) const {
+Token Lexer::makeToken(TokenType type, common::Opt<VellumLiteral> value) const {
   Token token;
   token.type = type;
   token.lexeme = currentLexeme();
@@ -218,6 +217,8 @@ TokenType Lexer::identifierType() const {
             return checkKeyword(2, 1, "t", TokenType::SET);
           case 'c':
             return checkKeyword(2, 4, "ript", TokenType::SCRIPT);
+          case 't':
+            return checkKeyword(2, 4, "atic", TokenType::STATIC);
           case 'u':
             return checkKeyword(2, 3, "per", TokenType::SUPER);
         }

@@ -69,7 +69,7 @@ void SemanticAnalyzer::visitFunctionDeclaration(
 void SemanticAnalyzer::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
   VellumFunction dummyFunc(VellumIdentifier(declaration.getName()),
-                           declaration.getTypeName(), {});
+                           declaration.getTypeName(), {}, false);
 
   if (auto getFunc = declaration.getGetAccessor()) {
     resolver->startFunction(dummyFunc);
@@ -234,6 +234,15 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
                           CompilerErrorKind::UndefinedFunction,
                           "Undefined function '{}'.",
                           expr.getFunctionCall()->getFunction().toString());
+    return;
+  }
+
+  if (expr.getFunctionCall()->isStatic() && !func->isStatic()) {
+    errorHandler->errorAt(expr.getCallee()->getLocation(),
+                          CompilerErrorKind::UndefinedFunction,
+                          "Instance member '{}' cannot be used on type '{}'.",
+                          func->getName().toString(),
+                          expr.getFunctionCall()->getObjectType().toString());
     return;
   }
 

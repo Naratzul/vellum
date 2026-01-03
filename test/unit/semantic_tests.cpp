@@ -73,7 +73,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticFunctionTest") {
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Bool"),
-      Vec<Unique<ast::Statement>>{}));
+      Vec<Unique<ast::Statement>>{}, false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -81,7 +81,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticFunctionTest") {
   REQUIRE(result.declarations.size() == 1);
 
   ast::FunctionDeclaration expected(
-      "foo", {}, VellumType::literal(VellumLiteralType::Bool), {});
+      "foo", {}, VellumType::literal(VellumLiteralType::Bool), {}, false);
   CHECK(expected == *result.declarations[0]);
 }
 
@@ -90,7 +90,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_NoArgs") {
   // Define foo(): Int
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      Vec<Unique<ast::Statement>>{}));
+      Vec<Unique<ast::Statement>>{}, false));
 
   // test() { foo(); }
   auto call_expr = makeUnique<ast::CallExpression>(
@@ -100,7 +100,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_NoArgs") {
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -124,7 +124,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_WithArgs") {
       {"y", VellumType::unresolved("String")}};
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", params, VellumType::unresolved("Bool"),
-      Vec<Unique<ast::Statement>>{}));
+      Vec<Unique<ast::Statement>>{}, false));
 
   // test() { foo(42, "hi"); }
   auto args = Vec<Unique<ast::Expression>>{};
@@ -139,7 +139,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_WithArgs") {
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -165,7 +165,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_UndefinedFunction") {
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -180,7 +180,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_ArgumentTypeMismatch") {
       {"y", VellumType::unresolved("String")}};
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", params, VellumType::unresolved("Bool"),
-      Vec<Unique<ast::Statement>>{}));
+      Vec<Unique<ast::Statement>>{}, false));
 
   // test() { foo("not an int", 123); }
   auto args = Vec<Unique<ast::Expression>>{};
@@ -195,7 +195,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_ArgumentTypeMismatch") {
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -211,7 +211,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooFewArguments") {
       {"y", VellumType::unresolved("String")}};
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", params, VellumType::unresolved("Bool"),
-      Vec<Unique<ast::Statement>>{}));
+      Vec<Unique<ast::Statement>>{}, false));
 
   // test() { foo(42); }  // Only one argument instead of two
   auto args = Vec<Unique<ast::Expression>>{};
@@ -224,7 +224,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooFewArguments") {
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -238,7 +238,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooManyArguments") {
   Vec<ast::FunctionParameter> params = {{"x", VellumType::unresolved("Int")}};
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", params, VellumType::unresolved("Bool"),
-      Vec<Unique<ast::Statement>>{}));
+      Vec<Unique<ast::Statement>>{}, false));
 
   // test() { foo(42, "extra"); }  // Two arguments instead of one
   auto args = Vec<Unique<ast::Expression>>{};
@@ -253,7 +253,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooManyArguments") {
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -271,7 +271,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
           VellumLiteral(std::string_view("not an int")))));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -295,7 +295,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToVariable_Success") {
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -322,7 +322,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToProperty_Success") {
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -335,7 +335,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToFunction_Error") {
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addFunction(VellumFunction(
       VellumIdentifier("myFunc"), VellumType::literal(VellumLiteralType::Int),
-      Vec<VellumVariable>{}));
+      Vec<VellumVariable>{}, false));
   resolver->importObject(testObject);
 
   // test() { TestObject.myFunc = 42; }  // Error: cannot assign to function
@@ -349,7 +349,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToFunction_Error") {
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -364,7 +364,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToMethod_Error") {
       VellumFunction(VellumIdentifier("myMethod"), VellumType::none(),
                      Vec<VellumVariable>{VellumVariable(
                          VellumIdentifier("param"),
-                         VellumType::literal(VellumLiteralType::Int))}));
+                         VellumType::literal(VellumLiteralType::Int))},
+                     false));
   resolver->importObject(testObject);
 
   // test() { TestObject.myMethod = 42; }  // Error: cannot assign to method
@@ -378,7 +379,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToMethod_Error") {
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -396,7 +397,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToTypeName_Error") {
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -415,7 +416,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -440,7 +441,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -465,7 +466,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_TypeMismatch_Error") {
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -495,7 +496,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -532,13 +533,13 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<ast::FunctionParameter> params = {{"fn", VellumType::unresolved("Int")}};
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", params, VellumType::unresolved("Int"),
-      Vec<Unique<ast::Statement>>{}));
+      Vec<Unique<ast::Statement>>{}, false));
 
   // Define a function that returns Int
   // fun bar(): Int
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "bar", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      Vec<Unique<ast::Statement>>{}));
+      Vec<Unique<ast::Statement>>{}, false));
 
   // test() { foo(bar); }  // Error: cannot pass function as argument
   auto bar_expr =
@@ -552,7 +553,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -576,7 +577,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       {"obj", VellumType::unresolved("TestScript")}};
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", params, VellumType::unresolved("Int"),
-      Vec<Unique<ast::Statement>>{}));
+      Vec<Unique<ast::Statement>>{}, false));
 
   // test() { foo(TestScript); }  // Error: cannot pass script type as instance
   auto scriptType_expr =
@@ -590,7 +591,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body)));
+      std::move(body), false));
 
   const auto result = analyzer->analyze(std::move(ast));
 

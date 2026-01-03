@@ -99,7 +99,8 @@ void DeclarationCollector::visitFunctionDeclaration(
   }
 
   VellumFunction func(VellumIdentifier(declaration.getName().value()),
-                      declaration.getReturnTypeName(), std::move(parameters));
+                      declaration.getReturnTypeName(), std::move(parameters),
+                      declaration.isStatic());
 
   resolver->addFunction(func);
 }

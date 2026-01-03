@@ -11,9 +11,9 @@
 #include "pex_function_compiler.h"
 
 namespace vellum {
+using common::makeUnique;
 using common::Opt;
 using common::Vec;
-using common::makeUnique;
 
 PexObjectCompiler::PexObjectCompiler(Shared<CompilerErrorHandler> errorHandler,
                                      pex::PexFile& file)
@@ -82,26 +82,26 @@ void PexObjectCompiler::visitPropertyDeclaration(
     if (!getAccessor->empty()) {
       body = std::move(getAccessor.value());
     } else {
-      body.push_back(makeUnique<ast::ReturnStatement>(
-          makeUnique<ast::LiteralExpression>(
+      body.push_back(
+          makeUnique<ast::ReturnStatement>(makeUnique<ast::LiteralExpression>(
               declaration.getDefaultValue().asLiteral())));
     }
 
     ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
-                                      std::move(body));
+                                      std::move(body), false);
     getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(funcDecl);
   }
 
   if (auto setAccessor = declaration.getSetAccessor()) {
     if (!setAccessor.value().empty()) {
       ast::FunctionDeclaration funcDecl({}, {}, VellumType::none(),
-                                        std::move(setAccessor.value()));
+                                        std::move(setAccessor.value()), false);
       setAccessorFunc =
           PexFunctionCompiler(errorHandler, file).compile(funcDecl);
     }
   }
 
-    Opt<pex::PexString> backedVariableName;
+  Opt<pex::PexString> backedVariableName;
   if (declaration.isAutoProperty()) {
     const std::string_view varName = common::StringSet::insert(
         "::" + std::string(declaration.getName()) + "_var");
@@ -118,7 +118,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
 }
 
 pex::PexValue PexObjectCompiler::makeValueFromToken(VellumValue value) {
-    Opt<pex::PexValue> pexValue = makePexValue(value, file);
+  Opt<pex::PexValue> pexValue = makePexValue(value, file);
   if (!pexValue) {
     errorHandler->errorAt(Token(), "Unexpected variable initializer type.");
     return pex::PexValue();

@@ -56,7 +56,8 @@ class Parser {
                std::format_string<Args...> fmt, Args&&... args);
 
   Unique<ast::Declaration> variableDeclaration();
-  Unique<ast::Declaration> functionDeclaration(FunctionType functionType);
+  Unique<ast::Declaration> functionDeclaration(FunctionType functionType,
+                                               bool isStatic);
   Unique<ast::Declaration> propertyDeclaration();
 
   ast::FunctionBody functionBody(FunctionType type);

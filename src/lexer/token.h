@@ -58,6 +58,7 @@ enum class TokenType {
   RETURN,
   SET,
   SCRIPT,
+  STATIC,
   SUPER,
   THIS,
   TRUE,

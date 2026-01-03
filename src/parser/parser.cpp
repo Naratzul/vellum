@@ -149,11 +149,15 @@ Unique<ast::Declaration> Parser::scriptMemberDeclaration() {
   if (match(TokenType::VAR)) {
     return variableDeclaration();
   } else if (match(TokenType::FUN)) {
-    return functionDeclaration(FunctionType::Function);
+    return functionDeclaration(FunctionType::Function, false);
   } else if (match(TokenType::EVENT)) {
-    return functionDeclaration(FunctionType::Event);
+    return functionDeclaration(FunctionType::Event, false);
   } else if (match(TokenType::IDENTIFIER)) {
     return propertyDeclaration();
+  } else if (match(TokenType::STATIC)) {
+    consume(TokenType::FUN, CompilerErrorKind::ExpectDeclaration,
+            "Expect function declaration after 'static'.");
+    return functionDeclaration(FunctionType::Function, true);
   }
 
   throw ParseException(current,
@@ -201,8 +205,8 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
                                                     std::move(initializer));
 }
 
-Unique<ast::Declaration> Parser::functionDeclaration(
-    FunctionType functionType) {
+Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
+                                                     bool isStatic) {
   const std::string functionTypeName =
       functionType == FunctionType::Function ? "function" : "event";
 
@@ -240,8 +244,8 @@ Unique<ast::Declaration> Parser::functionDeclaration(
     returnTypeName = VellumType::unresolved(previous.lexeme);
   }
 
-  return makeUnique<ast::FunctionDeclaration>(name, parameters, returnTypeName,
-                                              functionBody(functionType));
+  return makeUnique<ast::FunctionDeclaration>(
+      name, parameters, returnTypeName, functionBody(functionType), isStatic);
 }
 
 Unique<ast::Declaration> Parser::propertyDeclaration() {

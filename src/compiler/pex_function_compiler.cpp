@@ -12,8 +12,8 @@
 #include "vellum/vellum_value.h"
 
 namespace vellum {
-using common::Vec;
 using common::makeUnique;
+using common::Vec;
 
 namespace {
 pex::PexOpCode getBinaryOpCode(ast::BinaryExpression::Operator op,
@@ -58,8 +58,8 @@ pex::PexOpCode getBinaryOpCode(ast::BinaryExpression::Operator op,
 }
 }  // namespace
 
-PexFunctionCompiler::PexFunctionCompiler(Shared<CompilerErrorHandler> errorHandler,
-                                         pex::PexFile& file)
+PexFunctionCompiler::PexFunctionCompiler(
+    Shared<CompilerErrorHandler> errorHandler, pex::PexFile& file)
     : errorHandler(errorHandler), file(file) {}
 
 pex::PexFunction PexFunctionCompiler::compile(
@@ -90,7 +90,8 @@ pex::PexFunction PexFunctionCompiler::compile(
   }
 
   return pex::PexFunction(name, returnTypeName, documentationString, 0,
-                          parameters, localVariables, instructions);
+                          parameters, localVariables, instructions,
+                          func.isStatic(), false);
 }
 
 void PexFunctionCompiler::visitExpressionStatement(
@@ -111,8 +112,8 @@ void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
       makeTempVar(
           file.getString(statement.getCondition()->getType().toString()))
           .getName());
-  Vec<pex::PexValue> assign_args = {
-      condition, statement.getCondition()->compile(*this)};
+  Vec<pex::PexValue> assign_args = {condition,
+                                    statement.getCondition()->compile(*this)};
   instructions.emplace_back(pex::PexOpCode::Assign, std::move(assign_args));
 
   pex::PexValue jmp_to_else_label(int32_t(0));
@@ -152,9 +153,8 @@ void PexFunctionCompiler::visitLocalVariableStatement(
 
   if (statement.getInitializer()) {
     pex::PexFunctionParameter localVar = localVariables.back();
-    Vec<pex::PexValue> args = {
-        pex::PexIdentifier(localVar.getName()),
-        statement.getInitializer()->compile(*this)};
+    Vec<pex::PexValue> args = {pex::PexIdentifier(localVar.getName()),
+                               statement.getInitializer()->compile(*this)};
     instructions.emplace_back(pex::PexOpCode::Assign, std::move(args));
   }
 }
@@ -167,8 +167,7 @@ void PexFunctionCompiler::visitWhileStatement(ast::WhileStatement& statement) {
   size_t conditionOffset = instructions.size();
   instructions.emplace_back(
       pex::PexOpCode::Assign,
-      Vec<pex::PexValue>{condition,
-                                 statement.getCondition()->compile(*this)});
+      Vec<pex::PexValue>{condition, statement.getCondition()->compile(*this)});
 
   size_t jmpToEndOffset = instructions.size();
   pex::PexValue jmpToEnd(int32_t(0));
@@ -197,7 +196,7 @@ pex::PexValue PexFunctionCompiler::compile(
   if (expr.getIdentifierType() == VellumValueType::Property) {
     ast::PropertyGetExpression getExpr(
         makeUnique<ast::IdentifierExpression>(VellumIdentifier("self"),
-                                                    expr.getLocation()),
+                                              expr.getLocation()),
         expr.getIdentifier(), expr.getLocation());
     getExpr.setType(expr.getType());
     return compile(getExpr);
@@ -221,11 +220,11 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
 
   if (functionCall.isStatic()) {
     opcode = pex::PexOpCode::CallStatic;
-    args = {
-        pex::PexIdentifier(file.getString(functionCall.getObjectType().toString())),
-        pex::PexIdentifier(
-            file.getString(functionCall.getFunction().getValue())),
-        retVal};
+    args = {pex::PexIdentifier(
+                file.getString(functionCall.getObjectType().toString())),
+            pex::PexIdentifier(
+                file.getString(functionCall.getFunction().getValue())),
+            retVal};
   } else {
     opcode = pex::PexOpCode::CallMethod;
     args = {
@@ -267,8 +266,8 @@ pex::PexValue PexFunctionCompiler::compile(
     const ast::PropertySetExpression& expr) {
   const pex::PexValue object = expr.getObject()->compile(*this);
   const pex::PexValue value = expr.getValue()->compile(*this);
-  Vec<pex::PexValue> args = {makePexValue(expr.getProperty(), file),
-                                     object, value};
+  Vec<pex::PexValue> args = {makePexValue(expr.getProperty(), file), object,
+                             value};
   instructions.emplace_back(pex::PexOpCode::PropSet, std::move(args));
   return value;
 }
@@ -285,8 +284,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
       makeTempVar(file.getString(expr.getType().toString())).getName());
 
   if (expr.getOperator() == ast::BinaryExpression::Operator::And) {
-    Vec<pex::PexValue> leftArgs = {dest,
-                                           expr.getLeft()->compile(*this)};
+    Vec<pex::PexValue> leftArgs = {dest, expr.getLeft()->compile(*this)};
     instructions.emplace_back(pex::PexOpCode::Assign, std::move(leftArgs));
 
     pex::PexValue label(int32_t(0));
@@ -294,16 +292,14 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
     size_t offset = instructions.size();
     instructions.emplace_back(pex::PexOpCode::JmpF, std::move(jmpArgs));
 
-    Vec<pex::PexValue> rightArgs = {dest,
-                                            expr.getRight()->compile(*this)};
+    Vec<pex::PexValue> rightArgs = {dest, expr.getRight()->compile(*this)};
     instructions.emplace_back(pex::PexOpCode::Assign, std::move(rightArgs));
 
     pex::PexInstruction& jmpInstr = instructions[offset];
     jmpInstr.setArg(1, pex::PexValue(int32_t(instructions.size() - offset)));
 
   } else if (expr.getOperator() == ast::BinaryExpression::Operator::Or) {
-    Vec<pex::PexValue> leftArgs = {dest,
-                                           expr.getLeft()->compile(*this)};
+    Vec<pex::PexValue> leftArgs = {dest, expr.getLeft()->compile(*this)};
     instructions.emplace_back(pex::PexOpCode::Assign, std::move(leftArgs));
 
     pex::PexValue label(int32_t(0));
@@ -311,8 +307,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
     size_t offset = instructions.size();
     instructions.emplace_back(pex::PexOpCode::JmpT, std::move(jmpArgs));
 
-    Vec<pex::PexValue> rightArgs = {dest,
-                                            expr.getRight()->compile(*this)};
+    Vec<pex::PexValue> rightArgs = {dest, expr.getRight()->compile(*this)};
     instructions.emplace_back(pex::PexOpCode::Assign, std::move(rightArgs));
 
     pex::PexInstruction& jmpInstr = instructions[offset];
@@ -320,7 +315,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
 
   } else {
     Vec<pex::PexValue> args = {dest, expr.getLeft()->compile(*this),
-                                       expr.getRight()->compile(*this)};
+                               expr.getRight()->compile(*this)};
 
     pex::PexOpCode code = getBinaryOpCode(expr.getOperator(), expr.getType());
     if (code == pex::PexOpCode::Invalid) {
@@ -347,13 +342,11 @@ pex::PexValue PexFunctionCompiler::compile(const ast::UnaryExpression& expr) {
   switch (expr.getOperator()) {
     case ast::UnaryExpression::Operator::Negate:
       if (expr.getType().isInt()) {
-        Vec<pex::PexValue> args = {dest,
-                                           expr.getOperand()->compile(*this)};
+        Vec<pex::PexValue> args = {dest, expr.getOperand()->compile(*this)};
         instructions.emplace_back(pex::PexOpCode::INeg, std::move(args));
 
       } else if (expr.getType().isFloat()) {
-        Vec<pex::PexValue> args = {dest,
-                                           expr.getOperand()->compile(*this)};
+        Vec<pex::PexValue> args = {dest, expr.getOperand()->compile(*this)};
         instructions.emplace_back(pex::PexOpCode::FNeg, std::move(args));
       } else {
         assert(false && "Invalid operand type");
@@ -361,8 +354,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::UnaryExpression& expr) {
       break;
     case ast::UnaryExpression::Operator::Not:
       assert(expr.getType().isBool());
-      Vec<pex::PexValue> args = {dest,
-                                         expr.getOperand()->compile(*this)};
+      Vec<pex::PexValue> args = {dest, expr.getOperand()->compile(*this)};
       instructions.emplace_back(pex::PexOpCode::Not, std::move(args));
       break;
   }
@@ -388,15 +380,14 @@ pex::PexValue PexFunctionCompiler::compile(
   pex::PexValue dest = pex::PexIdentifier(
       makeTempVar(file.getString(expr.getType().toString())).getName());
 
-  Vec<pex::PexValue> args = {dest,
-                                     makePexValue(expr.getLength(), file)};
+  Vec<pex::PexValue> args = {dest, makePexValue(expr.getLength(), file)};
   instructions.emplace_back(pex::PexOpCode::ArrayCreate, std::move(args));
 
   return dest;
 }
 
 pex::PexValue PexFunctionCompiler::makeValueFromToken(VellumValue value) {
-    Opt<pex::PexValue> pexValue = makePexValue(value, file);
+  Opt<pex::PexValue> pexValue = makePexValue(value, file);
   if (!pexValue) {
     // TODO: logic error
     errorHandler->errorAt(Token(), "Unexpected variable initializer type.");

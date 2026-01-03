@@ -112,11 +112,13 @@ class FunctionDeclaration : public Declaration {
  public:
   FunctionDeclaration(Opt<std::string_view> name,
                       Vec<FunctionParameter> parameters,
-                      VellumType returnTypeName, FunctionBody body)
+                      VellumType returnTypeName, FunctionBody body,
+                      bool staticFunc)
       : name(name),
         parameters(std::move(parameters)),
         returnTypeName(returnTypeName),
-        body(std::move(body)) {}
+        body(std::move(body)),
+        staticFunc(staticFunc) {}
 
   Opt<std::string_view> getName() const { return name; }
   const Vec<FunctionParameter>& getParameters() const { return parameters; }
@@ -124,6 +126,7 @@ class FunctionDeclaration : public Declaration {
   const VellumType& getReturnTypeName() const { return returnTypeName; }
   VellumType& getReturnTypeName() { return returnTypeName; }
   const FunctionBody& getBody() const { return body; }
+  bool isStatic() const { return staticFunc; }
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
@@ -137,6 +140,7 @@ class FunctionDeclaration : public Declaration {
   Vec<FunctionParameter> parameters;
   VellumType returnTypeName;
   FunctionBody body;
+  bool staticFunc;
 };
 
 class PropertyDeclaration : public Declaration {

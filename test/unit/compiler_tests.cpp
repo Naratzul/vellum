@@ -44,16 +44,15 @@ TEST_CASE("CompileFunctionCallTest") {
       VellumType::identifier("TestScript"), VellumIdentifier("foo")));
 
   auto body = Vec<Unique<ast::Statement>>{};
-  body.emplace_back(
-      makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
 
   auto foo_func = makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      Vec<Unique<ast::Statement>>{});
+      Vec<Unique<ast::Statement>>{}, false);
 
   auto test_func = makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body));
+      std::move(body), false);
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(std::move(foo_func));

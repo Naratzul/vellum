@@ -9,8 +9,11 @@ features:
 - imports
 - cast semantic
 - states
-- scripts as classes (one script def per file is required)
 - arrays
+- global functions
+- self keyword
+- native functions
+- call parent function (super)
 
 tests:
 - return statement

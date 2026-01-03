@@ -39,11 +39,13 @@ void Vellum::run(std::string_view inputFile) {
   debug.addFunction(VellumFunction(
       VellumIdentifier("messageBox"), VellumType::none(),
       {VellumVariable(VellumIdentifier("message"),
-                      VellumType::literal(VellumLiteralType::String))}));
+                      VellumType::literal(VellumLiteralType::String))},
+      true));
   debug.addFunction(VellumFunction(
       VellumIdentifier("notification"), VellumType::none(),
       {VellumVariable(VellumIdentifier("message"),
-                      VellumType::literal(VellumLiteralType::String))}));
+                      VellumType::literal(VellumLiteralType::String))},
+      true));
 
   resolver->importObject(debug);
 
