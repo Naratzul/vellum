@@ -560,7 +560,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   // This should error: passing a function as an argument is not allowed
   // Even though bar returns Int and foo expects Int, you cannot pass the
   // function itself - only values can be passed as arguments
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidArgumentType));
+  REQUIRE(
+      errorHandler->hasError(CompilerErrorKind::FunctionArgumentTypeMismatch));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
@@ -598,5 +599,346 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   // This should error: passing a script type as an argument where an instance
   // is expected is not allowed. Even though TestScript type matches TestScript
   // type, you cannot pass the type itself - only instances can be passed
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidArgumentType));
+  REQUIRE(
+      errorHandler->hasError(CompilerErrorKind::FunctionArgumentTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticAssign_FunctionToVariable_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+  // var myVar: Int = 10
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "myVar", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(10))));
+
+  // fun bar(): Int { return 42; }
+  auto barBody = Vec<Unique<ast::Statement>>{};
+  barBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "bar", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(barBody), false));
+
+  // test() { myVar = bar; }  // Error: cannot assign function to variable
+  auto bar_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar"));
+  auto assign_expr = makeUnique<ast::AssignExpression>(
+      VellumIdentifier("myVar"), std::move(bar_expr), Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot assign a function to a variable
+  // Even though bar returns Int and myVar is Int, you cannot assign the
+  // function itself - only values can be assigned
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticAssign_FunctionToProperty_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+  // Create an object with an Int property
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(
+      VellumProperty(VellumIdentifier("myProperty"),
+                     VellumType::literal(VellumLiteralType::Int), false));
+  resolver->importObject(testObject);
+
+  // fun bar(): Int { return 42; }
+  auto barBody = Vec<Unique<ast::Statement>>{};
+  barBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "bar", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(barBody), false));
+
+  // test() { TestObject.myProperty = bar; }  // Error: cannot assign function
+  // to property
+  auto obj_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto bar_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar"));
+  auto assign_expr = makeUnique<ast::PropertySetExpression>(
+      std::move(obj_expr), VellumIdentifier("myProperty"), std::move(bar_expr),
+      Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot assign a function to a property
+  // Even though bar returns Int and myProperty is Int, you cannot assign the
+  // function itself - only values can be assigned
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticReturn_ReturnFunction_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // fun foo() -> Int
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  // test() -> Int { return foo; }  // Error: cannot return function
+  auto body = Vec<Unique<ast::Statement>>{};
+  auto foo_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo"));
+  body.emplace_back(makeUnique<ast::ReturnStatement>(std::move(foo_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(body), false));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot return a function
+  // Even though foo returns Int and test expects Int, you cannot return the
+  // function itself - only values can be returned
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ReturnTypeMismatch));
+}
+
+// Binary operator type checking tests
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticBinaryOp_FunctionAsOperand_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // fun bar(): Int { return 42; }
+  auto barBody = Vec<Unique<ast::Statement>>{};
+  barBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "bar", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(barBody), false));
+
+  // test() { var result = 42 + bar; }  // Error: cannot use function as operand
+  auto left_expr = makeUnique<ast::LiteralExpression>(VellumLiteral(42));
+  auto bar_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar"));
+  auto binary_expr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Add, std::move(left_expr),
+      std::move(bar_expr));
+  auto var_stmt = makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("result"), std::nullopt, std::move(binary_expr));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(std::move(var_stmt));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot use a function as an operand in binary operations
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::ArithmeticOperationTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticBinaryOp_ScriptTypeAsOperand_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Create a script type
+  VellumObject testScript(VellumType::identifier("TestScript"));
+  resolver->importObject(testScript);
+
+  // test() { var result = TestScript == TestScript; }  // Error: cannot use
+  // script type as operand
+  auto scriptType_expr1 =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestScript"));
+  auto scriptType_expr2 =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestScript"));
+  auto binary_expr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal, std::move(scriptType_expr1),
+      std::move(scriptType_expr2));
+  auto var_stmt = makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("result"), std::nullopt, std::move(binary_expr));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(std::move(var_stmt));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot use a script type as an operand in binary
+  // operations
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::ArithmeticOperationTypeMismatch));
+}
+
+// Unary operator type checking tests
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticUnaryOp_FunctionAsOperand_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // fun bar(): Int { return 42; }
+  auto barBody = Vec<Unique<ast::Statement>>{};
+  barBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "bar", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(barBody), false));
+
+  // test() { var result = -bar; }  // Error: cannot use function as operand
+  auto bar_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar"));
+  auto unary_expr = makeUnique<ast::UnaryExpression>(
+      ast::UnaryExpression::Operator::Negate, std::move(bar_expr));
+  auto var_stmt = makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("result"), std::nullopt, std::move(unary_expr));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(std::move(var_stmt));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot use a function as an operand in unary operations
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UnaryOperatorTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticUnaryOp_ScriptTypeAsOperand_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Create a script type
+  VellumObject testScript(VellumType::identifier("TestScript"));
+  resolver->importObject(testScript);
+
+  // test() { var result = not TestScript; }  // Error: cannot use script type
+  // as operand
+  auto scriptType_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestScript"));
+  auto unary_expr = makeUnique<ast::UnaryExpression>(
+      ast::UnaryExpression::Operator::Not, std::move(scriptType_expr));
+  auto var_stmt = makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("result"), std::nullopt, std::move(unary_expr));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(std::move(var_stmt));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot use a script type as an operand in unary
+  // operations
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UnaryOperatorTypeMismatch));
+}
+
+// Variable initialization type checking tests
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticInit_FunctionAsInitializer_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // fun bar(): Int { return 42; }
+  auto barBody = Vec<Unique<ast::Statement>>{};
+  barBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "bar", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(barBody), false));
+
+  // test() { var myVar: Int = bar; }  // Error: cannot initialize with function
+  auto bar_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar"));
+  auto var_stmt = makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("myVar"), VellumType::unresolved("Int"),
+      std::move(bar_expr));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(std::move(var_stmt));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot initialize a variable with a function
+  // Even though bar returns Int and myVar is Int, you cannot initialize with
+  // the function itself - only values can be used
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::VariableTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticInit_ScriptTypeAsInitializer_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Create a script type
+  VellumObject testScript(VellumType::identifier("TestScript"));
+  resolver->importObject(testScript);
+
+  // test() { var myVar: TestScript = TestScript; }  // Error: cannot initialize
+  // with script type
+  auto scriptType_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestScript"));
+  auto var_stmt = makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("myVar"), VellumType::unresolved("TestScript"),
+      std::move(scriptType_expr));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(std::move(var_stmt));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot initialize a variable with a script type
+  // Even though TestScript type matches TestScript type, you cannot initialize
+  // with the type itself - only instances can be used
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::VariableTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticGlobalInit_FunctionAsInitializer_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // fun bar(): Int { return 42; }
+  auto barBody = Vec<Unique<ast::Statement>>{};
+  barBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "bar", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(barBody), false));
+
+  // var myVar: Int = bar  // Error: cannot initialize global with function
+  auto bar_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar"));
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "myVar", VellumType::unresolved("Int"), std::move(bar_expr)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot initialize a global variable with a function
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::VariableTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticGlobalInit_ScriptTypeAsInitializer_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Create a script type
+  VellumObject testScript(VellumType::identifier("TestScript"));
+  resolver->importObject(testScript);
+
+  // var myVar: TestScript = TestScript  // Error: cannot initialize global with
+  // script type
+  auto scriptType_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestScript"));
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "myVar", VellumType::unresolved("TestScript"),
+      std::move(scriptType_expr)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  // This should error: cannot initialize a global variable with a script type
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::VariableTypeMismatch));
 }

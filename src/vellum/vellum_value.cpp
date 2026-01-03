@@ -28,8 +28,6 @@ bool operator==(const VellumValue& lhs, const VellumValue& rhs) {
   switch (lhs.getType()) {
     case VellumValueType::Function:
       return lhs.asFunction() == rhs.asFunction();
-    case VellumValueType::FunctionCall:
-      return lhs.asFunctionCall() == rhs.asFunctionCall();
     case VellumValueType::Identifier:
       return lhs.asIdentifier() == rhs.asIdentifier();
     case VellumValueType::Literal:
@@ -38,8 +36,6 @@ bool operator==(const VellumValue& lhs, const VellumValue& rhs) {
       return true;
     case VellumValueType::Property:
       return lhs.asProperty() == rhs.asProperty();
-    case VellumValueType::PropertyAccess:
-      return lhs.asPropertyAccess() == rhs.asPropertyAccess();
     case VellumValueType::ScriptType:
       return lhs.asScriptType() == rhs.asScriptType();
     case VellumValueType::Variable:
@@ -57,8 +53,6 @@ static std::string_view valueTypeToString(VellumValueType type) {
   switch (type) {
     case VellumValueType::Function:
       return "Function";
-    case VellumValueType::FunctionCall:
-      return "FunctionCall";
     case VellumValueType::Identifier:
       return "Identifier";
     case VellumValueType::Literal:
@@ -67,8 +61,6 @@ static std::string_view valueTypeToString(VellumValueType type) {
       return "None";
     case VellumValueType::Property:
       return "Property";
-    case VellumValueType::PropertyAccess:
-      return "PropertyAccess";
     case VellumValueType::ScriptType:
       return "ScriptType";
     case VellumValueType::Variable:
@@ -82,9 +74,6 @@ std::ostream& operator<<(std::ostream& os, const VellumValue& value) {
     case VellumValueType::Function:
       os << value.asFunction();
       break;
-    case VellumValueType::FunctionCall:
-      os << value.asFunctionCall();
-      break;
     case VellumValueType::Identifier:
       os << value.asIdentifier();
       break;
@@ -96,9 +85,6 @@ std::ostream& operator<<(std::ostream& os, const VellumValue& value) {
       break;
     case VellumValueType::Property:
       os << value.asProperty();
-      break;
-    case VellumValueType::PropertyAccess:
-      os << value.asPropertyAccess();
       break;
     case VellumValueType::ScriptType:
       os << value.asScriptType();

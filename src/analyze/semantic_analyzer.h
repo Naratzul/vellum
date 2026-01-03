@@ -7,6 +7,7 @@
 #include "ast/expression/expression_visitor.h"
 #include "ast/statement/statement_visitor.h"
 #include "common/types.h"
+#include "type_checker.h"
 #include "vellum/vellum_type.h"
 
 namespace vellum {
@@ -64,5 +65,6 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   Shared<CompilerErrorHandler> errorHandler;
   Shared<Resolver> resolver;
   std::string_view scriptFilename;
+  TypeChecker checker;
 };
 }  // namespace vellum

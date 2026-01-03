@@ -22,11 +22,9 @@ class PexFile;
 enum class VellumValueType {
   None,
   Function,
-  FunctionCall,
   Identifier,
   Literal,
   Property,
-  PropertyAccess,
   Variable,
   ScriptType
 };
@@ -36,16 +34,12 @@ class VellumValue {
   VellumValue() = default;
   VellumValue(VellumFunction value)
       : value(value), type(VellumValueType::Function) {}
-  VellumValue(VellumFunctionCall value)
-      : value(value), type(VellumValueType::FunctionCall) {}
   VellumValue(VellumLiteral value)
       : value(value), type(VellumValueType::Literal) {}
   VellumValue(VellumIdentifier value)
       : value(value), type(VellumValueType::Identifier) {}
   VellumValue(VellumProperty value)
       : value(value), type(VellumValueType::Property) {}
-  VellumValue(VellumPropertyAccess value)
-      : value(value), type(VellumValueType::PropertyAccess) {}
   VellumValue(VellumVariable value)
       : value(value), type(VellumValueType::Variable) {}
   VellumValue(VellumType value)
@@ -56,11 +50,6 @@ class VellumValue {
   VellumFunction asFunction() const {
     assert(type == VellumValueType::Function);
     return std::get<VellumFunction>(value);
-  }
-
-  VellumFunctionCall asFunctionCall() const {
-    assert(type == VellumValueType::FunctionCall);
-    return std::get<VellumFunctionCall>(value);
   }
 
   VellumLiteral asLiteral() const {
@@ -78,11 +67,6 @@ class VellumValue {
     return std::get<VellumProperty>(value);
   }
 
-  VellumPropertyAccess asPropertyAccess() const {
-    assert(type == VellumValueType::PropertyAccess);
-    return std::get<VellumPropertyAccess>(value);
-  }
-
   VellumVariable asVariable() const {
     assert(type == VellumValueType::Variable);
     return std::get<VellumVariable>(value);
@@ -94,9 +78,8 @@ class VellumValue {
   }
 
  private:
-  std::variant<std::monostate, VellumFunction, VellumFunctionCall,
-               VellumLiteral, VellumIdentifier, VellumProperty,
-               VellumPropertyAccess, VellumVariable>
+  std::variant<std::monostate, VellumFunction, VellumLiteral, VellumIdentifier,
+               VellumProperty, VellumVariable>
       value;
   VellumValueType type = VellumValueType::None;
 };

@@ -63,6 +63,10 @@ void FunctionDeclaration::accept(DeclarationVisitor& visitor) {
 
 bool FunctionDeclaration::equals(const Declaration& other_) const {
   auto& other = static_cast<const FunctionDeclaration&>(other_);
+  if (isStatic() != other.isStatic()) {
+    return false;
+  }
+
   if (getName() != other.getName()) {
     return false;
   }

@@ -152,6 +152,9 @@ class PropertyGetExpression : public Expression {
 
   VellumIdentifier getProperty() const { return property; }
 
+  void setIdentifierType(VellumValueType type) { identifierType = type; }
+  VellumValueType getIdentifierType() const { return identifierType; }
+
   bool equals(const Expression& other) const override;
 
   void accept(ExpressionVisitor& visitor) override;
@@ -162,6 +165,7 @@ class PropertyGetExpression : public Expression {
  private:
   Unique<Expression> object;
   VellumIdentifier property;
+  VellumValueType identifierType{VellumValueType::None};
 };
 
 class PropertySetExpression : public Expression {

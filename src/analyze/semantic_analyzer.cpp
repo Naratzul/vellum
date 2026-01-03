@@ -97,16 +97,12 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
   statement.getExpression()->accept(*this);
   const auto& func = resolver->getCurrentFunction();
   assert(func.has_value());
-  if (statement.getExpression()->getType() != func->getReturnType()) {
-    std::string gotType;
-    if (statement.getExpression()->getType().isResolved()) {
-      gotType = std::format("Got type is '{}'.",
-                            statement.getExpression()->getType().toString());
-    }
+
+  auto result = checker.check(statement.getExpression(), func->getReturnType(),
+                              TypeChecker::Context::Return);
+  if (!result.compatible) {
     errorHandler->errorAt(statement.getExpression()->getLocation(),
-                          CompilerErrorKind::ReturnTypeMismatch,
-                          "Return type mismatch. Expected type is '{}'. {}",
-                          func->getReturnType().toString(), gotType);
+                          result.errorKind, result.errorMessage);
     return;
   }
 }
@@ -146,17 +142,14 @@ void SemanticAnalyzer::visitLocalVariableStatement(
     }
   }
 
-  if (annotatedType && deducedType) {
-    if (annotatedType.value() != deducedType.value()) {
-      std::string gotType;
-      if (deducedType->isResolved()) {
-        gotType = std::format(", got '{}'.", deducedType->toString());
-      }
-
+  if (annotatedType && deducedType && statement.getInitializer()) {
+    auto result =
+        checker.check(statement.getInitializer(), annotatedType.value(),
+                      TypeChecker::Context::Initialization);
+    if (!result.compatible) {
       errorHandler->errorAt(statement.getInitializer()->getLocation(),
-                            CompilerErrorKind::VariableTypeMismatch,
-                            "Variable type mismatch: expected '{}'{}.",
-                            annotatedType->toString(), gotType);
+                            result.errorKind, result.errorMessage);
+      return;
     }
   }
 
@@ -259,34 +252,13 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     auto& arg = expr.getArguments()[i];
     arg->accept(*this);
 
-    if (arg->isIdentifierExpression()) {
-      const auto& identifierType = arg->asIdentifier().getIdentifierType();
-      if (identifierType == VellumValueType::Function) {
-        errorHandler->errorAt(arg->getLocation(),
-                              CompilerErrorKind::InvalidArgumentType,
-                              "Cannot pass a function '{}' as an argument. Did "
-                              "you mean to call it?",
-                              arg->asIdentifier().getIdentifier().toString());
-        return;
-      }
-      if (identifierType == VellumValueType::ScriptType) {
-        errorHandler->errorAt(arg->getLocation(),
-                              CompilerErrorKind::InvalidArgumentType,
-                              "Cannot pass a script type '{}' as an argument. "
-                              "Expected an instance.",
-                              arg->asIdentifier().getIdentifier().toString());
-        return;
-      }
-    }
-
-    const auto& argType = arg->getType();
-    if (argType.isResolved() && argType != func->getParameters()[i].getType()) {
-      errorHandler->errorAt(
-          arg->getLocation(), CompilerErrorKind::FunctionArgumentTypeMismatch,
-          "Argument {} of function '{}' expects type '{}', but got type '{}'.",
-          i, func->getName().toString(),
-          func->getParameters()[i].getType().toString(),
-          arg->getType().toString());
+    std::string contextInfo =
+        std::string(func->getName().toString()) + "," + std::to_string(i);
+    auto result = checker.check(arg, func->getParameters()[i].getType(),
+                                TypeChecker::Context::Argument, contextInfo);
+    if (!result.compatible) {
+      errorHandler->errorAt(arg->getLocation(), result.errorKind,
+                            result.errorMessage);
       return;
     }
   }
@@ -311,9 +283,15 @@ void SemanticAnalyzer::visitPropertyGetExpression(
   switch (property->getType()) {
     case VellumValueType::Property:
       expr.setType(property->asProperty().getType());
+      expr.setIdentifierType(VellumValueType::Property);
       break;
     case VellumValueType::Function:
       expr.setType(property->asFunction().getReturnType());
+      expr.setIdentifierType(VellumValueType::Function);
+      break;
+    case VellumValueType::ScriptType:
+      expr.setType(property->asScriptType());
+      expr.setIdentifierType(VellumValueType::ScriptType);
       break;
     default:
       errorHandler->errorAt(
@@ -356,12 +334,13 @@ void SemanticAnalyzer::visitPropertySetExpression(
 
   expr.getValue()->accept(*this);
 
-  if (expr.getType() != expr.getValue()->getType()) {
-    errorHandler->errorAt(
-        expr.getLocation(), CompilerErrorKind::AssignTypeMismatch,
-        "Can't assign a value of type '{}' to a property '{}' of type '{}'.",
-        expr.getValue()->getType().toString(), expr.getProperty().toString(),
-        expr.getType().toString());
+  std::string contextInfo =
+      "property," + std::string(expr.getProperty().toString());
+  auto result = checker.check(expr.getValue(), expr.getType(),
+                              TypeChecker::Context::Assignment, contextInfo);
+  if (!result.compatible) {
+    errorHandler->errorAt(expr.getValue()->getLocation(), result.errorKind,
+                          result.errorMessage);
     return;
   }
 }
@@ -398,12 +377,13 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
 
   expr.getValue()->accept(*this);
 
-  if (expr.getType() != expr.getValue()->getType()) {
-    errorHandler->errorAt(
-        expr.getLocation(), CompilerErrorKind::AssignTypeMismatch,
-        "Can't assign a value of type '{}' to a variable '{}' of type '{}'.",
-        expr.getValue()->getType().toString(), expr.getName().toString(),
-        expr.getType().toString());
+  std::string contextInfo =
+      "variable," + std::string(expr.getName().toString());
+  auto result = checker.check(expr.getValue(), expr.getType(),
+                              TypeChecker::Context::Assignment, contextInfo);
+  if (!result.compatible) {
+    errorHandler->errorAt(expr.getValue()->getLocation(), result.errorKind,
+                          result.errorMessage);
     return;
   }
 }
@@ -411,6 +391,23 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
 void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
   expr.getLeft()->accept(*this);
   expr.getRight()->accept(*this);
+
+  // Check if operands are valid values (not function/script type identifiers)
+  auto leftResult = checker.checkValidValue(
+      expr.getLeft(), TypeChecker::Context::BinaryOperand);
+  if (!leftResult.compatible) {
+    errorHandler->errorAt(expr.getLeft()->getLocation(), leftResult.errorKind,
+                          leftResult.errorMessage);
+    return;
+  }
+
+  auto rightResult = checker.checkValidValue(
+      expr.getRight(), TypeChecker::Context::BinaryOperand);
+  if (!rightResult.compatible) {
+    errorHandler->errorAt(expr.getRight()->getLocation(), rightResult.errorKind,
+                          rightResult.errorMessage);
+    return;
+  }
 
   const VellumType leftType = expr.getLeft()->getType();
   const VellumType rightType = expr.getRight()->getType();
@@ -475,11 +472,30 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
 
 void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
   expr.getOperand()->accept(*this);
+
+  std::string operatorName;
+  switch (expr.getOperator()) {
+    case ast::UnaryExpression::Operator::Negate:
+      operatorName = "-";
+      break;
+    case ast::UnaryExpression::Operator::Not:
+      operatorName = "not";
+      break;
+  }
+
+  auto operandResult = checker.checkValidValue(
+      expr.getOperand(), TypeChecker::Context::UnaryOperand, operatorName);
+  if (!operandResult.compatible) {
+    errorHandler->errorAt(expr.getOperand()->getLocation(),
+                          operandResult.errorKind, operandResult.errorMessage);
+    return;
+  }
+
   expr.setType(expr.getOperand()->getType());
 
   switch (expr.getOperator()) {
     case ast::UnaryExpression::Operator::Negate:
-      if (!expr.getType().isInt() || expr.getType().isFloat()) {
+      if (!(expr.getType().isInt() || expr.getType().isFloat())) {
         errorHandler->errorAt(
             expr.getOperand()->getLocation(),
             CompilerErrorKind::UnaryOperatorTypeMismatch,
