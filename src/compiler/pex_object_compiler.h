@@ -33,6 +33,7 @@ class PexObjectCompiler : public ast::DeclarationVisitor {
 
   pex::PexObject compile(const Vec<Unique<ast::Declaration>>& declarations);
 
+  void visitImportDeclaration(ast::ImportDeclaration&) override {}
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
   void visitVariableDeclaration(
       ast::GlobalVariableDeclaration& declaration) override;

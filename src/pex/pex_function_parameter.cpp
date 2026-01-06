@@ -5,8 +5,7 @@
 namespace vellum {
 namespace pex {
 
-PexWriter& vellum::pex::operator<<(PexWriter& writer,
-                                   const PexFunctionParameter& param) {
+PexWriter& operator<<(PexWriter& writer, const PexFunctionParameter& param) {
   writer << param.getName() << param.getType();
   return writer;
 }

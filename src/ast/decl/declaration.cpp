@@ -120,5 +120,14 @@ bool operator==(const FunctionParameter& lhs, const FunctionParameter& rhs) {
 bool operator!=(const FunctionParameter& lhs, const FunctionParameter& rhs) {
   return !(lhs == rhs);
 }
+
+void ImportDeclaration::accept(DeclarationVisitor& visitor) {
+  visitor.visitImportDeclaration(*this);
+}
+
+bool ImportDeclaration::equals(const Declaration& other_) const {
+  auto& other = static_cast<const ImportDeclaration&>(other_);
+  return importName == other.importName;
+}
 }  // namespace ast
 }  // namespace vellum

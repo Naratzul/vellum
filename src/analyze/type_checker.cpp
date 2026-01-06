@@ -64,7 +64,7 @@ TypeChecker::Result TypeChecker::checkValidValueExpression(
     identifierType = propertyExpr.getIdentifierType();
     // Build property path for error message (e.g., "obj.bar" or "hello.zoo")
     // Recursively build the path by traversing the chain
-    std::vector<std::string> pathParts;
+    common::Vec<std::string> pathParts;
     const Unique<Expression>* current = &expr;
 
     while (current && (*current)->isPropertyGetExpression()) {

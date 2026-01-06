@@ -18,6 +18,9 @@ void DeclarationCollector::collect(
   }
 }
 
+void DeclarationCollector::visitImportDeclaration(
+    ast::ImportDeclaration& declaration) {}
+
 void DeclarationCollector::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
   if (scriptDeclCount > 0) {

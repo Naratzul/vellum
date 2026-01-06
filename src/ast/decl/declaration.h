@@ -29,6 +29,26 @@ class Declaration {
 bool operator==(const Declaration& lhs, const Declaration& rhs);
 bool operator!=(const Declaration& lhs, const Declaration& rhs);
 
+class ImportDeclaration : public Declaration {
+ public:
+  ImportDeclaration(std::string_view importName, Token importNameLocation)
+      : importName(importName), importNameLocation(importNameLocation) {}
+
+  std::string_view getImportName() const { return importName; }
+  Token getImportNameLocation() const { return importNameLocation; }
+
+  void accept(DeclarationVisitor& visitor) override;
+  bool equals(const Declaration& other) const override;
+
+  DeclarationOrder getOrder() const override {
+    return DeclarationOrder::Import;
+  }
+
+ private:
+  std::string_view importName;
+  Token importNameLocation;
+};
+
 class ScriptDeclaration : public Declaration {
  public:
   ScriptDeclaration(std::string_view scriptName, Token scriptNameLocation,

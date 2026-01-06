@@ -10,7 +10,6 @@ features:
 - cast semantic
 - states
 - arrays
-- global functions
 - self keyword
 - native functions
 - call parent function (super)
@@ -29,3 +28,33 @@ done:
 - local variables
 - while statement
 - cast
+- static funcs
+
+
+
+** Imports **
+
+- lexer/parser part
+- match import name to file
+- import from folder (pass path to folder to cmd; support multiple folders)
+- parse imported file (vellum or papyrus)
+
+
+import Debug -> append name to current script imports list -> recursivelly go on each importName and look for their imports. Build graph
+
+current script
+      |
+      |
+    --------------------
+    |          |       |
+import1     import2     import3
+
+
+For given script file:
+
+1) Collect all imported names to set
+2) Report error if self import detected
+3) For each collected module collect their child modules and build graph until leaves
+4) Starting from leave nodes read module file and resolve definitions (functions, properties).
+4.1) Can we process modules in parallel?
+5) Moving the tree up and don't resolve twice already resolved modules

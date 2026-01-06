@@ -72,7 +72,9 @@ void Parser::advance() {
 }
 
 Unique<ast::Declaration> Parser::topDeclaration() {
-  if (match(TokenType::SCRIPT)) {
+  if (match(TokenType::IMPORT)) {
+    return importDeclaration();
+  } else if (match(TokenType::SCRIPT)) {
     return scriptDeclaration();
   }
 
@@ -143,6 +145,13 @@ Unique<ast::Declaration> Parser::scriptDeclaration() {
   return makeUnique<ast::ScriptDeclaration>(
       scriptName, scriptNameLocation, parentScriptName,
       parentScriptNameLocation, std::move(scriptMembers));
+}
+
+Unique<ast::Declaration> Parser::importDeclaration() {
+  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
+          "Import name expected.");
+  std::string_view importName = previous.lexeme;
+  return makeUnique<ast::ImportDeclaration>(importName, previous);
 }
 
 Unique<ast::Declaration> Parser::scriptMemberDeclaration() {

@@ -27,6 +27,7 @@ class DeclarationCollector : public ast::DeclarationVisitor {
 
   void collect(Vec<Unique<ast::Declaration>>& declarations);
 
+  void visitImportDeclaration(ast::ImportDeclaration& declaration) override;
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
   void visitVariableDeclaration(
       ast::GlobalVariableDeclaration& declaration) override;

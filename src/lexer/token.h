@@ -51,6 +51,7 @@ enum class TokenType {
   FUN,
   GET,
   IF,
+  IMPORT,
   NIL,
   NOT,
   OR,

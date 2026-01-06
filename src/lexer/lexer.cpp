@@ -193,7 +193,14 @@ TokenType Lexer::identifierType() const {
     case 'g':
       return checkKeyword(1, 2, "et", TokenType::GET);
     case 'i':
-      return checkKeyword(1, 1, "f", TokenType::IF);
+      if (current - start > 1) {
+        switch (start[1]) {
+          case 'f':
+            return TokenType::IF;
+          case 'm':
+            return checkKeyword(2, 4, "port", TokenType::IMPORT);
+        }
+      }
     case 'n':
       if (current - start > 1) {
         switch (start[1]) {

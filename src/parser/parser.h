@@ -42,6 +42,7 @@ class Parser {
   void advance();
 
   Unique<ast::Declaration> topDeclaration();
+  Unique<ast::Declaration> importDeclaration();
   Unique<ast::Declaration> scriptDeclaration();
 
   Unique<ast::Declaration> scriptMemberDeclaration();

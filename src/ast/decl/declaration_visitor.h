@@ -6,11 +6,13 @@ namespace ast {
 
 class FunctionDeclaration;
 class GlobalVariableDeclaration;
+class ImportDeclaration;
 class ScriptDeclaration;
 class PropertyDeclaration;
 
 class DeclarationVisitor {
  public:
+  virtual void visitImportDeclaration(ImportDeclaration& declaration) = 0;
   virtual void visitScriptDeclaration(ScriptDeclaration& declaration) = 0;
   virtual void visitVariableDeclaration(
       GlobalVariableDeclaration& declaration) = 0;
