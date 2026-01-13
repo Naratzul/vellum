@@ -1,5 +1,14 @@
-﻿add_library(vellum_compiler STATIC
+﻿include(FetchContent)
+FetchContent_Declare(
+  cxxopts
+  GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+  GIT_TAG        v3.3.1
+)
+FetchContent_MakeAvailable(cxxopts)
+
+add_library(vellum_compiler STATIC
     analyze/declaration_collector.cpp
+    analyze/import_resolver.cpp
     analyze/semantic_analyzer.cpp
     analyze/type_checker.cpp
 
@@ -49,3 +58,4 @@ target_include_directories(vellum_compiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(vellum main.cpp)
 target_link_libraries(vellum PRIVATE vellum_compiler)
+target_include_directories(vellum PRIVATE ${cxxopts_SOURCE_DIR}/include)
