@@ -19,3 +19,12 @@ bool operator==(const VellumIdentifier& lhs, const VellumIdentifier& rhs);
 bool operator!=(const VellumIdentifier& lhs, const VellumIdentifier& rhs);
 std::ostream& operator<<(std::ostream& os, const VellumIdentifier& id);
 }  // namespace vellum
+
+namespace std {
+template <>
+struct hash<vellum::VellumIdentifier> {
+  size_t operator()(const vellum::VellumIdentifier& id) const {
+    return std::hash<std::string_view>()(id.toString());
+  }
+};
+}  // namespace std

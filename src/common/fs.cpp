@@ -6,17 +6,14 @@
 namespace vellum {
 namespace common {
 
-namespace fs = std::filesystem;
-
-std::string readFileContent(std::string_view path) {
-  fs::path fsPath(path);
-  if (!fs::exists(fsPath)) {
-    throw std::runtime_error("File doesn't exist: " + fsPath.string());
+std::string readFileContent(const fs::path& path) {
+  if (!fs::exists(path)) {
+    throw std::runtime_error("File doesn't exist: " + path.string());
   }
 
-  std::ifstream file(fsPath);
+  std::ifstream file(path);
   if (!file.is_open()) {
-    throw std::runtime_error("Failed to open file: " + fsPath.string());
+    throw std::runtime_error("Failed to open file: " + path.string());
   }
 
   return std::string{std::istreambuf_iterator<char>(file),

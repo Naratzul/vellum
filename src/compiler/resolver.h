@@ -3,7 +3,6 @@
 #include <optional>
 
 #include "common/types.h"
-#include "compiler_error_handler.h"
 #include "scope.h"
 #include "vellum/vellum_object.h"
 #include "vellum/vellum_value.h"
@@ -13,15 +12,19 @@ using common::Opt;
 using common::Shared;
 using common::Vec;
 
+class ImportLibrary;
+class CompilerErrorHandler;
+
 class Resolver {
  public:
   static void addBultinObject(VellumObject object) {
     builtinObjects.push_back(std::move(object));
   }
 
-  explicit Resolver(VellumObject object,
-                    Shared<CompilerErrorHandler> errorHandler)
-      : object(std::move(object)), errorHandler(errorHandler) {}
+  Resolver(VellumObject object,
+                    const Shared<CompilerErrorHandler>& errorHandler,
+                    const Shared<ImportLibrary>& importLibrary)
+      : object(std::move(object)), errorHandler(errorHandler), importLibrary(importLibrary) {}
 
   void setObject(const VellumObject& obj) { object = obj; }
   const VellumObject& getObject() const { return object; }
@@ -46,7 +49,7 @@ class Resolver {
     object.addVariable(std::move(variable));
   }
 
-  void importObject(VellumObject importedObject) {
+  void importObject(VellumIdentifier importedObject) {
     importedObjects.push_back(std::move(importedObject));
   }
 
@@ -79,9 +82,10 @@ class Resolver {
  private:
   VellumObject object;
   Shared<CompilerErrorHandler> errorHandler;
+  Shared<ImportLibrary> importLibrary;
 
   static Vec<VellumObject> builtinObjects;
-  Vec<VellumObject> importedObjects;
+  Vec<VellumIdentifier> importedObjects;
   Vec<Scope> scopes;
   Opt<VellumFunction> currentFunction;
 

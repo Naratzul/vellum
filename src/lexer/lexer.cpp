@@ -213,8 +213,6 @@ TokenType Lexer::identifierType() const {
       break;
     case 'o':
       return checkKeyword(1, 1, "r", TokenType::OR);
-    case 'p':
-      return checkKeyword(1, 4, "rint", TokenType::PRINT);
     case 'r':
       return checkKeyword(1, 5, "eturn", TokenType::RETURN);
     case 's':

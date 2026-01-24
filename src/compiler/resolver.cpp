@@ -1,6 +1,8 @@
 #include "resolver.h"
 
+#include "analyze/import_library.h"
 #include "common/types.h"
+#include "compiler_error_handler.h"
 
 namespace vellum {
 using common::Opt;
@@ -67,8 +69,12 @@ Opt<VellumValue> Resolver::resolveProperty(VellumType type,
   }
 
   for (const auto& importedObject : importedObjects) {
-    if (importedObject.getType() == type) {
-      return importedObject.findProperty(member);
+    if (VellumType::identifier(importedObject) == type) {
+      if (auto module = importLibrary->findModule(importedObject)) {
+        if (auto resolver = module->getResolver()) {
+          return resolver->resolveProperty(type, member);
+        }
+      }
     }
   }
 
@@ -82,8 +88,12 @@ Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
   }
 
   for (const auto& importedObject : importedObjects) {
-    if (importedObject.getType() == type) {
-      return importedObject.findFunction(function);
+    if (VellumType::identifier(importedObject) == type) {
+      if (auto module = importLibrary->findModule(importedObject)) {
+        if (auto resolver = module->getResolver()) {
+          return resolver->resolveFunction(type, function);
+        }
+      }
     }
   }
 
@@ -107,8 +117,9 @@ Opt<VellumType> Resolver::resolveScriptType(VellumIdentifier identifier) const {
   }
 
   for (const auto& object : importedObjects) {
-    if (object.getType() == type) {
-      return object.getType();
+    auto importType = VellumType::identifier(object);
+    if (importType == type) {
+      return importType;
     }
   }
 

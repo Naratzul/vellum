@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
 
+#include "analyze/declaration_collector.h"
+#include "analyze/import_library.h"
 #include "analyze/semantic_analyzer.h"
 #include "ast/decl/declaration.h"
 #include "common/types.h"
@@ -10,6 +12,9 @@
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_object.h"
 #include "vellum/vellum_property.h"
+
+#include <filesystem>
+namespace fs = std::filesystem;
 
 using namespace vellum;
 using common::makeShared;
@@ -22,15 +27,29 @@ class SemanticTestsFixture {
  public:
   SemanticTestsFixture() {
     errorHandler = makeShared<CompilerErrorHandler>();
+    importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
     resolver = makeShared<Resolver>(
-        VellumObject(VellumType::identifier("testscript")), errorHandler);
+        VellumObject(VellumType::identifier("testscript")), errorHandler, importLibrary);
+    collector = makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
     analyzer =
         makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
   }
 
+  void addTestObject(const VellumObject& object) {
+    VellumIdentifier name = object.getType().asIdentifier();
+    auto module = makeShared<ImportModule>(
+        name, ImportModuleType::Vellum, fs::path(""));
+    auto objectResolver = makeShared<Resolver>(object, errorHandler, importLibrary);
+    module->setResolver(objectResolver);
+    importLibrary->addTestModule(module);
+    resolver->importObject(name);
+  }
+
  protected:
   Shared<CompilerErrorHandler> errorHandler;
+  Shared<ImportLibrary> importLibrary;
   Shared<Resolver> resolver;
+  Shared<DeclarationCollector> collector;
   Shared<SemanticAnalyzer> analyzer;
 };
 
@@ -39,6 +58,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticGlobalVarTest") {
   ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
       "number", VellumType::unresolved("Int"),
       makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -58,6 +79,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAutoPropertyTest") {
       "MyProperty", VellumType::unresolved("String"), "", std::nullopt,
       std::nullopt, VellumValue()));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
@@ -74,6 +97,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticFunctionTest") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Bool"),
       Vec<Unique<ast::Statement>>{}, false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -101,6 +126,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_NoArgs") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -141,6 +168,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_WithArgs") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
@@ -166,6 +195,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_UndefinedFunction") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -197,6 +228,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_ArgumentTypeMismatch") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(
@@ -225,6 +258,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooFewArguments") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -255,6 +290,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooManyArguments") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hasError(
@@ -272,6 +309,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -297,6 +336,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToVariable_Success") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
@@ -309,7 +350,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToProperty_Success") {
   testObject.addProperty(
       VellumProperty(VellumIdentifier("myProp"),
                      VellumType::literal(VellumLiteralType::Int), false));
-  resolver->importObject(testObject);
+  addTestObject(testObject);
 
   // test() { TestObject.myProp = 42; }
   auto obj_expr =
@@ -324,6 +365,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToProperty_Success") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
@@ -336,7 +379,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToFunction_Error") {
   testObject.addFunction(VellumFunction(
       VellumIdentifier("myFunc"), VellumType::literal(VellumLiteralType::Int),
       Vec<VellumVariable>{}, false));
-  resolver->importObject(testObject);
+  addTestObject(testObject);
 
   // test() { TestObject.myFunc = 42; }  // Error: cannot assign to function
   auto obj_expr =
@@ -350,6 +393,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToFunction_Error") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -366,7 +411,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToMethod_Error") {
                          VellumIdentifier("param"),
                          VellumType::literal(VellumLiteralType::Int))},
                      false));
-  resolver->importObject(testObject);
+  addTestObject(testObject);
 
   // test() { TestObject.myMethod = 42; }  // Error: cannot assign to method
   auto obj_expr =
@@ -380,6 +425,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToMethod_Error") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -398,6 +445,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToTypeName_Error") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -418,6 +467,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedIdentifier));
@@ -428,7 +479,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> ast;
   // Create an object without the property we'll try to assign to
   VellumObject testObject(VellumType::identifier("TestObject"));
-  resolver->importObject(testObject);
+  addTestObject(testObject);
 
   // test() { TestObject.nonExistent = 42; }  // Error: undefined property
   auto obj_expr =
@@ -442,6 +493,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -468,6 +521,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_TypeMismatch_Error") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
@@ -481,7 +536,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   testObject.addProperty(
       VellumProperty(VellumIdentifier("myProp"),
                      VellumType::literal(VellumLiteralType::Int), false));
-  resolver->importObject(testObject);
+  addTestObject(testObject);
 
   // test() { TestObject.myProp = "not an int"; }  // Error: type mismatch
   auto obj_expr =
@@ -497,6 +552,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -518,6 +575,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
       "AnotherScript", script2Token, std::nullopt, std::nullopt,
       Vec<Unique<ast::Declaration>>{}));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -555,6 +614,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   // This should error: passing a function as an argument is not allowed
@@ -570,7 +631,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   // Create a script type for the test object
   VellumObject testScript(VellumType::identifier("TestScript"));
-  resolver->importObject(testScript);
+  addTestObject(testScript);
 
   // Define a function that takes a TestScript instance parameter
   // fun foo(obj: TestScript): Int
@@ -593,6 +654,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -631,6 +694,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   // This should error: cannot assign a function to a variable
@@ -647,7 +712,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   testObject.addProperty(
       VellumProperty(VellumIdentifier("myProperty"),
                      VellumType::literal(VellumLiteralType::Int), false));
-  resolver->importObject(testObject);
+  addTestObject(testObject);
 
   // fun bar(): Int { return 42; }
   auto barBody = Vec<Unique<ast::Statement>>{};
@@ -673,6 +738,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   // This should error: cannot assign a function to a property
@@ -697,6 +764,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticReturn_ReturnFunction_Error") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -734,6 +803,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   // This should error: cannot use a function as an operand in binary operations
@@ -747,7 +818,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   // Create a script type
   VellumObject testScript(VellumType::identifier("TestScript"));
-  resolver->importObject(testScript);
+  addTestObject(testScript);
 
   // test() { var result = TestScript == TestScript; }  // Error: cannot use
   // script type as operand
@@ -765,6 +836,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -800,6 +873,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   // This should error: cannot use a function as an operand in unary operations
@@ -812,7 +887,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   // Create a script type
   VellumObject testScript(VellumType::identifier("TestScript"));
-  resolver->importObject(testScript);
+  addTestObject(testScript);
 
   // test() { var result = not TestScript; }  // Error: cannot use script type
   // as operand
@@ -827,6 +902,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -860,6 +937,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   // This should error: cannot initialize a variable with a function
@@ -874,7 +953,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   // Create a script type
   VellumObject testScript(VellumType::identifier("TestScript"));
-  resolver->importObject(testScript);
+  addTestObject(testScript);
 
   // test() { var myVar: TestScript = TestScript; }  // Error: cannot initialize
   // with script type
@@ -888,6 +967,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(body), false));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -915,6 +996,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
       "myVar", VellumType::unresolved("Int"), std::move(bar_expr)));
 
+  collector->collect(ast);
+
   const auto result = analyzer->analyze(std::move(ast));
 
   // This should error: cannot initialize a global variable with a function
@@ -927,7 +1010,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   // Create a script type
   VellumObject testScript(VellumType::identifier("TestScript"));
-  resolver->importObject(testScript);
+  addTestObject(testScript);
 
   // var myVar: TestScript = TestScript  // Error: cannot initialize global with
   // script type
@@ -936,6 +1019,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
       "myVar", VellumType::unresolved("TestScript"),
       std::move(scriptType_expr)));
+
+  collector->collect(ast);
 
   const auto result = analyzer->analyze(std::move(ast));
 

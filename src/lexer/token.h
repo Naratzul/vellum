@@ -55,7 +55,6 @@ enum class TokenType {
   NIL,
   NOT,
   OR,
-  PRINT,
   RETURN,
   SET,
   SCRIPT,

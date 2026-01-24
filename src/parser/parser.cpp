@@ -6,7 +6,6 @@
 #include "vellum/vellum_value.h"
 
 namespace vellum {
-using common::makeShared;
 using common::makeUnique;
 using common::Opt;
 using common::Shared;

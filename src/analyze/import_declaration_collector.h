@@ -1,32 +1,23 @@
 #pragma once
 
-#include <string_view>
-
 #include "ast/decl/declaration_visitor.h"
 #include "common/types.h"
 #include "vellum/vellum_identifier.h"
 
 namespace vellum {
-using common::Shared;
+using common::Set;
 using common::Unique;
 using common::Vec;
 
 namespace ast {
 class Declaration;
 }  // namespace ast
-class CompilerErrorHandler;
-class Resolver;
 
-class DeclarationCollector : public ast::DeclarationVisitor {
+class ImportDeclarationCollector : public ast::DeclarationVisitor {
  public:
-  explicit DeclarationCollector(
-      const Shared<CompilerErrorHandler>& errorHandler,
-      const Shared<Resolver>& resolver, std::string_view scriptFileName)
-      : errorHandler(errorHandler),
-        resolver(resolver),
-        scriptFilename(scriptFileName) {}
-
   void collect(Vec<Unique<ast::Declaration>>& declarations);
+
+  Set<VellumIdentifier> getImportedNames() const { return importedNames; }
 
   void visitImportDeclaration(ast::ImportDeclaration& declaration) override;
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
@@ -36,9 +27,6 @@ class DeclarationCollector : public ast::DeclarationVisitor {
   void visitPropertyDeclaration(ast::PropertyDeclaration& declaration) override;
 
  private:
-  Shared<CompilerErrorHandler> errorHandler;
-  Shared<Resolver> resolver;
-  std::string_view scriptFilename;
-  int scriptDeclCount = 0;
+  Set<VellumIdentifier> importedNames;
 };
 }  // namespace vellum

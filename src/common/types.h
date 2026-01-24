@@ -2,6 +2,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace vellum {
@@ -14,6 +15,8 @@ template <typename T>
 using Opt = std::optional<T>;
 template <typename T>
 using Vec = std::vector<T>;
+template <typename T>
+using Set = std::unordered_set<T>;
 template <typename K, typename V>
 using Map = std::unordered_map<K, V>;
 

@@ -1,21 +1,28 @@
 #pragma once
 
+#include "analyze/import_library.h"
 #include "common/types.h"
 #include "vellum/vellum_object.h"
 
 namespace vellum {
 using common::Opt;
+using common::Set;
+using common::Shared;
 using common::Vec;
 
 class ImportResolver {
  public:
-  bool hasObject(VellumIdentifier name) const;
+  ImportResolver(const Shared<CompilerErrorHandler>& errorHandler,
+                 const Shared<ImportLibrary>& importLibrary);
 
-  const VellumObject& getObject(VellumIdentifier name) const;
+  void buildImportGraph(const Set<VellumIdentifier>& importedNames);
 
-  VellumObject* importObject(VellumIdentifier name);
+  const Shared<Resolver> getImportResolver(VellumIdentifier name);
 
  private:
-  Vec<VellumObject> objects;
+  Shared<CompilerErrorHandler> errorHandler;
+  Shared<ImportLibrary> importLibrary;
+
+  void parseImport(ImportModule& import);
 };
 }  // namespace vellum

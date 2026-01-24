@@ -1,12 +1,9 @@
 #pragma once
 
 #include <format>
-#include <sstream>
 #include <string>
 #include <string_view>
-#include <tuple>
 #include <utility>
-#include <vector>
 
 #include "common/types.h"
 #include "lexer/token.h"

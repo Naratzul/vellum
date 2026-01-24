@@ -58,3 +58,15 @@ For given script file:
 4) Starting from leave nodes read module file and resolve definitions (functions, properties).
 4.1) Can we process modules in parallel?
 5) Moving the tree up and don't resolve twice already resolved modules
+
+- What we import? Source or pex?
+-- source (c) deepseek
+
+- What about cycles? Compile error?
+-- error (c) deepseek (need to check)
+
+- Self import?
+-- papyrus doesn't complain at compile time, need to check at runtime
+
+- Self extend?
+-- papyrus gives a compile error "cannot extend ourself"

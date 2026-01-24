@@ -1,10 +1,13 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
+
+namespace fs = std::filesystem;
 
 namespace vellum {
 namespace common {
-std::string readFileContent(std::string_view path);
+std::string readFileContent(const fs::path& path);
 void writeBinaryToFile(std::string_view path, std::string_view content);
 
 std::string canonicalPath(std::string_view path);

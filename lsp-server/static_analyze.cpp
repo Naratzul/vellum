@@ -1,5 +1,8 @@
 #include "static_analyze.h"
 
+#include "analyze/declaration_collector.h"
+#include "analyze/import_declaration_collector.h"
+#include "analyze/import_resolver.h"
 #include "analyze/semantic_analyzer.h"
 #include "compiler/resolver.h"
 #include "lexer/lexer.h"
@@ -15,8 +18,12 @@ Vec<DiagnosticMessage> StaticAnalyze::analyze(std::string_view filename,
                                               std::string_view sourceCode) {
   auto lexer = makeUnique<Lexer>(sourceCode);
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier(filename)), errorHandler);
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importResolver =
+      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier(filename)),
+                           errorHandler, importLibrary);
 
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();
@@ -25,19 +32,13 @@ Vec<DiagnosticMessage> StaticAnalyze::analyze(std::string_view filename,
     return errorHandler->getErrors();
   }
 
-  VellumObject debug(VellumType::identifier("Debug"));
-  debug.addFunction(VellumFunction(
-      VellumIdentifier("messageBox"), VellumType::none(),
-      {VellumVariable(VellumIdentifier("message"),
-                      VellumType::literal(VellumLiteralType::String))},
-      true));
-  debug.addFunction(VellumFunction(
-      VellumIdentifier("notification"), VellumType::none(),
-      {VellumVariable(VellumIdentifier("message"),
-                      VellumType::literal(VellumLiteralType::String))},
-      true));
+  ImportDeclarationCollector importCollector;
+  importCollector.collect(parseResult.declarations);
 
-  resolver->importObject(debug);
+  importResolver->buildImportGraph(importCollector.getImportedNames());
+
+  DeclarationCollector collector(errorHandler, resolver, filename);
+  collector.collect(parseResult.declarations);
 
   SemanticAnalyzer semantic(errorHandler, resolver, filename);
   const SemanticAnalyzeResult semanticResult =

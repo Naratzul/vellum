@@ -8,6 +8,8 @@ FetchContent_MakeAvailable(cxxopts)
 
 add_library(vellum_compiler STATIC
     analyze/declaration_collector.cpp
+    analyze/import_declaration_collector.cpp
+    analyze/import_library.cpp
     analyze/import_resolver.cpp
     analyze/semantic_analyzer.cpp
     analyze/type_checker.cpp

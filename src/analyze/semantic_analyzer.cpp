@@ -7,7 +7,6 @@
 #include "common/types.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
-#include "declaration_collector.h"
 
 namespace vellum {
 using common::Opt;
@@ -26,9 +25,6 @@ SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
 
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
     Vec<Unique<ast::Declaration>>&& declarations) {
-  DeclarationCollector collector(errorHandler, resolver, scriptFilename);
-  collector.collect(declarations);
-
   errorHandler->setCanEnterPanicMode(false);
 
   for (auto& declaration : declarations) {
@@ -38,6 +34,10 @@ SemanticAnalyzeResult SemanticAnalyzer::analyze(
   errorHandler->setCanEnterPanicMode(true);
 
   return SemanticAnalyzeResult{std::move(declarations)};
+}
+
+void SemanticAnalyzer::visitImportDeclaration(
+    ast::ImportDeclaration& declaration) {
 }
 
 void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {

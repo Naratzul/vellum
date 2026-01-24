@@ -19,7 +19,9 @@ void DeclarationCollector::collect(
 }
 
 void DeclarationCollector::visitImportDeclaration(
-    ast::ImportDeclaration& declaration) {}
+    ast::ImportDeclaration& declaration) {
+  resolver->importObject(VellumIdentifier(declaration.getImportName()));
+}
 
 void DeclarationCollector::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
