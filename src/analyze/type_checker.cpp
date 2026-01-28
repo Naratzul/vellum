@@ -52,7 +52,7 @@ TypeChecker::Result TypeChecker::checkValidValueExpression(
     const std::string& contextInfo) {
   Result result;
 
-  VellumValueType identifierType = VellumValueType::None;
+  VellumValueType identifierType;
   std::string identifierName;
 
   if (expr->isIdentifierExpression()) {

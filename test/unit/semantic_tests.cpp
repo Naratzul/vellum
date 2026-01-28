@@ -77,7 +77,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAutoPropertyTest") {
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::PropertyDeclaration>(
       "MyProperty", VellumType::unresolved("String"), "", std::nullopt,
-      std::nullopt, VellumValue()));
+      std::nullopt, std::nullopt));
 
   collector->collect(ast);
 
@@ -88,7 +88,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAutoPropertyTest") {
 
   ast::PropertyDeclaration expected(
       "MyProperty", VellumType::literal(VellumLiteralType::String), "",
-      std::nullopt, std::nullopt, VellumValue());
+      std::nullopt, std::nullopt, std::nullopt);
   CHECK(expected == *result.declarations[0]);
 }
 

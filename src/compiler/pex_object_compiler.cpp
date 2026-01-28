@@ -84,7 +84,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
     } else {
       body.push_back(
           makeUnique<ast::ReturnStatement>(makeUnique<ast::LiteralExpression>(
-              declaration.getDefaultValue().asLiteral())));
+              declaration.getDefaultValue().value()))); // TODO: fix this
     }
 
     ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
@@ -107,7 +107,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
         "::" + std::string(declaration.getName()) + "_var");
     pex::PexVariable backedVariable(
         file.getString(varName), typeName,
-        makeValueFromToken(declaration.getDefaultValue()));
+        makeValueFromToken(declaration.getDefaultValue().value())); // TODO: fix this
     backedVariableName = backedVariable.name();
     object.getVariables().push_back(backedVariable);
   }

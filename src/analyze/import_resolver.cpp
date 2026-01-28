@@ -8,6 +8,8 @@
 #include "compiler/resolver.h"
 #include "common/fs.h"
 #include "lexer/lexer.h"
+#include "parser/papyrus_lexer.h"
+#include "parser/papyrus_parser.h"
 
 namespace vellum {
 using namespace common;
@@ -71,9 +73,11 @@ void ImportResolver::parseImport(ImportModule& import) {
       Parser parser(makeUnique<Lexer>(import.getFileContent()), errorHandler);
       import.setAst(parser.parse());
     } break;
-    case ImportModuleType::Papyrus:
-      // TODO: impl papyrus parser
-      break;
+    case ImportModuleType::Papyrus: {
+      PapyrusParser parser(makeUnique<PapyrusLexer>(import.getFileContent()),
+                           errorHandler);
+      import.setAst(parser.parse());
+    } break;
   }
 }
 }  // namespace vellum

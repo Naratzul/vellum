@@ -51,7 +51,7 @@ std::ostream& operator<<(std::ostream& os, const VellumFunctionCall& value);
 class VellumFunction {
  public:
   VellumFunction(VellumIdentifier name, VellumType returnType,
-                 Vec<VellumVariable> parameters, bool staticFunc)
+                 const Vec<VellumVariable>& parameters, bool staticFunc)
       : name(name),
         returnType(returnType),
         parameters(parameters),

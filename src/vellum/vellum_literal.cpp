@@ -5,6 +5,8 @@
 namespace vellum {
 VellumLiteral makeDefaultLiteral(VellumLiteralType type) {
   switch (type) {
+    case VellumLiteralType::None:
+      return VellumLiteral();
     case VellumLiteralType::String:
       return VellumLiteral(std::string_view(""));
     case VellumLiteralType::Int:
@@ -18,6 +20,8 @@ VellumLiteral makeDefaultLiteral(VellumLiteralType type) {
 
 std::string_view literalTypeToString(VellumLiteralType type) {
   switch (type) {
+    case VellumLiteralType::None:
+      return "None";
     case VellumLiteralType::Int:
       return "Int";
     case VellumLiteralType::Float:
@@ -31,7 +35,9 @@ std::string_view literalTypeToString(VellumLiteralType type) {
 }
 
 common::Opt<VellumLiteralType> literalTypeFromString(std::string_view name) {
-  if (name == "String") {
+  if (name == "None") {
+    return VellumLiteralType::None;
+  } else if (name == "String") {
     return VellumLiteralType::String;
   } else if (name == "Int") {
     return VellumLiteralType::Int;
@@ -45,6 +51,8 @@ common::Opt<VellumLiteralType> literalTypeFromString(std::string_view name) {
 
 pex::PexValue makePexValue(VellumLiteral value, pex::PexFile& file) {
   switch (value.getType()) {
+    case VellumLiteralType::None:
+      return pex::PexValue();
     case VellumLiteralType::String: {
       const pex::PexString pexValue = file.getString(value.asString());
       return pex::PexValue(pexValue);
@@ -66,6 +74,8 @@ bool operator==(const VellumLiteral& lhs, const VellumLiteral& rhs) {
   }
 
   switch (lhs.getType()) {
+    case VellumLiteralType::None:
+      return true;
     case VellumLiteralType::Bool:
       return lhs.asBool() == rhs.asBool();
     case VellumLiteralType::Float:
@@ -84,7 +94,13 @@ bool operator!=(const VellumLiteral& lhs, const VellumLiteral& rhs) {
 }
 
 std::ostream& operator<<(std::ostream& os, const VellumLiteral& value) {
+  if (value.getType() == VellumLiteralType::None) {
+    os << "None";
+    return os;
+  }
+
   os << literalTypeToString(value.getType()) << ": ";
+
   switch (value.getType()) {
     case VellumLiteralType::Bool:
       os << (value.asBool() ? "true" : "false");

@@ -1,4 +1,4 @@
-#include "lexer.h"
+#include "papyrus_lexer.h"
 
 #include <charconv>
 
@@ -10,10 +10,10 @@
 
 namespace vellum {
 
-Lexer::Lexer(std::string_view source)
+PapyrusLexer::PapyrusLexer(std::string_view source)
     : start(source.data()), current(source.data()) {}
 
-Token Lexer::scanToken() {
+Token PapyrusLexer::scanToken() {
   skipWhitespaces();
   start = current;
 
@@ -79,7 +79,8 @@ Token Lexer::scanToken() {
       common::StringSet::insert(std::format("Unexpected character '{}'.", c)));
 }
 
-Token Lexer::makeToken(TokenType type, common::Opt<VellumLiteral> value) const {
+Token PapyrusLexer::makeToken(TokenType type,
+                              common::Opt<VellumLiteral> value) const {
   Token token;
   token.type = type;
   token.lexeme = currentLexeme();
@@ -91,7 +92,7 @@ Token Lexer::makeToken(TokenType type, common::Opt<VellumLiteral> value) const {
   return token;
 }
 
-Token Lexer::errorToken(std::string_view message) const {
+Token PapyrusLexer::errorToken(std::string_view message) const {
   Token token;
   token.type = TokenType::ERROR;
   token.lexeme = message;
@@ -102,7 +103,7 @@ Token Lexer::errorToken(std::string_view message) const {
   return token;
 }
 
-Token Lexer::string() {
+Token PapyrusLexer::string() {
   while (peek() != '"' && !isAtEnd()) {
     if (peek() == '\n') {
       line++;
@@ -115,38 +116,30 @@ Token Lexer::string() {
     return errorToken("Unterminated string.");
   }
 
-  // the closing quote.
   advance();
-  return makeToken(
-      TokenType::STRING,
-      std::string_view(start + 1, current - start - 2));  // drop quotes
+  return makeToken(TokenType::STRING,
+                   std::string_view(start + 1, current - start - 2));
 }
 
-Token Lexer::number() {
+Token PapyrusLexer::number() {
   while (isDigit(peek())) advance();
 
   bool isFloat = false;
 
-  // look for a fractional part.
   if (peek() == '.' && isDigit(peekNext())) {
     isFloat = true;
-
-    // consume '.'.
     advance();
-
     while (isDigit(peek())) advance();
   }
 
   return isFloat ? parseFloat() : parseInt();
 }
 
-Token Lexer::identifier() {
-  while (isAlpha(peek()) || isDigit(peek())) advance();
+Token PapyrusLexer::identifier() {
+  while (isAlphaNumeric(peek())) advance();
 
   const TokenType type = identifierType();
   switch (type) {
-    case TokenType::NONE:
-      return makeToken(type, VellumLiteral());
     case TokenType::FALSE:
       return makeToken(type, false);
     case TokenType::TRUE:
@@ -160,14 +153,21 @@ Token Lexer::identifier() {
   return makeToken(type);
 }
 
-TokenType Lexer::identifierType() const {
-  switch (start[0]) {
+TokenType PapyrusLexer::identifierType() const {
+  switch (std::tolower(start[0])) {
     case 'a':
-      switch (start[1]) {
-        case 'n':
-          return checkKeyword(2, 1, "d", TokenType::AND);
-        case 's':
-          return checkKeyword(2, 0, "", TokenType::AS);
+      if (current - start > 1) {
+        switch (start[1]) {
+          case 'n':
+            return checkKeyword(2, 1, "d", TokenType::AND);
+          case 's':
+            return checkKeyword(2, 0, "", TokenType::AS);
+          case 'u':
+            if (checkKeyword(2, 2, "to", TokenType::AUTO) == TokenType::AUTO) {
+              return TokenType::AUTO;
+            }
+            return checkKeyword(2, 10, "toreadonly", TokenType::AUTOREADONLY);
+        }
       }
       break;
     case 'e':
@@ -177,6 +177,14 @@ TokenType Lexer::identifierType() const {
             return checkKeyword(2, 3, "ent", TokenType::EVENT);
           case 'l':
             return checkKeyword(2, 2, "se", TokenType::ELSE);
+          case 'x':
+            return checkKeyword(2, 5, "tends", TokenType::EXTENDS);
+          case 'n':
+            if (checkKeyword(2, 5, "devent", TokenType::ENDEVENT) ==
+                TokenType::ENDEVENT) {
+              return TokenType::ENDEVENT;
+            }
+            return checkKeyword(2, 9, "dfunction", TokenType::ENDFUNCTION);
         }
       }
       break;
@@ -185,15 +193,15 @@ TokenType Lexer::identifierType() const {
         switch (start[1]) {
           case 'a':
             return checkKeyword(2, 3, "lse", TokenType::FALSE);
-          case 'o':
-            return checkKeyword(2, 1, "r", TokenType::FOR);
           case 'u':
-            return checkKeyword(2, 1, "n", TokenType::FUN);
+            return checkKeyword(2, 6, "nction", TokenType::FUNCTION);
         }
       }
       break;
     case 'g':
-      return checkKeyword(1, 2, "et", TokenType::GET);
+      return checkKeyword(1, 5, "lobal", TokenType::GLOBAL);
+    case 'h':
+      return checkKeyword(1, 5, "idden", TokenType::HIDDEN);
     case 'i':
       if (current - start > 1) {
         switch (start[1]) {
@@ -205,43 +213,33 @@ TokenType Lexer::identifierType() const {
       }
       break;
     case 'n':
-      if (current - start > 2 && start[1] == 'o') {
-        switch (start[2]) {
-          case 'n':
-            return checkKeyword(3, 1, "e", TokenType::NONE);
-          case 't':
-            return checkKeyword(3, 0, "", TokenType::NOT);
+      if (current - start > 1) {
+        switch (start[1]) {
+          case 'a':
+            return checkKeyword(2, 4, "tive", TokenType::NATIVE);
+          case 'o':
+            if (current - start > 2) {
+              switch (start[2]) {
+                case 't':
+                  return checkKeyword(3, 0, "", TokenType::NOT);
+                case 'n':
+                  return checkKeyword(3, 1, "e", TokenType::NONE);
+              }
+            }
+            break;
         }
       }
       break;
     case 'o':
       return checkKeyword(1, 1, "r", TokenType::OR);
+    case 'p':
+      return checkKeyword(1, 7, "roperty", TokenType::PROPERTY);
     case 'r':
       return checkKeyword(1, 5, "eturn", TokenType::RETURN);
     case 's':
-      if (current - start > 1) {
-        switch (start[1]) {
-          case 'e':
-            return checkKeyword(2, 1, "t", TokenType::SET);
-          case 'c':
-            return checkKeyword(2, 4, "ript", TokenType::SCRIPT);
-          case 't':
-            return checkKeyword(2, 4, "atic", TokenType::STATIC);
-          case 'u':
-            return checkKeyword(2, 3, "per", TokenType::SUPER);
-        }
-      }
-      break;
+      return checkKeyword(1, 9, "criptname", TokenType::SCRIPTNAME);
     case 't':
-      if (current - start > 1) {
-        switch (start[1]) {
-          case 'h':
-            return checkKeyword(2, 2, "is", TokenType::THIS);
-          case 'r':
-            return checkKeyword(2, 2, "ue", TokenType::TRUE);
-        }
-      }
-      break;
+      return checkKeyword(1, 3, "rue", TokenType::TRUE);
     case 'v':
       return checkKeyword(1, 2, "ar", TokenType::VAR);
     case 'w':
@@ -251,8 +249,8 @@ TokenType Lexer::identifierType() const {
   return TokenType::IDENTIFIER;
 }
 
-TokenType Lexer::checkKeyword(int start, int length, const char* rest,
-                              TokenType type) const {
+TokenType PapyrusLexer::checkKeyword(int start, int length, const char* rest,
+                                     TokenType type) const {
   if (current - this->start == start + length &&
       memcmp(this->start + start, rest, length) == 0) {
     return type;
@@ -260,19 +258,19 @@ TokenType Lexer::checkKeyword(int start, int length, const char* rest,
   return TokenType::IDENTIFIER;
 }
 
-char Lexer::advance() {
+char PapyrusLexer::advance() {
   position++;
   return *current++;
 }
 
-char Lexer::peek() { return *current; }
+char PapyrusLexer::peek() { return *current; }
 
-char Lexer::peekNext() {
+char PapyrusLexer::peekNext() {
   if (isAtEnd()) return '\0';
   return *(current + 1);
 }
 
-bool Lexer::match(char expected) {
+bool PapyrusLexer::match(char expected) {
   if (isAtEnd()) return false;
   if (*current != expected) return false;
   current++;
@@ -280,7 +278,7 @@ bool Lexer::match(char expected) {
   return true;
 }
 
-void Lexer::skipWhitespaces() {
+void PapyrusLexer::skipWhitespaces() {
   for (;;) {
     char c = peek();
     switch (c) {
@@ -294,13 +292,11 @@ void Lexer::skipWhitespaces() {
         position = 0;
         advance();
         break;
-      case '/':
-        if (peekNext() == '/') {
-          // a comment goes until the end of the line.
-          while (peek() != '\n' && !isAtEnd()) advance();
-        } else {
-          return;
-        }
+      case ';':
+        skipLineComment();
+        break;
+      case '{':
+        skipMultilineComment();
         break;
       default:
         return;
@@ -308,15 +304,41 @@ void Lexer::skipWhitespaces() {
   }
 }
 
-bool Lexer::isAtEnd() const { return *current == '\0'; }
+void PapyrusLexer::skipLineComment() {
+  // Papyrus uses ; for line comments, goes until end of line
+  while (peek() != '\n' && !isAtEnd()) advance();
+}
 
-bool Lexer::isDigit(char c) const { return c >= '0' && c <= '9'; }
+void PapyrusLexer::skipMultilineComment() {
+  // Papyrus uses {} for multiline comments
+  advance();  // consume '{'
+  while (!isAtEnd()) {
+    if (peek() == '\n') {
+      line++;
+      position = 0;
+    }
+    if (peek() == '}') {
+      advance();  // consume '}'
+      return;
+    }
+    advance();
+  }
+  // Unterminated comment - will be handled as error by caller
+}
 
-bool Lexer::isAlpha(char c) const {
+bool PapyrusLexer::isAtEnd() const { return *current == '\0'; }
+
+bool PapyrusLexer::isDigit(char c) const { return c >= '0' && c <= '9'; }
+
+bool PapyrusLexer::isAlpha(char c) const {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
-Token Lexer::parseInt() const {
+bool PapyrusLexer::isAlphaNumeric(char c) const {
+  return isAlpha(c) || isDigit(c);
+}
+
+Token PapyrusLexer::parseInt() const {
   const std::string_view lexeme = currentLexeme();
   int32_t value;
   auto [ptr, ec] =
@@ -328,7 +350,7 @@ Token Lexer::parseInt() const {
   return errorToken("Could not parse a number.");
 }
 
-Token Lexer::parseFloat() const {
+Token PapyrusLexer::parseFloat() const {
   const std::string_view lexeme = currentLexeme();
   float value;
 #ifdef __APPLE__
@@ -345,7 +367,8 @@ Token Lexer::parseFloat() const {
   return errorToken("Could not parse a number.");
 }
 
-std::string_view Lexer::currentLexeme() const {
+std::string_view PapyrusLexer::currentLexeme() const {
   return std::string_view(start, current - start);
 }
+
 }  // namespace vellum

@@ -28,6 +28,8 @@ add_library(vellum_compiler STATIC
     compiler/scope.cpp
     lexer/lexer.cpp
     parser/parser.cpp
+    parser/papyrus_lexer.cpp
+    parser/papyrus_parser.cpp
     pex/pex_file.cpp
     pex/pex_function_parameter.cpp
     pex/pex_function.cpp

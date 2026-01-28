@@ -6,8 +6,6 @@ namespace vellum {
 
 pex::PexValue makePexValue(VellumValue value, pex::PexFile& file) {
   switch (value.getType()) {
-    case VellumValueType::None:
-      return pex::PexValue();
     case VellumValueType::Identifier:
       return pex::PexValue(
           pex::PexIdentifier(file.getString(value.asIdentifier().getValue())));
@@ -32,8 +30,6 @@ bool operator==(const VellumValue& lhs, const VellumValue& rhs) {
       return lhs.asIdentifier() == rhs.asIdentifier();
     case VellumValueType::Literal:
       return lhs.asLiteral() == rhs.asLiteral();
-    case VellumValueType::None:
-      return true;
     case VellumValueType::Property:
       return lhs.asProperty() == rhs.asProperty();
     case VellumValueType::ScriptType:
@@ -57,8 +53,6 @@ static std::string_view valueTypeToString(VellumValueType type) {
       return "Identifier";
     case VellumValueType::Literal:
       return "Literal";
-    case VellumValueType::None:
-      return "None";
     case VellumValueType::Property:
       return "Property";
     case VellumValueType::ScriptType:
@@ -79,9 +73,6 @@ std::ostream& operator<<(std::ostream& os, const VellumValue& value) {
       break;
     case VellumValueType::Literal:
       os << value.asLiteral();
-      break;
-    case VellumValueType::None:
-      os << "None";
       break;
     case VellumValueType::Property:
       os << value.asProperty();

@@ -12,7 +12,7 @@
 namespace vellum {
 using common::Shared;
 
-enum class VellumTypeState { Unresolved, None, Literal, Identifier, Array };
+enum class VellumTypeState { Unresolved, Literal, Identifier, Array };
 
 class VellumType {
  public:
@@ -40,9 +40,9 @@ class VellumType {
   std::string_view toString() const;
 
  private:
-  VellumTypeState state = VellumTypeState::None;
-  std::variant<std::monostate, std::string_view, VellumLiteralType,
-               VellumIdentifier, Shared<VellumType>>
+  VellumTypeState state = VellumTypeState::Unresolved;
+  std::variant<std::string_view, VellumLiteralType, VellumIdentifier,
+               Shared<VellumType>>
       type;
 
   VellumType() = default;

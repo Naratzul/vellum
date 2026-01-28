@@ -17,10 +17,11 @@ namespace pex {
 class PexFile;
 }
 
-enum class VellumLiteralType { Int, Float, Bool, String };
+enum class VellumLiteralType { None, Int, Float, Bool, String };
 
 class VellumLiteral {
  public:
+  VellumLiteral() = default;
   VellumLiteral(int32_t value) : value(value), type(VellumLiteralType::Int) {};
   VellumLiteral(float value) : value(value), type(VellumLiteralType::Float) {};
   VellumLiteral(bool value) : value(value), type(VellumLiteralType::Bool) {};
@@ -38,7 +39,7 @@ class VellumLiteral {
 
  private:
   std::variant<int32_t, float, bool, std::string_view> value;
-  VellumLiteralType type;
+  VellumLiteralType type = VellumLiteralType::None;
 };
 
 VellumLiteral makeDefaultLiteral(VellumLiteralType type);

@@ -20,7 +20,6 @@ class PexFile;
 }
 
 enum class VellumValueType {
-  None,
   Function,
   Identifier,
   Literal,
@@ -31,7 +30,6 @@ enum class VellumValueType {
 
 class VellumValue {
  public:
-  VellumValue() = default;
   VellumValue(VellumFunction value)
       : value(value), type(VellumValueType::Function) {}
   VellumValue(VellumLiteral value)
@@ -78,10 +76,10 @@ class VellumValue {
   }
 
  private:
-  std::variant<std::monostate, VellumFunction, VellumLiteral, VellumIdentifier,
-               VellumProperty, VellumVariable>
+  std::variant<VellumFunction, VellumLiteral, VellumIdentifier, VellumProperty,
+               VellumVariable>
       value;
-  VellumValueType type = VellumValueType::None;
+  VellumValueType type;
 };
 
 pex::PexValue makePexValue(VellumValue value, pex::PexFile& file);

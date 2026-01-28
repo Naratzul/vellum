@@ -36,7 +36,7 @@ VellumValue GlobalVariableDeclaration::getValue() const {
   if (initializer_) {
     return initializer_->asLiteral().getLiteral();
   }
-  return VellumValue();
+  return makeDefaultLiteral(typeName_->asLiteralType());
 }
 
 void GlobalVariableDeclaration::accept(DeclarationVisitor& visitor) {

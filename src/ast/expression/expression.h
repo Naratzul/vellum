@@ -94,7 +94,7 @@ class IdentifierExpression : public Expression {
 
  private:
   VellumIdentifier identifier;
-  VellumValueType identifierType{VellumValueType::None};
+  VellumValueType identifierType{VellumValueType::Identifier};
 };
 
 class CallExpression : public Expression {
@@ -165,7 +165,7 @@ class PropertyGetExpression : public Expression {
  private:
   Unique<Expression> object;
   VellumIdentifier property;
-  VellumValueType identifierType{VellumValueType::None};
+  VellumValueType identifierType{VellumValueType::Identifier};
 };
 
 class PropertySetExpression : public Expression {

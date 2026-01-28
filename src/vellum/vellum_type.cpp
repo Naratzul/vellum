@@ -20,8 +20,6 @@ bool operator==(const VellumType& lhs, const VellumType& rhs) {
       return lhs.asIdentifier() == rhs.asIdentifier();
     case VellumTypeState::Literal:
       return lhs.asLiteralType() == rhs.asLiteralType();
-    case VellumTypeState::None:
-      return true;
     case VellumTypeState::Array:
       return *lhs.asArraySubtype() == *rhs.asArraySubtype();
     default:
@@ -42,7 +40,9 @@ VellumType VellumType::literal(VellumLiteralType type) {
   return VellumType(type);
 }
 
-VellumType VellumType::none() { return VellumType(); }
+VellumType VellumType::none() {
+  return VellumType::literal(VellumLiteralType::None);
+}
 
 VellumType VellumType::identifier(VellumIdentifier identifier) {
   return VellumType(identifier);
@@ -88,8 +88,6 @@ std::string_view VellumType::toString() const {
       return literalTypeToString(asLiteralType());
     case VellumTypeState::Unresolved:
       return asRawType();
-    case VellumTypeState::None:
-      return "None";
     case VellumTypeState::Array:
       return common::StringSet::insert(
           std::string(asArraySubtype()->toString()) + "[]");

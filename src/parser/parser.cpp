@@ -12,6 +12,7 @@ using common::Shared;
 using common::Unique;
 using common::Vec;
 
+namespace {
 class ParseException : public std::runtime_error {
  public:
   ParseException(Token token, const std::string& message)
@@ -23,6 +24,7 @@ class ParseException : public std::runtime_error {
  private:
   Token token;
 };
+}
 
 static std::string_view getFunctionTypeName(FunctionType type) {
   switch (type) {
@@ -305,7 +307,7 @@ Unique<ast::Declaration> Parser::propertyDeclaration() {
   std::string_view documentationString = "";
   return makeUnique<ast::PropertyDeclaration>(
       name, typeName, documentationString, std::move(getAccessor),
-      std::move(setAccessor), VellumValue());  // TODO: fix default value
+      std::move(setAccessor), std::nullopt);  // TODO: fix default value
 }
 
 ast::FunctionBody Parser::functionBody(FunctionType type) {
@@ -594,14 +596,12 @@ Unique<ast::Expression> Parser::callOrGetExpression() {
 
   while (true) {
     if (match(TokenType::LEFT_PAREN)) {
-      const Token op = previous;
-      expr = callExpression(std::move(expr), op);
+      expr = callExpression(std::move(expr), previous);
     } else if (match(TokenType::DOT)) {
-      const Token op = previous;
       consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
               "Expect a property name after '.'");
       expr = makeUnique<ast::PropertyGetExpression>(
-          std::move(expr), VellumIdentifier(previous.lexeme), op);
+          std::move(expr), VellumIdentifier(previous.lexeme), previous);
     } else {
       break;
     }
@@ -629,7 +629,7 @@ Unique<ast::Expression> Parser::callExpression(Unique<ast::Expression> callee,
 
 Unique<ast::Expression> Parser::primaryExpression() {
   if (match({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
-             TokenType::TRUE, TokenType::STRING, TokenType::NIL})) {
+             TokenType::TRUE, TokenType::STRING, TokenType::NONE})) {
     return makeUnique<ast::LiteralExpression>(*previous.value, previous);
   }
 

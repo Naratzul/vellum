@@ -52,7 +52,7 @@ enum class TokenType {
   GET,
   IF,
   IMPORT,
-  NIL,
+  NONE,
   NOT,
   OR,
   RETURN,
@@ -64,6 +64,18 @@ enum class TokenType {
   TRUE,
   VAR,
   WHILE,
+  // Papyrus keywords
+  SCRIPTNAME,
+  EXTENDS,
+  HIDDEN,
+  FUNCTION,
+  ENDFUNCTION,
+  ENDEVENT,
+  PROPERTY,
+  AUTO,
+  AUTOREADONLY,
+  NATIVE,
+  GLOBAL,
 
   ERROR,
   END_OF_FILE

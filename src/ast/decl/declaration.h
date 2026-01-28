@@ -121,6 +121,7 @@ class GlobalVariableDeclaration : public Declaration {
 struct FunctionParameter {
   std::string_view name;
   VellumType type;
+  Opt<VellumLiteral> defaultValue;
 };
 
 bool operator==(const FunctionParameter& lhs, const FunctionParameter& rhs);
@@ -169,7 +170,7 @@ class PropertyDeclaration : public Declaration {
                       std::string_view documentationString,
                       Opt<ast::FunctionBody> getAccessor,
                       Opt<ast::FunctionBody> setAccessor,
-                      VellumValue defaultValue)
+                      Opt<VellumLiteral> defaultValue)
       : name(name),
         typeName(typeName),
         documentationString(documentationString),
@@ -203,7 +204,7 @@ class PropertyDeclaration : public Declaration {
   const Opt<ast::FunctionBody>& getSetAccessor() const { return setAccessor; }
   Opt<ast::FunctionBody> getSetAccessor() { return std::move(setAccessor); }
 
-  VellumValue getDefaultValue() const { return defaultValue; }
+  Opt<VellumLiteral> getDefaultValue() const { return defaultValue; }
 
  private:
   std::string_view name;
@@ -213,7 +214,7 @@ class PropertyDeclaration : public Declaration {
   Opt<ast::FunctionBody> getAccessor;
   Opt<ast::FunctionBody> setAccessor;
 
-  VellumValue defaultValue;
+  Opt<VellumLiteral> defaultValue;
 };
 }  // namespace ast
 }  // namespace vellum
