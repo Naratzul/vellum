@@ -64,7 +64,10 @@ enum class CompilerErrorKind {
 
   ArrayLengthTypeMismatch,
   ArrayLengthMustBePositive,
-  ArrayLengthMaximumExceeded
+  ArrayLengthMaximumExceeded,
+
+  CannotImportLiteralType,
+  CannotExtendFromLiteralType
 };
 
 enum class CompilerWarningKind {};

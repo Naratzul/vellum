@@ -1,10 +1,13 @@
 #include "declaration_collector.h"
 
 #include <algorithm>
+#include <cctype>
+#include <string>
 
 #include "ast/decl/declaration.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
+#include "vellum/vellum_literal.h"
 
 namespace vellum {
 void DeclarationCollector::collect(
@@ -20,7 +23,35 @@ void DeclarationCollector::collect(
 
 void DeclarationCollector::visitImportDeclaration(
     ast::ImportDeclaration& declaration) {
-  resolver->importObject(VellumIdentifier(declaration.getImportName()));
+  std::string_view importName = declaration.getImportName();
+
+  bool isLiteralType = false;
+
+  if (isPapyrus) {
+    std::string lowerName;
+    lowerName.reserve(importName.size());
+    for (char c : importName) {
+      lowerName += std::tolower(c);
+    }
+    isLiteralType = literalTypeFromString(lowerName).has_value() ||
+                    literalTypeFromString(importName).has_value() ||
+                    lowerName == "void" || lowerName == "none";
+  } else {
+    isLiteralType = literalTypeFromString(importName).has_value() ||
+                    importName == "void" || importName == "None";
+  }
+
+  if (isLiteralType) {
+    errorHandler->errorAt(
+        declaration.getImportNameLocation(),
+        CompilerErrorKind::CannotImportLiteralType,
+        "Cannot import literal type '{}'. Literal types (Int, Float, String, "
+        "Bool) cannot be imported.",
+        importName);
+    return;
+  }
+
+  resolver->importObject(VellumIdentifier(importName));
 }
 
 void DeclarationCollector::visitScriptDeclaration(
@@ -38,6 +69,40 @@ void DeclarationCollector::visitScriptDeclaration(
                           "Filename '{}' doesn't match scriptname '{}'.",
                           scriptFilename, declaration.scriptName());
     return;
+  }
+
+  if (auto parentScriptName = declaration.parentScriptName()) {
+    bool isLiteralType = false;
+
+    if (isPapyrus) {
+      std::string lowerName;
+      lowerName.reserve(parentScriptName.value().size());
+      for (char c : parentScriptName.value()) {
+        lowerName += std::tolower(c);
+      }
+      isLiteralType =
+          literalTypeFromString(lowerName).has_value() ||
+          literalTypeFromString(parentScriptName.value()).has_value() ||
+          lowerName == "void" || lowerName == "none";
+    } else {
+      isLiteralType =
+          literalTypeFromString(parentScriptName.value()).has_value() ||
+          parentScriptName.value() == "void" ||
+          parentScriptName.value() == "None";
+    }
+
+    if (isLiteralType) {
+      auto location = declaration.getParentScriptNameLocation();
+      if (location.has_value()) {
+        errorHandler->errorAt(location.value(),
+                              CompilerErrorKind::CannotExtendFromLiteralType,
+                              "Cannot extend from literal type '{}'. Scripts "
+                              "can only extend from other scripts, not literal "
+                              "types (Int, Float, String, Bool).",
+                              parentScriptName.value());
+      }
+      return;
+    }
   }
 
   scriptDeclCount++;

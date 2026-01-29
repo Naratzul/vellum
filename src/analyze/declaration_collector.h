@@ -21,10 +21,12 @@ class DeclarationCollector : public ast::DeclarationVisitor {
  public:
   explicit DeclarationCollector(
       const Shared<CompilerErrorHandler>& errorHandler,
-      const Shared<Resolver>& resolver, std::string_view scriptFileName)
+      const Shared<Resolver>& resolver, std::string_view scriptFileName,
+      bool isPapyrus = false)
       : errorHandler(errorHandler),
         resolver(resolver),
-        scriptFilename(scriptFileName) {}
+        scriptFilename(scriptFileName),
+        isPapyrus(isPapyrus) {}
 
   void collect(Vec<Unique<ast::Declaration>>& declarations);
 
@@ -40,5 +42,6 @@ class DeclarationCollector : public ast::DeclarationVisitor {
   Shared<Resolver> resolver;
   std::string_view scriptFilename;
   int scriptDeclCount = 0;
+  bool isPapyrus;
 };
 }  // namespace vellum

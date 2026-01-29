@@ -23,7 +23,7 @@ class ParseException : public std::runtime_error {
  private:
   Token token;
 };
-}
+}  // namespace
 
 PapyrusParser::PapyrusParser(Unique<ILexer> lexer,
                              Shared<CompilerErrorHandler> errorHandler)
@@ -126,7 +126,7 @@ Unique<ast::Declaration> PapyrusParser::scriptDeclaration() {
   Token scriptNameLocation = previous;
   std::string_view scriptName = previous.lexeme;
 
-  // Skip optional 'Hidden' keyword
+  // Skip optional 'Hidden' keyword (can appear before or after extends)
   match(TokenType::HIDDEN);
 
   Opt<std::string_view> parentScriptName;
@@ -136,6 +136,9 @@ Unique<ast::Declaration> PapyrusParser::scriptDeclaration() {
             "Expect a parent script's name after 'extends'.");
     parentScriptName = previous.lexeme;
     parentScriptNameLocation = previous;
+
+    // Skip optional 'Hidden' keyword after extends
+    match(TokenType::HIDDEN);
   }
 
   return makeUnique<ast::ScriptDeclaration>(

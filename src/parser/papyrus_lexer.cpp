@@ -1,5 +1,6 @@
 #include "papyrus_lexer.h"
 
+#include <cctype>
 #include <charconv>
 
 #include "common/string_set.h"
@@ -157,7 +158,7 @@ TokenType PapyrusLexer::identifierType() const {
   switch (std::tolower(start[0])) {
     case 'a':
       if (current - start > 1) {
-        switch (start[1]) {
+        switch (std::tolower(start[1])) {
           case 'n':
             return checkKeyword(2, 1, "d", TokenType::AND);
           case 's':
@@ -172,7 +173,7 @@ TokenType PapyrusLexer::identifierType() const {
       break;
     case 'e':
       if (current - start > 1) {
-        switch (start[1]) {
+        switch (std::tolower(start[1])) {
           case 'v':
             return checkKeyword(2, 3, "ent", TokenType::EVENT);
           case 'l':
@@ -190,7 +191,7 @@ TokenType PapyrusLexer::identifierType() const {
       break;
     case 'f':
       if (current - start > 1) {
-        switch (start[1]) {
+        switch (std::tolower(start[1])) {
           case 'a':
             return checkKeyword(2, 3, "lse", TokenType::FALSE);
           case 'u':
@@ -204,7 +205,7 @@ TokenType PapyrusLexer::identifierType() const {
       return checkKeyword(1, 5, "idden", TokenType::HIDDEN);
     case 'i':
       if (current - start > 1) {
-        switch (start[1]) {
+        switch (std::tolower(start[1])) {
           case 'f':
             return checkKeyword(2, 0, "", TokenType::IF);
           case 'm':
@@ -214,12 +215,12 @@ TokenType PapyrusLexer::identifierType() const {
       break;
     case 'n':
       if (current - start > 1) {
-        switch (start[1]) {
+        switch (std::tolower(start[1])) {
           case 'a':
             return checkKeyword(2, 4, "tive", TokenType::NATIVE);
           case 'o':
             if (current - start > 2) {
-              switch (start[2]) {
+              switch (std::tolower(start[2])) {
                 case 't':
                   return checkKeyword(3, 0, "", TokenType::NOT);
                 case 'n':
@@ -251,8 +252,13 @@ TokenType PapyrusLexer::identifierType() const {
 
 TokenType PapyrusLexer::checkKeyword(int start, int length, const char* rest,
                                      TokenType type) const {
-  if (current - this->start == start + length &&
-      memcmp(this->start + start, rest, length) == 0) {
+  if (current - this->start == start + length) {
+    // Case-insensitive comparison for Papyrus keywords
+    for (int i = 0; i < length; i++) {
+      if (std::tolower(this->start[start + i]) != std::tolower(rest[i])) {
+        return TokenType::IDENTIFIER;
+      }
+    }
     return type;
   }
   return TokenType::IDENTIFIER;

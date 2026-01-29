@@ -4,12 +4,13 @@
 #include <format>
 
 #include "analyze/declaration_collector.h"
-#include "analyze/import_declaration_collector.h"
-#include "compiler/resolver.h"
+#include "analyze/type_collector.h"
 #include "common/fs.h"
+#include "compiler/resolver.h"
 #include "lexer/lexer.h"
 #include "parser/papyrus_lexer.h"
 #include "parser/papyrus_parser.h"
+#include "vellum/vellum_literal.h"
 
 namespace vellum {
 using namespace common;
@@ -39,20 +40,32 @@ void ImportResolver::buildImportGraph(
 
     parseImport(*import);
 
-    auto resolver = makeShared<Resolver>(
-        VellumObject(VellumType::identifier(name)), errorHandler, importLibrary);
+    const auto filename = import->getFilePath().stem().string();
+
+    TypeCollector typeCollector;
+    typeCollector.collect(import->getAst().declarations);
+
+    Set<VellumIdentifier> discoveredTypes;
+    for (const auto& typeName : typeCollector.getDiscoveredTypes()) {
+      if (literalTypeFromString(typeName.toString()).has_value()) {
+        continue;
+      }
+
+      if (importLibrary->hasModule(typeName)) {
+        discoveredTypes.insert(typeName);
+      }
+    }
+
+    buildImportGraph(discoveredTypes);
+    auto resolver =
+        makeShared<Resolver>(VellumObject(VellumType::identifier(name)),
+                             errorHandler, importLibrary);
 
     import->setResolver(resolver);
 
-    const auto filename = import->getFilePath().stem().string();
-    
-    ImportDeclarationCollector importCollector;
-    importCollector.collect(import->getAst().declarations);
-    
-    DeclarationCollector collector(errorHandler, resolver, filename);
+    bool isPapyrus = import->getType() == ImportModuleType::Papyrus;
+    DeclarationCollector collector(errorHandler, resolver, filename, isPapyrus);
     collector.collect(import->getAst().declarations);
-
-    buildImportGraph(importCollector.getImportedNames());
   }
 }
 

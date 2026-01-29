@@ -3,10 +3,10 @@
 #include <ctime>
 
 #include "analyze/declaration_collector.h"
-#include "analyze/import_declaration_collector.h"
 #include "analyze/import_library.h"
 #include "analyze/import_resolver.h"
 #include "analyze/semantic_analyzer.h"
+#include "analyze/type_collector.h"
 #include "common/fs.h"
 #include "common/os.h"
 #include "common/types.h"
@@ -16,6 +16,7 @@
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "pex/pex_file.h"
+#include "vellum/vellum_literal.h"
 
 namespace vellum {
 using common::makeShared;
@@ -31,8 +32,9 @@ void Vellum::run(const fs::path& inputFile,
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(importPaths);
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier(filename)), errorHandler, importLibrary);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier(filename)),
+                           errorHandler, importLibrary);
 
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();
@@ -41,10 +43,21 @@ void Vellum::run(const fs::path& inputFile,
     return;
   }
 
-  ImportDeclarationCollector importCollector;
-  importCollector.collect(parseResult.declarations);
-  
-  importResolver->buildImportGraph(importCollector.getImportedNames());
+  TypeCollector typeCollector;
+  typeCollector.collect(parseResult.declarations);
+
+  Set<VellumIdentifier> initialDiscoverySet;
+  for (const auto& typeName : typeCollector.getDiscoveredTypes()) {
+    if (literalTypeFromString(typeName.toString()).has_value()) {
+      continue;
+    }
+
+    if (importLibrary->hasModule(typeName)) {
+      initialDiscoverySet.insert(typeName);
+    }
+  }
+
+  importResolver->buildImportGraph(initialDiscoverySet);
 
   DeclarationCollector collector(errorHandler, resolver, filename);
   collector.collect(parseResult.declarations);
