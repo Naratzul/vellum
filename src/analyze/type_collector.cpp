@@ -1,8 +1,11 @@
 #include "type_collector.h"
 
 #include "ast/decl/declaration.h"
+#include "ast/expression/expression.h"
+#include "ast/statement/statement.h"
 #include "vellum/vellum_literal.h"
 #include "vellum/vellum_type.h"
+#include "vellum/vellum_value.h"
 
 namespace vellum {
 
@@ -43,6 +46,10 @@ void TypeCollector::visitFunctionDeclaration(
 
   for (const auto& param : declaration.getParameters()) {
     collectTypeFromVellumType(param.type);
+  }
+
+  for (const auto& stmt : declaration.getBody()) {
+    stmt->accept(*this);
   }
 }
 
@@ -85,6 +92,94 @@ bool TypeCollector::isLiteralType(const VellumType& type) const {
   }
 
   return false;
+}
+
+void TypeCollector::visitExpressionStatement(
+    ast::ExpressionStatement& statement) {
+  statement.getExpression()->accept(*this);
+}
+
+void TypeCollector::visitReturnStatement(ast::ReturnStatement& statement) {
+  statement.getExpression()->accept(*this);
+}
+
+void TypeCollector::visitIfStatement(ast::IfStatement& statement) {
+  statement.getCondition()->accept(*this);
+
+  for (const auto& stmt : statement.getThenBlock()) {
+    stmt->accept(*this);
+  }
+
+  if (const auto& elseBlock = statement.getElseBlock()) {
+    for (const auto& stmt : elseBlock.value()) {
+      stmt->accept(*this);
+    }
+  }
+}
+
+void TypeCollector::visitLocalVariableStatement(
+    ast::LocalVariableStatement& statement) {
+  if (auto type = statement.getType()) {
+    collectTypeFromVellumType(type.value());
+  }
+
+  statement.getInitializer()->accept(*this);
+}
+
+void TypeCollector::visitWhileStatement(ast::WhileStatement& statement) {
+  statement.getCondition()->accept(*this);
+
+  for (const auto& stmt : statement.getBody()) {
+    stmt->accept(*this);
+  }
+}
+
+void TypeCollector::visitIdentifierExpression(ast::IdentifierExpression& expr) {
+  VellumIdentifier identifier = expr.getIdentifier();
+  discoveredTypes.insert(identifier);
+}
+
+void TypeCollector::visitCallExpression(ast::CallExpression& expr) {
+  expr.getCallee()->accept(*this);
+
+  for (const auto& arg : expr.getArguments()) {
+    arg->accept(*this);
+  }
+}
+
+void TypeCollector::visitPropertyGetExpression(
+    ast::PropertyGetExpression& expr) {
+  expr.getObject()->accept(*this);
+}
+
+void TypeCollector::visitPropertySetExpression(
+    ast::PropertySetExpression& expr) {
+  expr.getObject()->accept(*this);
+  expr.getValue()->accept(*this);
+}
+
+void TypeCollector::visitAssignExpression(ast::AssignExpression& expr) {
+  expr.getValue()->accept(*this);
+}
+
+void TypeCollector::visitBinaryExpression(ast::BinaryExpression& expr) {
+  expr.getLeft()->accept(*this);
+  expr.getRight()->accept(*this);
+}
+
+void TypeCollector::visitUnaryExpression(ast::UnaryExpression& expr) {
+  expr.getOperand()->accept(*this);
+}
+
+void TypeCollector::visitCastExpression(ast::CastExpression& expr) {
+  collectTypeFromVellumType(expr.getTargetType());
+  expr.getExpression()->accept(*this);
+}
+
+void TypeCollector::visitNewArrayExpression(ast::NewArrayExpression& expr) {
+  if (auto subtype = expr.getSubtype()) {
+    collectTypeFromVellumType(subtype.value());
+  }
 }
 
 }  // namespace vellum

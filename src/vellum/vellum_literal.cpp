@@ -94,12 +94,9 @@ bool operator!=(const VellumLiteral& lhs, const VellumLiteral& rhs) {
 }
 
 std::ostream& operator<<(std::ostream& os, const VellumLiteral& value) {
-  if (value.getType() == VellumLiteralType::None) {
-    os << "None";
-    return os;
+  if (value.getType() != VellumLiteralType::None) {
+    os << literalTypeToString(value.getType()) << ": ";
   }
-
-  os << literalTypeToString(value.getType()) << ": ";
 
   switch (value.getType()) {
     case VellumLiteralType::Bool:
@@ -113,6 +110,9 @@ std::ostream& operator<<(std::ostream& os, const VellumLiteral& value) {
       break;
     case VellumLiteralType::String:
       os << "\"" << value.asString() << "\"";
+      break;
+    case vellum::VellumLiteralType::None:
+      os << "None";
       break;
   }
   return os;
