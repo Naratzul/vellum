@@ -52,8 +52,7 @@ void ImportResolver::buildImportGraph(
 
     import->setResolver(resolver);
 
-    bool isPapyrus = import->getType() == ImportModuleType::Papyrus;
-    DeclarationCollector collector(errorHandler, resolver, filename, isPapyrus);
+    DeclarationCollector collector(errorHandler, resolver, filename);
     collector.collect(import->getAst().declarations);
   }
 }

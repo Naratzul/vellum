@@ -1,6 +1,7 @@
 #include "declaration_collector.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cctype>
 #include <string>
 
@@ -25,21 +26,7 @@ void DeclarationCollector::visitImportDeclaration(
     ast::ImportDeclaration& declaration) {
   std::string_view importName = declaration.getImportName();
 
-  bool isLiteralType = false;
-
-  if (isPapyrus) {
-    std::string lowerName;
-    lowerName.reserve(importName.size());
-    for (char c : importName) {
-      lowerName += std::tolower(c);
-    }
-    isLiteralType = literalTypeFromString(lowerName).has_value() ||
-                    literalTypeFromString(importName).has_value() ||
-                    lowerName == "void" || lowerName == "none";
-  } else {
-    isLiteralType = literalTypeFromString(importName).has_value() ||
-                    importName == "void" || importName == "None";
-  }
+  bool isLiteralType = literalTypeFromString(importName).has_value();
 
   if (isLiteralType) {
     errorHandler->errorAt(
@@ -72,35 +59,19 @@ void DeclarationCollector::visitScriptDeclaration(
   }
 
   if (auto parentScriptName = declaration.parentScriptName()) {
-    bool isLiteralType = false;
-
-    if (isPapyrus) {
-      std::string lowerName;
-      lowerName.reserve(parentScriptName.value().size());
-      for (char c : parentScriptName.value()) {
-        lowerName += std::tolower(c);
-      }
-      isLiteralType =
-          literalTypeFromString(lowerName).has_value() ||
-          literalTypeFromString(parentScriptName.value()).has_value() ||
-          lowerName == "void" || lowerName == "none";
-    } else {
-      isLiteralType =
-          literalTypeFromString(parentScriptName.value()).has_value() ||
-          parentScriptName.value() == "void" ||
-          parentScriptName.value() == "None";
-    }
+    bool isLiteralType =
+        literalTypeFromString(parentScriptName.value()).has_value();
 
     if (isLiteralType) {
       auto location = declaration.getParentScriptNameLocation();
-      if (location.has_value()) {
-        errorHandler->errorAt(location.value(),
-                              CompilerErrorKind::CannotExtendFromLiteralType,
-                              "Cannot extend from literal type '{}'. Scripts "
-                              "can only extend from other scripts, not literal "
-                              "types (Int, Float, String, Bool).",
-                              parentScriptName.value());
-      }
+      assert(location.has_value());
+
+      errorHandler->errorAt(location.value(),
+                            CompilerErrorKind::CannotExtendFromLiteralType,
+                            "Cannot extend from literal type '{}'. Scripts "
+                            "can only extend from other scripts, not literal "
+                            "types (Int, Float, String, Bool).",
+                            parentScriptName.value());
       return;
     }
   }
