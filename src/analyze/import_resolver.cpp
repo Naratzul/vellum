@@ -21,8 +21,28 @@ ImportResolver::ImportResolver(const Shared<CompilerErrorHandler>& errorHandler,
 
 void ImportResolver::buildImportGraph(
     const Set<VellumIdentifier>& importedNames) {
+  discoveredTypes.clear();
+  doBuildImportGraph(importedNames);
+}
+
+const Shared<Resolver> ImportResolver::getImportResolver(
+    VellumIdentifier name) {
+  auto import = importLibrary->findModule(name);
+  if (!import) {
+    return nullptr;
+  }
+  return import->getResolver();
+}
+
+void ImportResolver::doBuildImportGraph(
+    const Set<VellumIdentifier>& importedNames) {
   for (const auto& name : importedNames) {
     auto import = importLibrary->findModule(name);
+
+    auto [_, added] = discoveredTypes.insert(name);
+    if (!added) {
+      continue;
+    }
 
     if (!import) {
       // TODO: pass token
@@ -45,7 +65,7 @@ void ImportResolver::buildImportGraph(
     TypeCollector typeCollector;
     typeCollector.collect(import->getAst().declarations);
 
-    buildImportGraph(typeCollector.getDiscoveredTypes());
+    doBuildImportGraph(typeCollector.getDiscoveredTypes());
     auto resolver =
         makeShared<Resolver>(VellumObject(VellumType::identifier(name)),
                              errorHandler, importLibrary);
@@ -55,15 +75,6 @@ void ImportResolver::buildImportGraph(
     DeclarationCollector collector(errorHandler, resolver, filename);
     collector.collect(import->getAst().declarations);
   }
-}
-
-const Shared<Resolver> ImportResolver::getImportResolver(
-    VellumIdentifier name) {
-  auto import = importLibrary->findModule(name);
-  if (!import) {
-    return nullptr;
-  }
-  return import->getResolver();
 }
 
 void ImportResolver::parseImport(ImportModule& import) {

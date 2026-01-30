@@ -22,6 +22,9 @@ class ImportResolver {
  private:
   Shared<CompilerErrorHandler> errorHandler;
   Shared<ImportLibrary> importLibrary;
+  Set<VellumIdentifier> discoveredTypes;
+
+  void doBuildImportGraph(const Set<VellumIdentifier>& importedNames);
 
   void parseImport(ImportModule& import);
 };
