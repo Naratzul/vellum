@@ -4,6 +4,7 @@
 #include <charconv>
 
 #include "common/string_set.h"
+#include "lexer/token.h"
 
 #ifdef __APPLE__
 #include <cstdlib>
@@ -33,6 +34,22 @@ Token PapyrusLexer::scanToken() {
   }
 
   switch (c) {
+    case '\\':
+      // Handle line continuation: backslash followed by optional whitespace and
+      // newline
+      advance();  // consume backslash
+      // Skip whitespace (but not newlines) after backslash
+      while (peek() == ' ' || peek() == '\t' || peek() == '\r') {
+        advance();
+      }
+      // Now check for newline
+      if (peek() == '\n') {
+        advance();  // consume newline
+        line++;
+        position = 0;
+        return scanToken();  // recursively scan next token
+      }
+      return errorToken("Unexpected character '\\'.");
     case '(':
       return makeToken(TokenType::LEFT_PAREN);
     case ')':
@@ -72,6 +89,16 @@ Token PapyrusLexer::scanToken() {
     case '>':
       return makeToken(match('=') ? TokenType::GREATER_EQUAL
                                   : TokenType::GREATER);
+    case '&':
+      if (match('&')) {
+        return makeToken(TokenType::AND);
+      }
+      break;
+    case '|':
+      if (match('|')) {
+        return makeToken(TokenType::AND);
+      }
+      break;
     case '"':
       return string();
   }
@@ -159,8 +186,6 @@ TokenType PapyrusLexer::identifierType() const {
     case 'a':
       if (current - start > 1) {
         switch (std::tolower(start[1])) {
-          case 'n':
-            return checkKeyword(2, 1, "d", TokenType::AND);
           case 's':
             return checkKeyword(2, 0, "", TokenType::AS);
           case 'u':
@@ -231,8 +256,6 @@ TokenType PapyrusLexer::identifierType() const {
         }
       }
       break;
-    case 'o':
-      return checkKeyword(1, 1, "r", TokenType::OR);
     case 'p':
       return checkKeyword(1, 7, "roperty", TokenType::PROPERTY);
     case 'r':
@@ -292,6 +315,17 @@ void PapyrusLexer::skipWhitespaces() {
       case '\r':
       case '\t':
         advance();
+        break;
+      case '\\':
+        // Check for line continuation: backslash followed by newline
+        if (peekNext() == '\n') {
+          advance();  // consume backslash
+          advance();  // consume newline
+          line++;
+          position = 0;
+        } else {
+          return;
+        }
         break;
       case '\n':
         line++;

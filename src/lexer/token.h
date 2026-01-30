@@ -24,6 +24,7 @@ enum class TokenType {
   COLON,
   SEMICOLON,
   SLASH,
+  BACKSLASH,
   STAR,
   PERCENT,
   // One or two character tokens.
