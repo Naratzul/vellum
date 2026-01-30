@@ -45,18 +45,7 @@ void ImportResolver::buildImportGraph(
     TypeCollector typeCollector;
     typeCollector.collect(import->getAst().declarations);
 
-    Set<VellumIdentifier> discoveredTypes;
-    for (const auto& typeName : typeCollector.getDiscoveredTypes()) {
-      if (literalTypeFromString(typeName.toString()).has_value()) {
-        continue;
-      }
-
-      if (importLibrary->hasModule(typeName)) {
-        discoveredTypes.insert(typeName);
-      }
-    }
-
-    buildImportGraph(discoveredTypes);
+    buildImportGraph(typeCollector.getDiscoveredTypes());
     auto resolver =
         makeShared<Resolver>(VellumObject(VellumType::identifier(name)),
                              errorHandler, importLibrary);

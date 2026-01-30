@@ -1,9 +1,9 @@
 #include "static_analyze.h"
 
 #include "analyze/declaration_collector.h"
-#include "analyze/import_declaration_collector.h"
 #include "analyze/import_resolver.h"
 #include "analyze/semantic_analyzer.h"
+#include "analyze/type_collector.h"
 #include "compiler/resolver.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
@@ -19,8 +19,7 @@ Vec<DiagnosticMessage> StaticAnalyze::analyze(std::string_view filename,
   auto lexer = makeUnique<Lexer>(sourceCode);
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
-  auto importResolver =
-      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto resolver =
       makeShared<Resolver>(VellumObject(VellumType::identifier(filename)),
                            errorHandler, importLibrary);
@@ -32,10 +31,10 @@ Vec<DiagnosticMessage> StaticAnalyze::analyze(std::string_view filename,
     return errorHandler->getErrors();
   }
 
-  ImportDeclarationCollector importCollector;
-  importCollector.collect(parseResult.declarations);
+  TypeCollector typeCollector;
+  typeCollector.collect(parseResult.declarations);
 
-  importResolver->buildImportGraph(importCollector.getImportedNames());
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
 
   DeclarationCollector collector(errorHandler, resolver, filename);
   collector.collect(parseResult.declarations);

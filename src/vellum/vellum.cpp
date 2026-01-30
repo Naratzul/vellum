@@ -46,18 +46,7 @@ void Vellum::run(const fs::path& inputFile,
   TypeCollector typeCollector;
   typeCollector.collect(parseResult.declarations);
 
-  Set<VellumIdentifier> initialDiscoverySet;
-  for (const auto& typeName : typeCollector.getDiscoveredTypes()) {
-    if (literalTypeFromString(typeName.toString()).has_value()) {
-      continue;
-    }
-
-    if (importLibrary->hasModule(typeName)) {
-      initialDiscoverySet.insert(typeName);
-    }
-  }
-
-  importResolver->buildImportGraph(initialDiscoverySet);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
 
   DeclarationCollector collector(errorHandler, resolver, filename);
   collector.collect(parseResult.declarations);

@@ -14,13 +14,14 @@ void TypeCollector::collect(Vec<Unique<ast::Declaration>>& declarations) {
 
 void TypeCollector::visitImportDeclaration(
     ast::ImportDeclaration& declaration) {
-  discoveredTypes.insert(VellumIdentifier(declaration.getImportName()));
+  collectTypeFromVellumType(
+      VellumType::identifier(declaration.getImportName()));
 }
 
 void TypeCollector::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
   if (auto parentScriptName = declaration.parentScriptName()) {
-    discoveredTypes.insert(VellumIdentifier(parentScriptName.value()));
+    collectTypeFromVellumType(VellumType::identifier(parentScriptName.value()));
   }
 
   // Recursively collect types from script members
