@@ -42,6 +42,8 @@ class ImportModule {
   std::string_view getFileContent() const { return fileContent; }
   void setFileContent(const std::string& str) { fileContent = str; }
 
+  bool isParsed() const { return !fileContent.empty(); }
+
  private:
   VellumIdentifier name;
   ImportModuleType type;
@@ -61,7 +63,10 @@ class ImportLibrary {
   ImportModulePtr findModule(VellumIdentifier name) const;
   bool hasModule(VellumIdentifier name) const;
 
-  // For testing: add a module manually
+  const Map<VellumIdentifier, ImportModulePtr>& getAllModules() const {
+    return importNameToModule;
+  }
+
   void addTestModule(ImportModulePtr module);
 
  private:

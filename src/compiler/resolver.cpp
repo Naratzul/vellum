@@ -78,6 +78,14 @@ Opt<VellumValue> Resolver::resolveProperty(VellumType type,
     }
   }
 
+  if (type.getState() == VellumTypeState::Identifier) {
+    if (auto module = importLibrary->findModule(type.asIdentifier())) {
+      if (auto resolver = module->getResolver()) {
+        return resolver->resolveProperty(type, member);
+      }
+    }
+  }
+
   return std::nullopt;
 }
 
@@ -93,6 +101,14 @@ Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
         if (auto resolver = module->getResolver()) {
           return resolver->resolveFunction(type, function);
         }
+      }
+    }
+  }
+
+  if (type.getState() == VellumTypeState::Identifier) {
+    if (auto module = importLibrary->findModule(type.asIdentifier())) {
+      if (auto resolver = module->getResolver()) {
+        return resolver->resolveFunction(type, function);
       }
     }
   }
@@ -121,6 +137,10 @@ Opt<VellumType> Resolver::resolveScriptType(VellumIdentifier identifier) const {
     if (importType == type) {
       return importType;
     }
+  }
+
+  if (importLibrary->findModule(identifier)) {
+    return type;
   }
 
   return std::nullopt;

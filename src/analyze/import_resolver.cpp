@@ -23,6 +23,7 @@ void ImportResolver::buildImportGraph(
     const Set<VellumIdentifier>& importedNames) {
   discoveredTypes.clear();
   doBuildImportGraph(importedNames);
+  doResolveAllModules();
 }
 
 const Shared<Resolver> ImportResolver::getImportResolver(
@@ -53,27 +54,42 @@ void ImportResolver::doBuildImportGraph(
       continue;
     }
 
-    // Skip if already resolved (handles cyclic imports)
-    if (import->getResolver()) {
+    // Skip if already parsed (handles cyclic imports)
+    if (import->isParsed()) {
       continue;
     }
 
     parseImport(*import);
 
-    const auto filename = import->getFilePath().stem().string();
-
     TypeCollector typeCollector;
     typeCollector.collect(import->getAst().declarations);
 
     doBuildImportGraph(typeCollector.getDiscoveredTypes());
+  }
+}
+
+void ImportResolver::doResolveAllModules() {
+  for (const auto& [name, module] : importLibrary->getAllModules()) {
+    // Skip if already resolved
+    if (module->getResolver()) {
+      continue;
+    }
+
+    // Skip if not parsed (module wasn't discovered)
+    if (!module->isParsed()) {
+      continue;
+    }
+
+    const auto filename = module->getFilePath().stem().string();
+
     auto resolver =
         makeShared<Resolver>(VellumObject(VellumType::identifier(name)),
                              errorHandler, importLibrary);
 
-    import->setResolver(resolver);
+    module->setResolver(resolver);
 
     DeclarationCollector collector(errorHandler, resolver, filename);
-    collector.collect(import->getAst().declarations);
+    collector.collect(module->getAst().declarations);
   }
 }
 

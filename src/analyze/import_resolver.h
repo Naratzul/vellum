@@ -25,6 +25,7 @@ class ImportResolver {
   Set<VellumIdentifier> discoveredTypes;
 
   void doBuildImportGraph(const Set<VellumIdentifier>& importedNames);
+  void doResolveAllModules();
 
   void parseImport(ImportModule& import);
 };
