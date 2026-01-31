@@ -70,8 +70,8 @@ void DeclarationCollector::visitScriptDeclaration(
                             "can only extend from other scripts, not literal "
                             "types (Int, Float, String, Bool).",
                             parentScriptName.toString());
+      return;
     }
-    return;
   }
 
   scriptDeclCount++;

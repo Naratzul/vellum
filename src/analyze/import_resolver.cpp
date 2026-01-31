@@ -46,11 +46,6 @@ void ImportResolver::doBuildImportGraph(
     }
 
     if (!import) {
-      // TODO: pass token
-      errorHandler->errorAt(
-          Token(), CompilerErrorKind::UndefinedIdentifier,
-          "Undefined import name {}. Did you miss import path?",
-          name.toString());
       continue;
     }
 
