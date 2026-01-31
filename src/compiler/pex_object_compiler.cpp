@@ -35,12 +35,9 @@ pex::PexObject PexObjectCompiler::compile(
 
 void PexObjectCompiler::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
-  object.setName(file.getString(declaration.scriptName()));
-  if (declaration.parentScriptName().has_value()) {
-    object.setParentName(
-        file.getString(declaration.parentScriptName().value()));
-  }
-
+  object.setName(file.getString(declaration.getScriptName().toString()));
+  object.setParentName(
+      file.getString(declaration.getParentScriptName().toString()));
   object.setDocumentationString(file.getString(""));
   object.setAutoStateName(file.getString(""));
 }
@@ -84,7 +81,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
     } else {
       body.push_back(
           makeUnique<ast::ReturnStatement>(makeUnique<ast::LiteralExpression>(
-              declaration.getDefaultValue().value()))); // TODO: fix this
+              declaration.getDefaultValue().value())));  // TODO: fix this
     }
 
     ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
@@ -107,7 +104,8 @@ void PexObjectCompiler::visitPropertyDeclaration(
         "::" + std::string(declaration.getName()) + "_var");
     pex::PexVariable backedVariable(
         file.getString(varName), typeName,
-        makeValueFromToken(declaration.getDefaultValue().value())); // TODO: fix this
+        makeValueFromToken(
+            declaration.getDefaultValue().value()));  // TODO: fix this
     backedVariableName = backedVariable.name();
     object.getVariables().push_back(backedVariable);
   }

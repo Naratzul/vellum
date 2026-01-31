@@ -23,9 +23,7 @@ void TypeCollector::visitImportDeclaration(
 
 void TypeCollector::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
-  if (auto parentScriptName = declaration.parentScriptName()) {
-    collectTypeFromVellumType(VellumType::identifier(parentScriptName.value()));
-  }
+  collectTypeFromVellumType(declaration.getParentScriptName());
 
   // Recursively collect types from script members
   for (const auto& memberDecl : declaration.getMemberDecls()) {

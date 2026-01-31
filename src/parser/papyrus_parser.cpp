@@ -124,17 +124,17 @@ Unique<ast::Declaration> PapyrusParser::scriptDeclaration() {
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
           "Expect a script name after 'Scriptname'.");
   Token scriptNameLocation = previous;
-  std::string_view scriptName = previous.lexeme;
+  auto scriptName = VellumType::identifier(previous.lexeme);
 
   // Skip optional 'Hidden' keyword (can appear before or after extends)
   match(TokenType::HIDDEN);
 
-  Opt<std::string_view> parentScriptName;
+  auto parentScriptName = VellumType::none();
   Opt<Token> parentScriptNameLocation;
   if (match(TokenType::EXTENDS)) {
     consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
             "Expect a parent script's name after 'extends'.");
-    parentScriptName = previous.lexeme;
+    parentScriptName = VellumType::identifier(previous.lexeme);
     parentScriptNameLocation = previous;
 
     // Skip optional 'Hidden' keyword after extends

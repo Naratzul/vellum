@@ -11,11 +11,11 @@ void ScriptDeclaration::accept(DeclarationVisitor& visitor) {
 
 bool ScriptDeclaration::equals(const Declaration& other_) const {
   auto& other = static_cast<const ScriptDeclaration&>(other_);
-  if (scriptName() != other.scriptName()) {
+  if (scriptName != other.scriptName) {
     return false;
   }
 
-  if (parentScriptName() != other.parentScriptName()) {
+  if (parentScriptName != other.parentScriptName) {
     return false;
   }
 

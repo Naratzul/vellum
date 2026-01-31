@@ -50,37 +50,34 @@ void DeclarationCollector::visitScriptDeclaration(
     return;
   }
 
-  if (declaration.scriptName() != scriptFilename) {
+  auto scriptName = declaration.getScriptName();
+  if (scriptName.toString() != scriptFilename) {
     errorHandler->errorAt(declaration.getScriptNameLocation(),
                           CompilerErrorKind::FilenameMismatch,
                           "Filename '{}' doesn't match scriptname '{}'.",
-                          scriptFilename, declaration.scriptName());
+                          scriptFilename, scriptName.toString());
     return;
   }
 
-  if (auto parentScriptName = declaration.parentScriptName()) {
+  if (auto location = declaration.getParentScriptNameLocation()) {
+    auto parentScriptName = declaration.getParentScriptName();
     bool isLiteralType =
-        literalTypeFromString(parentScriptName.value()).has_value();
-
+        parentScriptName.getState() == VellumTypeState::Literal;
     if (isLiteralType) {
-      auto location = declaration.getParentScriptNameLocation();
-      assert(location.has_value());
-
       errorHandler->errorAt(location.value(),
                             CompilerErrorKind::CannotExtendFromLiteralType,
                             "Cannot extend from literal type '{}'. Scripts "
                             "can only extend from other scripts, not literal "
                             "types (Int, Float, String, Bool).",
-                            parentScriptName.value());
-      return;
+                            parentScriptName.toString());
     }
+    return;
   }
 
   scriptDeclCount++;
 
   // TODO: self import check
-  resolver->setObject(
-      VellumObject(VellumType::identifier(declaration.scriptName())));
+  resolver->setObject(VellumObject(scriptName));
 
   for (const auto& memberDecl : declaration.getMemberDecls()) {
     memberDecl->accept(*this);

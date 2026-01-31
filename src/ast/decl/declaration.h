@@ -51,18 +51,18 @@ class ImportDeclaration : public Declaration {
 
 class ScriptDeclaration : public Declaration {
  public:
-  ScriptDeclaration(std::string_view scriptName, Token scriptNameLocation,
-                    Opt<std::string_view> parentScriptName,
+  ScriptDeclaration(VellumType scriptName, Token scriptNameLocation,
+                    VellumType parentScriptName,
                     Opt<Token> parentScriptNameLocation,
                     Vec<Unique<ast::Declaration>> members)
-      : scriptName_(scriptName),
-        parentScriptName_(parentScriptName),
+      : scriptName(scriptName),
+        parentScriptName(parentScriptName),
         scriptNameLocation(scriptNameLocation),
         parentScriptNameLocation(parentScriptNameLocation),
         members(std::move(members)) {}
 
-  std::string_view scriptName() const { return scriptName_; }
-  Opt<std::string_view> parentScriptName() const { return parentScriptName_; }
+  VellumType getScriptName() const { return scriptName; }
+  VellumType getParentScriptName() const { return parentScriptName; }
 
   Token getScriptNameLocation() const { return scriptNameLocation; }
   Opt<Token> getParentScriptNameLocation() const {
@@ -81,8 +81,8 @@ class ScriptDeclaration : public Declaration {
   }
 
  private:
-  std::string_view scriptName_;
-  Opt<std::string_view> parentScriptName_;
+  VellumType scriptName;
+  VellumType parentScriptName;
 
   Token scriptNameLocation;
   Opt<Token> parentScriptNameLocation;

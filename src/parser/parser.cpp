@@ -24,7 +24,7 @@ class ParseException : public std::runtime_error {
  private:
   Token token;
 };
-}
+}  // namespace
 
 static std::string_view getFunctionTypeName(FunctionType type) {
   switch (type) {
@@ -111,16 +111,16 @@ Unique<ast::Declaration> Parser::scriptDeclaration() {
   }
 
   Token scriptNameLocation = previous;
-  std::string_view scriptName = previous.lexeme;
+  auto scriptName = VellumType::identifier(previous.lexeme);
 
-  Opt<std::string_view> parentScriptName;
+  auto parentScriptName = VellumType::none();
   Opt<Token> parentScriptNameLocation;
   if (match(TokenType::COLON)) {
     if (!match(TokenType::IDENTIFIER)) {
       errorHandler->errorAt(current,
                             "Expect a parent script's name after ':'.");
     }
-    parentScriptName = previous.lexeme;
+    parentScriptName = VellumType::identifier(previous.lexeme);
     parentScriptNameLocation = previous;
   }
 

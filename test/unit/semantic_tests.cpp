@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
+#include <filesystem>
 
 #include "analyze/declaration_collector.h"
 #include "analyze/import_library.h"
@@ -12,8 +13,6 @@
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_object.h"
 #include "vellum/vellum_property.h"
-
-#include <filesystem>
 namespace fs = std::filesystem;
 
 using namespace vellum;
@@ -28,18 +27,21 @@ class SemanticTestsFixture {
   SemanticTestsFixture() {
     errorHandler = makeShared<CompilerErrorHandler>();
     importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
-    resolver = makeShared<Resolver>(
-        VellumObject(VellumType::identifier("testscript")), errorHandler, importLibrary);
-    collector = makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
+    resolver =
+        makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                             errorHandler, importLibrary);
+    collector =
+        makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
     analyzer =
         makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
   }
 
   void addTestObject(const VellumObject& object) {
     VellumIdentifier name = object.getType().asIdentifier();
-    auto module = makeShared<ImportModule>(
-        name, ImportModuleType::Vellum, fs::path(""));
-    auto objectResolver = makeShared<Resolver>(object, errorHandler, importLibrary);
+    auto module =
+        makeShared<ImportModule>(name, ImportModuleType::Vellum, fs::path(""));
+    auto objectResolver =
+        makeShared<Resolver>(object, errorHandler, importLibrary);
     module->setResolver(objectResolver);
     importLibrary->addTestModule(module);
     resolver->importObject(name);
@@ -567,14 +569,14 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   // First script declaration
   Token script1Token = makeToken(TokenType::IDENTIFIER, 1, "testscript");
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
-      "testscript", script1Token, std::nullopt, std::nullopt,
-      Vec<Unique<ast::Declaration>>{}));
+      VellumType::identifier("testscript"), script1Token, VellumType::none(),
+      std::nullopt, Vec<Unique<ast::Declaration>>{}));
 
   // Second script declaration (should trigger error)
   Token script2Token = makeToken(TokenType::IDENTIFIER, 2, "AnotherScript");
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
-      "AnotherScript", script2Token, std::nullopt, std::nullopt,
-      Vec<Unique<ast::Declaration>>{}));
+      VellumType::identifier("AnotherScript"), script2Token, VellumType::none(),
+      std::nullopt, Vec<Unique<ast::Declaration>>{}));
 
   collector->collect(ast);
 

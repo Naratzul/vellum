@@ -27,8 +27,9 @@ TEST_CASE("ParserScriptDeclarationTest") {
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
 
-  ast::ScriptDeclaration expected("TestScript", tokens[1], "ParentScript",
-                                  tokens[3], {});
+  ast::ScriptDeclaration expected(
+      VellumType::identifier("TestScript"), tokens[1],
+      VellumType::identifier("ParentScript"), tokens[3], {});
   CHECK(expected == *result.declarations[0]);
 }
 
@@ -57,7 +58,8 @@ TEST_CASE("ParserGlobalVarDeclarationTest") {
       "number", VellumType::unresolved("Int"),
       makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
 
-  ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
+  ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
+                                  tokens[1], VellumType::none(), {},
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
@@ -88,7 +90,8 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
       "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
       ast::FunctionBody{}, false));
 
-  ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
+  ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
+                                  tokens[1], VellumType::none(), {},
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
@@ -128,7 +131,8 @@ TEST_CASE("ParserFunctionDeclaration_Params_NoReturn") {
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "bar", params, VellumType::none(), ast::FunctionBody{}, false));
 
-  ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
+  ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
+                                  tokens[1], VellumType::none(), {},
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
@@ -161,7 +165,8 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_WithReturn") {
       "baz", Vec<ast::FunctionParameter>{}, VellumType::unresolved("String"),
       ast::FunctionBody{}, false));
 
-  ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
+  ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
+                                  tokens[1], VellumType::none(), {},
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
@@ -199,7 +204,8 @@ TEST_CASE("ParserFunctionDeclaration_Params_WithReturn") {
       "qux", params, VellumType::unresolved("Int"), ast::FunctionBody{},
       false));
 
-  ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
+  ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
+                                  tokens[1], VellumType::none(), {},
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
@@ -245,7 +251,8 @@ TEST_CASE("ParserFunctionDeclaration_MultipleParams_MixedTypes") {
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "mix", params, VellumType::none(), ast::FunctionBody{}, false));
 
-  ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
+  ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
+                                  tokens[1], VellumType::none(), {},
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
@@ -286,7 +293,8 @@ TEST_CASE("ParserCall_NoArgs") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(expected_body), false));
 
-  ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
+  ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
+                                  tokens[1], VellumType::none(), {},
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
@@ -336,7 +344,8 @@ TEST_CASE("ParserCall_WithArgs") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       std::move(expected_body), false));
 
-  ast::ScriptDeclaration expected("TestScript", tokens[1], {}, {},
+  ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
+                                  tokens[1], VellumType::none(), {},
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
