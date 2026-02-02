@@ -67,7 +67,8 @@ enum class CompilerErrorKind {
   ArrayLengthMaximumExceeded,
 
   CannotImportLiteralType,
-  CannotExtendFromLiteralType
+  CannotExtendFromLiteralType,
+  CannotExtendOutself
 };
 
 enum class CompilerWarningKind {};

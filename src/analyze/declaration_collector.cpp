@@ -72,11 +72,17 @@ void DeclarationCollector::visitScriptDeclaration(
                             parentScriptName.toString());
       return;
     }
+
+    if (parentScriptName == scriptName) {
+      errorHandler->errorAt(location.value(),
+                            CompilerErrorKind::CannotExtendOutself,
+                            "Cannot extend ourself.");
+      return;
+    }
   }
 
   scriptDeclCount++;
 
-  // TODO: self import check
   resolver->setObject(VellumObject(scriptName));
 
   for (const auto& memberDecl : declaration.getMemberDecls()) {

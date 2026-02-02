@@ -39,6 +39,10 @@ Vec<DiagnosticMessage> StaticAnalyze::analyze(std::string_view filename,
   DeclarationCollector collector(errorHandler, resolver, filename);
   collector.collect(parseResult.declarations);
 
+  if (errorHandler->hadError()) {
+    return errorHandler->getErrors();
+  }
+
   SemanticAnalyzer semantic(errorHandler, resolver, filename);
   const SemanticAnalyzeResult semanticResult =
       semantic.analyze(std::move(parseResult.declarations));

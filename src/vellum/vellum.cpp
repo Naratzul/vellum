@@ -51,6 +51,10 @@ void Vellum::run(const fs::path& inputFile,
   DeclarationCollector collector(errorHandler, resolver, filename);
   collector.collect(parseResult.declarations);
 
+  if (errorHandler->hadError()) {
+    return;
+  }
+
   SemanticAnalyzer semantic(errorHandler, resolver, filename);
   const SemanticAnalyzeResult semanticResult =
       semantic.analyze(std::move(parseResult.declarations));
