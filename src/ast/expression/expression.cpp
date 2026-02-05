@@ -104,6 +104,22 @@ PropertyGetExpression& Expression::asPropertyGet() {
   return static_cast<PropertyGetExpression&>(*this);
 }
 
+SuperExpression& Expression::asSuperExpression() {
+  return static_cast<SuperExpression&>(*this);
+}
+
+bool SuperExpression::equals(const Expression& other_) const {
+  return other_.isSuperExpression();
+}
+
+void SuperExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitSuperExpression(*this);
+}
+
+pex::PexValue SuperExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
 bool PropertySetExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const PropertySetExpression&>(other_);
   return getObject()->equals(*other.getObject()) &&

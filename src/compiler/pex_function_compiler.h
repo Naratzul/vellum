@@ -21,6 +21,7 @@ namespace ast {
 class CallExpression;
 class FunctionDeclaration;
 class Statement;
+class SuperExpression;
 }  // namespace ast
 
 namespace pex {
@@ -52,6 +53,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::UnaryExpression& expr) override;
   pex::PexValue compile(const ast::CastExpression& expr) override;
   pex::PexValue compile(const ast::NewArrayExpression& expr) override;
+  pex::PexValue compile(const ast::SuperExpression& expr) override;
 
  private:
   Shared<CompilerErrorHandler> errorHandler;

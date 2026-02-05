@@ -68,7 +68,10 @@ enum class CompilerErrorKind {
 
   CannotImportLiteralType,
   CannotExtendFromLiteralType,
-  CannotExtendOutself
+  CannotExtendOutself,
+  UnknownParentScript,
+  OverrideSignatureMismatch,
+  CannotOverrideProperty
 };
 
 enum class CompilerWarningKind {};

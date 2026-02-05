@@ -13,8 +13,14 @@ VellumFunctionCall VellumFunctionCall::staticCall(VellumType objectType,
   return VellumFunctionCall(objectType, std::nullopt, function);
 }
 
+VellumFunctionCall VellumFunctionCall::parentCall(VellumType parentType,
+                                                  VellumIdentifier function) {
+  return VellumFunctionCall(parentType, std::nullopt, function, true);
+}
+
 bool operator==(const VellumFunctionCall& lhs, const VellumFunctionCall& rhs) {
   return lhs.isStatic() == rhs.isStatic() &&
+         lhs.isParentCall() == rhs.isParentCall() &&
          lhs.getObjectType() == rhs.getObjectType() &&
          lhs.getFunction() == rhs.getFunction();
 }
@@ -24,7 +30,11 @@ bool operator!=(const VellumFunctionCall& lhs, const VellumFunctionCall& rhs) {
 }
 
 std::ostream& operator<<(std::ostream& os, const VellumFunctionCall& value) {
-  os << value.getObjectType() << "." << value.getFunction() << "()";
+  if (value.isParentCall()) {
+    os << "super." << value.getFunction() << "()";
+  } else {
+    os << value.getObjectType() << "." << value.getFunction() << "()";
+  }
   return os;
 }
 

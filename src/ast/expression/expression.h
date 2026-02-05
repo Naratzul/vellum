@@ -23,6 +23,7 @@ class ExpressionCompiler;
 class LiteralExpression;
 class IdentifierExpression;
 class PropertyGetExpression;
+class SuperExpression;
 
 class Expression {
  public:
@@ -42,10 +43,12 @@ class Expression {
   virtual bool isLiteralExpression() const { return false; }
   virtual bool isIdentifierExpression() const { return false; }
   virtual bool isPropertyGetExpression() const { return false; }
+  virtual bool isSuperExpression() const { return false; }
 
   LiteralExpression& asLiteral();
   IdentifierExpression& asIdentifier();
   PropertyGetExpression& asPropertyGet();
+  SuperExpression& asSuperExpression();
 
  protected:
   VellumType type{VellumType::unresolved()};
@@ -95,6 +98,20 @@ class IdentifierExpression : public Expression {
  private:
   VellumIdentifier identifier;
   VellumValueType identifierType{VellumValueType::Identifier};
+};
+
+class SuperExpression : public Expression {
+ public:
+  explicit SuperExpression(Token location = Token{}) : Expression(location) {}
+
+  bool equals(const Expression& other) const override;
+
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  bool isSuperExpression() const override { return true; }
+
+ private:
 };
 
 class CallExpression : public Expression {

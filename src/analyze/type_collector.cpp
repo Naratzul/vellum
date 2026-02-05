@@ -180,4 +180,6 @@ void TypeCollector::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   }
 }
 
+void TypeCollector::visitSuperExpression(ast::SuperExpression&) {}
+
 }  // namespace vellum

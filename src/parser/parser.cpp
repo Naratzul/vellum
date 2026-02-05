@@ -633,6 +633,10 @@ Unique<ast::Expression> Parser::primaryExpression() {
     return makeUnique<ast::LiteralExpression>(*previous.value, previous);
   }
 
+  if (match(TokenType::SUPER)) {
+    return makeUnique<ast::SuperExpression>(previous);
+  }
+
   if (match(TokenType::IDENTIFIER)) {
     return makeUnique<ast::IdentifierExpression>(
         VellumIdentifier(previous.lexeme), previous);

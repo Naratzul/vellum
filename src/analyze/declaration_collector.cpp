@@ -2,13 +2,16 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cctype>
 #include <string>
+
+#include <format>
 
 #include "ast/decl/declaration.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
+#include "vellum/vellum_function.h"
 #include "vellum/vellum_literal.h"
+#include "vellum/vellum_property.h"
 
 namespace vellum {
 void DeclarationCollector::collect(
@@ -59,11 +62,10 @@ void DeclarationCollector::visitScriptDeclaration(
     return;
   }
 
+  Opt<VellumType> resolvedParentType;
   if (auto location = declaration.getParentScriptNameLocation()) {
     auto parentScriptName = declaration.getParentScriptName();
-    bool isLiteralType =
-        parentScriptName.getState() == VellumTypeState::Literal;
-    if (isLiteralType) {
+    if (parentScriptName.getState() == VellumTypeState::Literal) {
       errorHandler->errorAt(location.value(),
                             CompilerErrorKind::CannotExtendFromLiteralType,
                             "Cannot extend from literal type '{}'. Scripts "
@@ -79,11 +81,27 @@ void DeclarationCollector::visitScriptDeclaration(
                             "Cannot extend ourself.");
       return;
     }
+
+    VellumIdentifier parentId = parentScriptName.getState() ==
+                                        VellumTypeState::Unresolved
+                                    ? VellumIdentifier(parentScriptName.asRawType())
+                                    : parentScriptName.asIdentifier();
+    if (auto resolved = resolver->resolveScriptType(parentId)) {
+      resolvedParentType = resolved;
+    } else {
+      errorHandler->errorAt(location.value(),
+                            CompilerErrorKind::UnknownParentScript,
+                            "Unknown parent script '{}'.", parentScriptName.toString());
+      return;
+    }
   }
 
   scriptDeclCount++;
 
   resolver->setObject(VellumObject(scriptName));
+  if (resolvedParentType) {
+    resolver->setParentType(resolvedParentType);
+  }
 
   for (const auto& memberDecl : declaration.getMemberDecls()) {
     memberDecl->accept(*this);
@@ -142,6 +160,27 @@ void DeclarationCollector::visitFunctionDeclaration(
         resolver->resolveType(declaration.getReturnTypeName());
   }
 
+  if (auto parentFunc =
+          resolver->resolveParentFunction(VellumIdentifier(declaration.getName().value()))) {
+    if (parentFunc->getArity() != static_cast<int>(declaration.getParameters().size()) ||
+        parentFunc->getReturnType() != declaration.getReturnTypeName() ||
+        parentFunc->isStatic() != declaration.isStatic()) {
+      errorHandler->errorAt(Token(), CompilerErrorKind::OverrideSignatureMismatch,
+                           "Override of '{}' must match parent signature (parameters and return type).",
+                           declaration.getName().value());
+      return;
+    }
+    for (size_t i = 0; i < declaration.getParameters().size(); ++i) {
+      if (parentFunc->getParameters()[i].getType() !=
+          declaration.getParameters()[i].type) {
+        errorHandler->errorAt(Token(), CompilerErrorKind::OverrideSignatureMismatch,
+                             "Override of '{}' must match parent signature (parameters and return type).",
+                             declaration.getName().value());
+        return;
+      }
+    }
+  }
+
   VellumFunction func(VellumIdentifier(declaration.getName().value()),
                       declaration.getReturnTypeName(), std::move(parameters),
                       declaration.isStatic());
@@ -154,6 +193,15 @@ void DeclarationCollector::visitPropertyDeclaration(
   if (!declaration.getTypeName().isResolved()) {
     declaration.getTypeName() =
         resolver->resolveType(declaration.getTypeName());
+  }
+
+  if (resolver->resolveParentProperty(VellumIdentifier(declaration.getName()))) {
+    errorHandler->errorAt(
+        Token(), CompilerErrorKind::CannotOverrideProperty,
+        "Cannot override property '{}'; properties in a parent script cannot "
+        "be overridden in the child.",
+        declaration.getName());
+    return;
   }
 
   resolver->addProperty(VellumProperty(VellumIdentifier(declaration.getName()),

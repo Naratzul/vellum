@@ -218,7 +218,12 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
                 makeTempVar(file.getString(expr.getType().toString()))
                     .getName()));
 
-  if (functionCall.isStatic()) {
+  if (functionCall.isParentCall()) {
+    opcode = pex::PexOpCode::CallParent;
+    args = {pex::PexIdentifier(
+                file.getString(functionCall.getFunction().getValue())),
+            retVal};
+  } else if (functionCall.isStatic()) {
     opcode = pex::PexOpCode::CallStatic;
     args = {pex::PexIdentifier(
                 file.getString(functionCall.getObjectType().toString())),
@@ -247,14 +252,21 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
 }
 
 pex::PexValue PexFunctionCompiler::compile(
+    const ast::SuperExpression& expr) {
+  (void)expr;
+  return pex::PexValue(
+      pex::PexIdentifier(file.getString("parent")));
+}
+
+pex::PexValue PexFunctionCompiler::compile(
     const ast::PropertyGetExpression& expr) {
   const pex::PexValue retVal =
       makeTempVar(file.getString(expr.getType().toString()));
 
+  const pex::PexValue objectVal = expr.getObject()->compile(*this);
   Vec<pex::PexValue> args = {
       pex::PexIdentifier(file.getString(expr.getProperty().getValue())),
-      pex::PexIdentifier(file.getString(
-          expr.getObject()->asIdentifier().getIdentifier().toString())),
+      objectVal,
       pex::PexIdentifier(retVal.asTempVar().getName())};
 
   instructions.emplace_back(pex::PexOpCode::PropGet, std::move(args));

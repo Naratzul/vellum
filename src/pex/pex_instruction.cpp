@@ -12,7 +12,8 @@ PexWriter& operator<<(PexWriter& writer, const PexInstruction& instruction) {
 
   switch (instruction.getOpCode()) {
     case PexOpCode::CallMethod:
-    case PexOpCode::CallStatic: {
+    case PexOpCode::CallStatic:
+    case PexOpCode::CallParent: {
       writer << PexValue((int32_t)instruction.getVariadicArgs().size());
       for (const auto& arg : instruction.getVariadicArgs()) {
         writer << arg;

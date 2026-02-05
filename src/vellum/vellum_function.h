@@ -23,6 +23,9 @@ class VellumFunctionCall {
   static VellumFunctionCall staticCall(VellumType objectType,
                                        VellumIdentifier function);
 
+  static VellumFunctionCall parentCall(VellumType parentType,
+                                       VellumIdentifier function);
+
   VellumType getObjectType() const { return objectType; }
 
   VellumIdentifier getObject() const {
@@ -33,15 +36,20 @@ class VellumFunctionCall {
   VellumIdentifier getFunction() const { return function; }
 
   bool isStatic() const { return object == std::nullopt; }
+  bool isParentCall() const { return parentCall_; }
 
  private:
   VellumFunctionCall(VellumType objectType, Opt<VellumIdentifier> object,
-                     VellumIdentifier function)
-      : objectType(objectType), function(function), object(object) {}
+                     VellumIdentifier function, bool parentCall = false)
+      : objectType(objectType),
+        function(function),
+        object(object),
+        parentCall_(parentCall) {}
 
   VellumType objectType;
   VellumIdentifier function;
   Opt<VellumIdentifier> object;
+  bool parentCall_ = false;
 };
 
 bool operator==(const VellumFunctionCall& lhs, const VellumFunctionCall& rhs);

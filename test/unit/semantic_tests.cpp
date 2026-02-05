@@ -6,9 +6,11 @@
 #include "analyze/import_library.h"
 #include "analyze/semantic_analyzer.h"
 #include "ast/decl/declaration.h"
+#include "ast/expression/expression.h"
 #include "common/types.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
+#include "lexer/token.h"
 #include "utils.h"
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_object.h"
@@ -1028,4 +1030,150 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   // This should error: cannot initialize a global variable with a script type
   REQUIRE(errorHandler->hasError(CompilerErrorKind::VariableTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticInheritance_SuperCall_Resolves") {
+  VellumObject parentObj(VellumType::identifier("ParentScript"));
+  parentObj.addFunction(VellumFunction(VellumIdentifier("foo"),
+                                      VellumType::literal(VellumLiteralType::Int),
+                                      {}, false));
+  addTestObject(parentObj);
+
+  Token scriptToken = makeToken(TokenType::IDENTIFIER, 1, "testscript");
+  Token parentToken = makeToken(TokenType::IDENTIFIER, 1, "ParentScript");
+  auto superExpr = makeUnique<ast::SuperExpression>(Token());
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(superExpr), VellumIdentifier("foo"), Token());
+  auto callExpr = makeUnique<ast::CallExpression>(
+      std::move(propGet), Vec<Unique<ast::Expression>>{}, Token());
+  ast::FunctionBody body;
+  body.push_back(
+      makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), scriptToken,
+      VellumType::identifier("ParentScript"), parentToken, std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto& scriptDecl =
+      dynamic_cast<ast::ScriptDeclaration&>(*result.declarations[0]);
+  REQUIRE(scriptDecl.getMemberDecls().size() == 1);
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*scriptDecl.getMemberDecls()[0]);
+  REQUIRE(funcDecl.getBody().size() == 1);
+  const auto& stmt =
+      dynamic_cast<ast::ExpressionStatement&>(*funcDecl.getBody()[0]);
+  const auto& call =
+      dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
+  REQUIRE(call.getFunctionCall().has_value());
+  REQUIRE(call.getFunctionCall()->isParentCall());
+  CHECK(call.getType().isInt());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticInheritance_SuperInScriptWithNoParent_Error") {
+  auto superExpr = makeUnique<ast::SuperExpression>(Token());
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(superExpr), VellumIdentifier("foo"), Token());
+  auto callExpr = makeUnique<ast::CallExpression>(
+      std::move(propGet), Vec<Unique<ast::Expression>>{}, Token());
+  ast::FunctionBody body;
+  body.push_back(
+      makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(
+      errorHandler->hasError(CompilerErrorKind::UndefinedFunction));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticInheritance_PropertyShadow_Error") {
+  VellumObject parentObj(VellumType::identifier("ParentScript"));
+  parentObj.addProperty(VellumProperty(VellumIdentifier("X"),
+                                       VellumType::literal(VellumLiteralType::Int),
+                                       false));
+  addTestObject(parentObj);
+
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "X", VellumType::unresolved("Int"), "", std::nullopt, std::nullopt,
+      std::nullopt));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"),
+      VellumType::identifier("ParentScript"),
+      makeToken(TokenType::IDENTIFIER, 1, "ParentScript"),
+      std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::CannotOverrideProperty));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticInheritance_CallInheritedFunction") {
+  VellumObject parentObj(VellumType::identifier("ParentScript"));
+  parentObj.addFunction(VellumFunction(VellumIdentifier("inherited"),
+                                      VellumType::literal(VellumLiteralType::Bool),
+                                      {}, false));
+  addTestObject(parentObj);
+
+  auto callExpr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("inherited")),
+      Vec<Unique<ast::Expression>>{}, Token());
+  ast::FunctionBody body;
+  body.push_back(
+      makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"),
+      VellumType::identifier("ParentScript"),
+      makeToken(TokenType::IDENTIFIER, 1, "ParentScript"),
+      std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto& scriptDecl =
+      dynamic_cast<ast::ScriptDeclaration&>(*result.declarations[0]);
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*scriptDecl.getMemberDecls()[0]);
+  const auto& stmt =
+      dynamic_cast<ast::ExpressionStatement&>(*funcDecl.getBody()[0]);
+  const auto& call =
+      dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
+  CHECK(call.getType().isBool());
 }

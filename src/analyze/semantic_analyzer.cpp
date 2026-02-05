@@ -203,34 +203,57 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
         VellumIdentifier("self"), resolver->getObject().getType(),
         callee->asIdentifier().getIdentifier()));
   } else if (callee->isPropertyGetExpression()) {
-    const auto& calleeIdentifier =
-        callee->asPropertyGet().getObject()->asIdentifier();
-
-    if (calleeIdentifier.getIdentifierType() == VellumValueType::ScriptType) {
-      expr.setFunctionCall(VellumFunctionCall::staticCall(
-          calleeIdentifier.getType(), callee->asPropertyGet().getProperty()));
+    if (callee->asPropertyGet().getObject()->isSuperExpression()) {
+      if (!resolver->getParentType()) {
+        errorHandler->errorAt(expr.getCallee()->getLocation(),
+                              CompilerErrorKind::UndefinedFunction,
+                              "super can only be used in a script that extends "
+                              "another script.");
+        return;
+      }
+      expr.setFunctionCall(VellumFunctionCall::parentCall(
+          *resolver->getParentType(), callee->asPropertyGet().getProperty()));
     } else {
-      expr.setFunctionCall(VellumFunctionCall::methodCall(
-          calleeIdentifier.getIdentifier(), calleeIdentifier.getType(),
-          callee->asPropertyGet().getProperty()));
-    }
+      const auto& calleeIdentifier =
+          callee->asPropertyGet().getObject()->asIdentifier();
 
+      if (calleeIdentifier.getIdentifierType() == VellumValueType::ScriptType) {
+        expr.setFunctionCall(VellumFunctionCall::staticCall(
+            calleeIdentifier.getType(), callee->asPropertyGet().getProperty()));
+      } else {
+        expr.setFunctionCall(VellumFunctionCall::methodCall(
+            calleeIdentifier.getIdentifier(), calleeIdentifier.getType(),
+            callee->asPropertyGet().getProperty()));
+      }
+    }
   } else {
     assert(false && "Unknown callee type");
   }
 
-  const auto& func =
-      resolver->resolveFunction(expr.getFunctionCall()->getObjectType(),
-                                expr.getFunctionCall()->getFunction());
+  Opt<VellumFunction> func;
+  if (expr.getFunctionCall()->isParentCall()) {
+    func = resolver->resolveParentFunction(expr.getFunctionCall()->getFunction());
+  } else {
+    func = resolver->resolveFunction(expr.getFunctionCall()->getObjectType(),
+                                    expr.getFunctionCall()->getFunction());
+  }
   if (!func) {
-    errorHandler->errorAt(expr.getCallee()->getLocation(),
-                          CompilerErrorKind::UndefinedFunction,
-                          "Undefined function '{}'.",
-                          expr.getFunctionCall()->getFunction().toString());
+    if (expr.getFunctionCall()->isParentCall()) {
+      errorHandler->errorAt(expr.getCallee()->getLocation(),
+                            CompilerErrorKind::UndefinedFunction,
+                            "Parent has no member '{}'.",
+                            expr.getFunctionCall()->getFunction().toString());
+    } else {
+      errorHandler->errorAt(expr.getCallee()->getLocation(),
+                            CompilerErrorKind::UndefinedFunction,
+                            "Undefined function '{}'.",
+                            expr.getFunctionCall()->getFunction().toString());
+    }
     return;
   }
 
-  if (expr.getFunctionCall()->isStatic() && !func->isStatic()) {
+  if (!expr.getFunctionCall()->isParentCall() &&
+      expr.getFunctionCall()->isStatic() && !func->isStatic()) {
     errorHandler->errorAt(expr.getCallee()->getLocation(),
                           CompilerErrorKind::UndefinedFunction,
                           "Instance member '{}' cannot be used on type '{}'.",
@@ -270,8 +293,31 @@ void SemanticAnalyzer::visitPropertyGetExpression(
     ast::PropertyGetExpression& expr) {
   expr.getObject()->accept(*this);
 
-  const auto property = resolver->resolveProperty(expr.getObject()->getType(),
-                                                  expr.getProperty());
+  Opt<VellumValue> property;
+  if (expr.getObject()->isSuperExpression()) {
+    if (!resolver->getParentType()) {
+      errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+                            "super can only be used in a script that extends another script.");
+      return;
+    }
+    if (auto func = resolver->resolveParentFunction(expr.getProperty())) {
+      expr.setType(func->getReturnType());
+      expr.setIdentifierType(VellumValueType::Function);
+      return;
+    }
+    property = resolver->resolveParentProperty(expr.getProperty());
+    if (!property) {
+      errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+                            "Parent has no member '{}'.", expr.getProperty().toString());
+      return;
+    }
+    expr.setType(property->asProperty().getType());
+    expr.setIdentifierType(VellumValueType::Property);
+    return;
+  } else {
+    property = resolver->resolveProperty(expr.getObject()->getType(),
+                                         expr.getProperty());
+  }
 
   if (!property) {
     errorHandler->errorAt(
@@ -305,13 +351,31 @@ void SemanticAnalyzer::visitPropertySetExpression(
     ast::PropertySetExpression& expr) {
   expr.getObject()->accept(*this);
 
-  const auto property = resolver->resolveProperty(expr.getObject()->getType(),
-                                                  expr.getProperty());
+  Opt<VellumValue> property;
+  if (expr.getObject()->isSuperExpression()) {
+    if (!resolver->getParentType()) {
+      errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+                            "super can only be used in a script that extends another script.");
+      return;
+    }
+    property = resolver->resolveParentProperty(expr.getProperty());
+  } else {
+    property = resolver->resolveProperty(expr.getObject()->getType(),
+                                         expr.getProperty());
+  }
 
   if (!property) {
-    errorHandler->errorAt(
-        expr.getLocation(), CompilerErrorKind::UndefinedProperty,
-        "Undefined property '{}'.", expr.getProperty().toString());
+    if (expr.getObject()->isSuperExpression()) {
+      errorHandler->errorAt(expr.getLocation(),
+                            CompilerErrorKind::UndefinedProperty,
+                            "Parent has no member '{}'.",
+                            expr.getProperty().toString());
+    } else {
+      errorHandler->errorAt(expr.getLocation(),
+                           CompilerErrorKind::UndefinedProperty,
+                           "Undefined property '{}'.",
+                           expr.getProperty().toString());
+    }
     return;
   }
 
@@ -550,4 +614,6 @@ void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
                           "Maximum array length (128) is exceeded.");
   }
 }
+
+void SemanticAnalyzer::visitSuperExpression(ast::SuperExpression&) {}
 }  // namespace vellum

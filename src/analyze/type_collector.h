@@ -48,6 +48,7 @@ class TypeCollector : public ast::DeclarationVisitor,
   void visitUnaryExpression(ast::UnaryExpression& expr) override;
   void visitCastExpression(ast::CastExpression& expr) override;
   void visitNewArrayExpression(ast::NewArrayExpression& expr) override;
+  void visitSuperExpression(ast::SuperExpression& expr) override;
 
  private:
   Set<VellumIdentifier> discoveredTypes;
