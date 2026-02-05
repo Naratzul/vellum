@@ -40,3 +40,6 @@ scripts/
 .cache/
 bin/
 .clangd
+.vs/
+
+papyrus scripts/
