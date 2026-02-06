@@ -210,7 +210,10 @@ TokenType PapyrusLexer::identifierType() const {
                 TokenType::ENDEVENT) {
               return TokenType::ENDEVENT;
             }
-            return checkKeyword(2, 9, "dfunction", TokenType::ENDFUNCTION);
+            if (checkKeyword(2, 9, "dfunction", TokenType::ENDFUNCTION) == TokenType::ENDFUNCTION) {
+              return TokenType::ENDFUNCTION;
+            }
+            return checkKeyword(2, 9, "dproperty", TokenType::ENDPROPERTY);
         }
       }
       break;

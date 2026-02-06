@@ -54,6 +54,7 @@ class PapyrusParser {
   VellumType parseType();
   void skipUntilEndFunction();
   void skipUntilEndEvent();
+  void skipUnitlEndProperty();
   void skipToEndOfStatement();
   void skipBlock();
 

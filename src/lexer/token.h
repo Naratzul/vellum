@@ -73,6 +73,7 @@ enum class TokenType {
   ENDFUNCTION,
   ENDEVENT,
   PROPERTY,
+  ENDPROPERTY,
   AUTO,
   AUTOREADONLY,
   NATIVE,

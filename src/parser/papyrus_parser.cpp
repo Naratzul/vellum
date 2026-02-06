@@ -222,7 +222,7 @@ Unique<ast::Declaration> PapyrusParser::propertyDeclarationWithType(
   if (match(TokenType::AUTOREADONLY)) {
   } else if (match(TokenType::AUTO)) {
   } else {
-    skipToEndOfStatement();
+    skipUnitlEndProperty();
   }
 
   return makeUnique<ast::PropertyDeclaration>(name, typeName, "", std::nullopt,
@@ -327,6 +327,14 @@ void PapyrusParser::skipUntilEndEvent() {
     advance();
   }
   if (match(TokenType::ENDEVENT)) {
+  }
+}
+
+void PapyrusParser::skipUnitlEndProperty() {
+  while (!check(TokenType::ENDPROPERTY) && !check(TokenType::END_OF_FILE)) {
+    advance();
+  }
+  if (match(TokenType::ENDPROPERTY)) {
   }
 }
 
