@@ -206,7 +206,7 @@ TokenType PapyrusLexer::identifierType() const {
           case 'x':
             return checkKeyword(2, 5, "tends", TokenType::EXTENDS);
           case 'n':
-            if (checkKeyword(2, 5, "devent", TokenType::ENDEVENT) ==
+            if (checkKeyword(2, 6, "devent", TokenType::ENDEVENT) ==
                 TokenType::ENDEVENT) {
               return TokenType::ENDEVENT;
             }
