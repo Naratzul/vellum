@@ -1,7 +1,9 @@
 #include "import_library.h"
-#include "common/string_set.h"
 
 #include <format>
+
+#include "common/string_set.h"
+#include "vellum/vellum_identifier.h"
 
 namespace vellum {
 using namespace common;
@@ -42,11 +44,22 @@ void ImportLibrary::scanImportPaths(const Vec<std::string>& importPaths) {
 }
 
 ImportModulePtr ImportLibrary::findModule(VellumIdentifier name) const {
+  // First try case-sensitive lookup (for Vellum modules)
   auto it = importNameToModule.find(name);
-  if (it == importNameToModule.end()) {
-    return nullptr;
+  if (it != importNameToModule.end()) {
+    return it->second;
   }
-  return it->second;
+
+  // For case-insensitive lookup (Papyrus modules), iterate through all modules
+  for (const auto& [moduleName, module] : importNameToModule) {
+    if (module->getType() == ImportModuleType::Papyrus) {
+      if (equalsCaseInsensitive(moduleName, name)) {
+        return module;
+      }
+    }
+  }
+
+  return nullptr;
 }
 
 bool ImportLibrary::hasModule(VellumIdentifier name) const {

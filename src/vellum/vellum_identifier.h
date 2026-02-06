@@ -18,6 +18,9 @@ class VellumIdentifier {
 bool operator==(const VellumIdentifier& lhs, const VellumIdentifier& rhs);
 bool operator!=(const VellumIdentifier& lhs, const VellumIdentifier& rhs);
 std::ostream& operator<<(std::ostream& os, const VellumIdentifier& id);
+
+// Case-insensitive comparison for Papyrus scripts
+bool equalsCaseInsensitive(const VellumIdentifier& lhs, const VellumIdentifier& rhs);
 }  // namespace vellum
 
 namespace std {

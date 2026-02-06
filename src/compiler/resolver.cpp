@@ -3,6 +3,7 @@
 #include "analyze/import_library.h"
 #include "common/types.h"
 #include "compiler_error_handler.h"
+#include "vellum/vellum_identifier.h"
 
 namespace vellum {
 using common::Opt;
@@ -88,10 +89,27 @@ Opt<VellumValue> Resolver::resolveProperty(VellumType type,
   }
 
   for (const auto& importedObject : importedObjects) {
-    if (VellumType::identifier(importedObject) == type) {
+    auto importType = VellumType::identifier(importedObject);
+    bool typeMatches = false;
+
+    // Check exact match first
+    if (importType == type) {
+      typeMatches = true;
+    } else if (type.getState() == VellumTypeState::Identifier) {
+      // For Papyrus modules, also check case-insensitive match
+      if (auto module = importLibrary->findModule(importedObject)) {
+        if (module->getType() == ImportModuleType::Papyrus) {
+          if (equalsCaseInsensitive(importedObject, type.asIdentifier())) {
+            typeMatches = true;
+          }
+        }
+      }
+    }
+
+    if (typeMatches) {
       if (auto module = importLibrary->findModule(importedObject)) {
         if (auto resolver = module->getResolver()) {
-          return resolver->resolveProperty(type, member);
+          return resolver->resolveProperty(importType, member);
         }
       }
     }
@@ -125,10 +143,27 @@ Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
   }
 
   for (const auto& importedObject : importedObjects) {
-    if (VellumType::identifier(importedObject) == type) {
+    auto importType = VellumType::identifier(importedObject);
+    bool typeMatches = false;
+
+    // Check exact match first
+    if (importType == type) {
+      typeMatches = true;
+    } else if (type.getState() == VellumTypeState::Identifier) {
+      // For Papyrus modules, also check case-insensitive match
+      if (auto module = importLibrary->findModule(importedObject)) {
+        if (module->getType() == ImportModuleType::Papyrus) {
+          if (equalsCaseInsensitive(importedObject, type.asIdentifier())) {
+            typeMatches = true;
+          }
+        }
+      }
+    }
+
+    if (typeMatches) {
       if (auto module = importLibrary->findModule(importedObject)) {
         if (auto resolver = module->getResolver()) {
-          return resolver->resolveFunction(type, function);
+          return resolver->resolveFunction(importType, function);
         }
       }
     }
@@ -187,10 +222,19 @@ Opt<VellumType> Resolver::resolveScriptType(VellumIdentifier identifier) const {
     return object.getType();
   }
 
-  for (const auto& object : importedObjects) {
-    auto importType = VellumType::identifier(object);
+  for (const auto& importedObject : importedObjects) {
+    auto importType = VellumType::identifier(importedObject);
+    // Check if it's an exact match (case-sensitive)
     if (importType == type) {
       return importType;
+    }
+    // For Papyrus modules, also check case-insensitive match
+    if (auto module = importLibrary->findModule(importedObject)) {
+      if (module->getType() == ImportModuleType::Papyrus) {
+        if (equalsCaseInsensitive(importedObject, identifier)) {
+          return importType;
+        }
+      }
     }
   }
 
