@@ -1,3 +1,5 @@
+#define CXXOPTS_VECTOR_DELIMITER ';'
+
 #include <cxxopts.hpp>
 #include <iostream>
 

@@ -268,7 +268,6 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
         "Function '{}' expects {} arguments, but {} were provided.",
         func->getName().toString(), func->getParameters().size(),
         expr.getArguments().size());
-    return;
   }
 
   for (size_t i = 0; i < expr.getArguments().size(); i++) {
