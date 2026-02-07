@@ -77,6 +77,12 @@ Unique<ast::Declaration> Parser::topDeclaration() {
     return importDeclaration();
   } else if (match(TokenType::SCRIPT)) {
     return scriptDeclaration();
+  } else if (match(TokenType::AUTO)) {
+    consume(TokenType::STATE, CompilerErrorKind::ExpectDeclaration,
+            "Expect 'state' after 'auto'.");
+    return stateDeclaration(true);
+  } else if (match(TokenType::STATE)) {
+    return stateDeclaration(false);
   }
 
   throw ParseException(
@@ -153,6 +159,35 @@ Unique<ast::Declaration> Parser::importDeclaration() {
           "Import name expected.");
   std::string_view importName = previous.lexeme;
   return makeUnique<ast::ImportDeclaration>(importName, previous);
+}
+
+Unique<ast::Declaration> Parser::stateDeclaration(bool isAuto) {
+  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
+          "Expect a state name after 'state'.");
+  std::string_view stateName = previous.lexeme;
+  Token stateNameLocation = previous;
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+
+  if (match(TokenType::LEFT_BRACE)) {
+    while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
+      try {
+        stateMembers.push_back(scriptMemberDeclaration());
+      } catch (const ParseException& e) {
+        errorHandler->errorAt(e.getToken(), e.getMessage());
+        synchronizeDeclaration();
+      }
+    }
+
+    consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+            "Expect '}}' after state declaration.");
+  } else if (!check(TokenType::END_OF_FILE) &&
+             previous.location.start.line == current.location.start.line) {
+    throw ParseException(current, "Unexpected token after state declaration.");
+  }
+
+  return makeUnique<ast::StateDeclaration>(stateName, stateNameLocation, isAuto,
+                                           std::move(stateMembers));
 }
 
 Unique<ast::Declaration> Parser::scriptMemberDeclaration() {

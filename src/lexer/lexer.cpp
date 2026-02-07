@@ -226,12 +226,17 @@ TokenType Lexer::identifierType() const {
           case 'c':
             return checkKeyword(2, 4, "ript", TokenType::SCRIPT);
           case 't':
+            if (current - start > 2 && start[2] == 'a') {
+              return checkKeyword(3, 2, "te", TokenType::STATE);
+            }
             return checkKeyword(2, 4, "atic", TokenType::STATIC);
           case 'u':
             return checkKeyword(2, 3, "per", TokenType::SUPER);
         }
       }
       break;
+    case 'm':
+      return checkKeyword(1, 4, "atch", TokenType::MATCH);
     case 't':
       if (current - start > 1) {
         switch (start[1]) {

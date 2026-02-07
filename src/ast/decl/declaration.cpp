@@ -32,6 +32,33 @@ bool ScriptDeclaration::equals(const Declaration& other_) const {
   return true;
 }
 
+void StateDeclaration::accept(DeclarationVisitor& visitor) {
+  visitor.visitStateDeclaration(*this);
+}
+
+bool StateDeclaration::equals(const Declaration& other_) const {
+  auto& other = static_cast<const StateDeclaration&>(other_);
+  if (stateName != other.stateName) {
+    return false;
+  }
+
+  if (isAuto != other.isAuto) {
+    return false;
+  }
+
+  if (members.size() != other.members.size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < members.size(); ++i) {
+    if (!members[i]->equals(*other.members[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 VellumValue GlobalVariableDeclaration::getValue() const {
   if (initializer_) {
     return initializer_->asLiteral().getLiteral();

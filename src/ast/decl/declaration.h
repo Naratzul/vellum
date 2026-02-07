@@ -17,7 +17,14 @@ namespace ast {
 
 class DeclarationVisitor;
 
-enum class DeclarationOrder { Import, Script, Variable, Function, Property };
+enum class DeclarationOrder {
+  Import,
+  Script,
+  State,
+  Variable,
+  Function,
+  Property
+};
 
 class Declaration {
  public:
@@ -88,6 +95,35 @@ class ScriptDeclaration : public Declaration {
   Token scriptNameLocation;
   Opt<Token> parentScriptNameLocation;
 
+  Vec<Unique<ast::Declaration>> members;
+};
+
+class StateDeclaration : public Declaration {
+ public:
+  StateDeclaration(std::string_view stateName, Token stateNameLocation,
+                   bool isAuto, Vec<Unique<ast::Declaration>> members)
+      : stateName(stateName),
+        stateNameLocation(stateNameLocation),
+        isAuto(isAuto),
+        members(std::move(members)) {}
+
+  std::string_view getStateName() const { return stateName; }
+  Token getStateNameLocation() const { return stateNameLocation; }
+  bool getIsAuto() const { return isAuto; }
+
+  const Vec<Unique<ast::Declaration>>& getMemberDecls() const {
+    return members;
+  }
+
+  void accept(DeclarationVisitor& visitor) override;
+  bool equals(const Declaration& other) const override;
+
+  DeclarationOrder getOrder() const override { return DeclarationOrder::State; }
+
+ private:
+  std::string_view stateName;
+  Token stateNameLocation;
+  bool isAuto;
   Vec<Unique<ast::Declaration>> members;
 };
 
