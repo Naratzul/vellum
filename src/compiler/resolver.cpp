@@ -3,6 +3,7 @@
 #include "analyze/import_library.h"
 #include "common/types.h"
 #include "compiler_error_handler.h"
+#include "lexer/token.h"
 #include "vellum/vellum_identifier.h"
 
 namespace vellum {
@@ -15,7 +16,8 @@ void Resolver::startFunction(const VellumFunction& func) {
   currentFunction = func;
   pushScope();
   for (const auto& param : func.getParameters()) {
-    pushLocalVar(param);
+    // Function parameters don't have location info, use default token
+    pushLocalVar(param, Token());
   }
 }
 
@@ -28,11 +30,11 @@ void Resolver::endFunction() {
 void Resolver::pushScope() { scopes.emplace_back(); }
 void Resolver::popScope() { scopes.pop_back(); }
 
-void Resolver::pushLocalVar(const VellumVariable& var) {
+void Resolver::pushLocalVar(const VellumVariable& var, Token location) {
   auto& scope = scopes.back();
   if (scope.contains(var.getName())) {
     errorHandler->errorAt(
-        Token(), "Variable with name '{}' aleady defined in this scope.",
+        location, "Variable with name '{}' aleady defined in this scope.",
         var.getName().toString());
     return;
   }
@@ -245,9 +247,11 @@ Opt<VellumType> Resolver::resolveScriptType(VellumIdentifier identifier) const {
   return std::nullopt;
 }
 
-VellumType Resolver::resolveType(VellumType unresolvedType) const {
+VellumType Resolver::resolveType(VellumType unresolvedType,
+                                 Token location) const {
   if (unresolvedType.isArray()) {
-    return VellumType::array(resolveType(*unresolvedType.asArraySubtype()));
+    return VellumType::array(
+        resolveType(*unresolvedType.asArraySubtype(), location));
   }
 
   assert(!unresolvedType.isResolved());
@@ -258,7 +262,7 @@ VellumType Resolver::resolveType(VellumType unresolvedType) const {
   if (literalTypeFromString(unresolvedType.asRawType()).has_value()) {
     type = VellumType::literal(resolveValueType(unresolvedType.asRawType()));
   } else {
-    type = resolveObjectType(unresolvedType.asRawType());
+    type = resolveObjectType(unresolvedType.asRawType(), location);
   }
 
   return type;
@@ -268,14 +272,14 @@ VellumLiteralType Resolver::resolveValueType(std::string_view rawType) const {
   return literalTypeFromString(rawType).value();
 }
 
-VellumType Resolver::resolveObjectType(std::string_view rawType) const {
+VellumType Resolver::resolveObjectType(std::string_view rawType,
+                                       Token location) const {
   VellumIdentifier identifier(rawType);
   if (auto type = resolveScriptType(identifier)) {
     return type.value();
   }
 
-  // TODO: pass location
-  errorHandler->errorAt(Token(), "Undefined type '{}'.", rawType);
+  errorHandler->errorAt(location, "Undefined type '{}'.", rawType);
 
   return VellumType::unresolved(rawType);
 }

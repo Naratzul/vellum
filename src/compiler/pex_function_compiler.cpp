@@ -251,11 +251,9 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
   return retVal;
 }
 
-pex::PexValue PexFunctionCompiler::compile(
-    const ast::SuperExpression& expr) {
+pex::PexValue PexFunctionCompiler::compile(const ast::SuperExpression& expr) {
   (void)expr;
-  return pex::PexValue(
-      pex::PexIdentifier(file.getString("parent")));
+  return pex::PexValue(pex::PexIdentifier(file.getString("parent")));
 }
 
 pex::PexValue PexFunctionCompiler::compile(
@@ -266,8 +264,7 @@ pex::PexValue PexFunctionCompiler::compile(
   const pex::PexValue objectVal = expr.getObject()->compile(*this);
   Vec<pex::PexValue> args = {
       pex::PexIdentifier(file.getString(expr.getProperty().getValue())),
-      objectVal,
-      pex::PexIdentifier(retVal.asTempVar().getName())};
+      objectVal, pex::PexIdentifier(retVal.asTempVar().getName())};
 
   instructions.emplace_back(pex::PexOpCode::PropGet, std::move(args));
 
@@ -401,7 +398,7 @@ pex::PexValue PexFunctionCompiler::compile(
 pex::PexValue PexFunctionCompiler::makeValueFromToken(VellumValue value) {
   Opt<pex::PexValue> pexValue = makePexValue(value, file);
   if (!pexValue) {
-    // TODO: logic error
+    // Internal logic error - this should never happen
     errorHandler->errorAt(Token(), "Unexpected variable initializer type.");
     return pex::PexValue();
   }
@@ -426,7 +423,7 @@ pex::PexTemporaryVariable PexFunctionCompiler::makeTempVar(
   auto result = std::to_chars(buf.data() + PrefixLength,
                               buf.data() + buf.size(), tempVarCount);
   if (result.ec != std::errc{}) {
-    // TODO: internal error
+    // Internal logic error - this should never happen
     errorHandler->errorAt(
         Token(), "Failed to convert the current temp var index to a string.");
   }

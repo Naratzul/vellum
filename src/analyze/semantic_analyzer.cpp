@@ -37,8 +37,7 @@ SemanticAnalyzeResult SemanticAnalyzer::analyze(
 }
 
 void SemanticAnalyzer::visitImportDeclaration(
-    ast::ImportDeclaration& declaration) {
-}
+    ast::ImportDeclaration& declaration) {}
 
 void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
   for (const auto& memberDecl : decl.getMemberDecls()) {
@@ -129,7 +128,8 @@ void SemanticAnalyzer::visitLocalVariableStatement(
     ast::LocalVariableStatement& statement) {
   Opt<VellumType> annotatedType;
   if (auto type = statement.getType()) {
-    annotatedType = resolver->resolveType(type.value());
+    Token typeLocation = statement.getTypeLocation().value_or(Token());
+    annotatedType = resolver->resolveType(type.value(), typeLocation);
     statement.setType(annotatedType.value());
   }
 
@@ -154,7 +154,8 @@ void SemanticAnalyzer::visitLocalVariableStatement(
   }
 
   VellumVariable var(statement.getName(), statement.getType().value());
-  resolver->pushLocalVar(var);
+  Token varLocation = statement.getNameLocation();
+  resolver->pushLocalVar(var, varLocation);
 }
 
 void SemanticAnalyzer::visitWhileStatement(ast::WhileStatement& statement) {
@@ -232,10 +233,11 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
 
   Opt<VellumFunction> func;
   if (expr.getFunctionCall()->isParentCall()) {
-    func = resolver->resolveParentFunction(expr.getFunctionCall()->getFunction());
+    func =
+        resolver->resolveParentFunction(expr.getFunctionCall()->getFunction());
   } else {
     func = resolver->resolveFunction(expr.getFunctionCall()->getObjectType(),
-                                    expr.getFunctionCall()->getFunction());
+                                     expr.getFunctionCall()->getFunction());
   }
   if (!func) {
     if (expr.getFunctionCall()->isParentCall()) {
@@ -295,8 +297,9 @@ void SemanticAnalyzer::visitPropertyGetExpression(
   Opt<VellumValue> property;
   if (expr.getObject()->isSuperExpression()) {
     if (!resolver->getParentType()) {
-      errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::UndefinedProperty,
-                            "super can only be used in a script that extends another script.");
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+          "super can only be used in a script that extends another script.");
       return;
     }
     if (auto func = resolver->resolveParentFunction(expr.getProperty())) {
@@ -306,8 +309,9 @@ void SemanticAnalyzer::visitPropertyGetExpression(
     }
     property = resolver->resolveParentProperty(expr.getProperty());
     if (!property) {
-      errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::UndefinedProperty,
-                            "Parent has no member '{}'.", expr.getProperty().toString());
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+          "Parent has no member '{}'.", expr.getProperty().toString());
       return;
     }
     expr.setType(property->asProperty().getType());
@@ -353,8 +357,9 @@ void SemanticAnalyzer::visitPropertySetExpression(
   Opt<VellumValue> property;
   if (expr.getObject()->isSuperExpression()) {
     if (!resolver->getParentType()) {
-      errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::UndefinedProperty,
-                            "super can only be used in a script that extends another script.");
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+          "super can only be used in a script that extends another script.");
       return;
     }
     property = resolver->resolveParentProperty(expr.getProperty());
@@ -365,15 +370,13 @@ void SemanticAnalyzer::visitPropertySetExpression(
 
   if (!property) {
     if (expr.getObject()->isSuperExpression()) {
-      errorHandler->errorAt(expr.getLocation(),
-                            CompilerErrorKind::UndefinedProperty,
-                            "Parent has no member '{}'.",
-                            expr.getProperty().toString());
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+          "Parent has no member '{}'.", expr.getProperty().toString());
     } else {
-      errorHandler->errorAt(expr.getLocation(),
-                           CompilerErrorKind::UndefinedProperty,
-                           "Undefined property '{}'.",
-                           expr.getProperty().toString());
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+          "Undefined property '{}'.", expr.getProperty().toString());
     }
     return;
   }
@@ -583,12 +586,14 @@ void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
   expr.getExpression()->accept(*this);
 
   assert(!expr.getTargetType().isResolved());
-  expr.setTargetType(resolver->resolveType(expr.getTargetType()));
+  expr.setTargetType(
+      resolver->resolveType(expr.getTargetType(), expr.getLocation()));
 }
 
 void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   if (const auto& subtype = expr.getSubtype(); subtype.has_value()) {
-    VellumType resolvedSubtype = resolver->resolveType(subtype.value());
+    VellumType resolvedSubtype =
+        resolver->resolveType(subtype.value(), expr.getLocation());
     expr.setSubtype(resolvedSubtype);
     expr.setType(VellumType::array(resolvedSubtype));
   }

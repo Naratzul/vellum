@@ -6,6 +6,7 @@
 
 #include "ast/expression/expression.h"
 #include "common/types.h"
+#include "lexer/token.h"
 
 namespace vellum {
 
@@ -78,8 +79,14 @@ class IfStatement : public Statement {
 class LocalVariableStatement : public Statement {
  public:
   LocalVariableStatement(VellumIdentifier name, Opt<VellumType> type,
-                         Unique<Expression> initializer)
-      : name(name), type(type), initializer(std::move(initializer)) {}
+                         Unique<Expression> initializer,
+                         Token nameLocation = Token(),
+                         Opt<Token> typeLocation = std::nullopt)
+      : name(name),
+        type(type),
+        initializer(std::move(initializer)),
+        nameLocation(nameLocation),
+        typeLocation(typeLocation) {}
 
   VellumIdentifier getName() const { return name; }
 
@@ -87,6 +94,8 @@ class LocalVariableStatement : public Statement {
   void setType(VellumType type_) { type = type_; }
 
   const Unique<Expression>& getInitializer() const { return initializer; }
+  Token getNameLocation() const { return nameLocation; }
+  Opt<Token> getTypeLocation() const { return typeLocation; }
 
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
@@ -95,6 +104,8 @@ class LocalVariableStatement : public Statement {
   VellumIdentifier name;
   Opt<VellumType> type;
   Unique<Expression> initializer;
+  Token nameLocation;
+  Opt<Token> typeLocation;
 };
 
 class WhileStatement : public Statement {

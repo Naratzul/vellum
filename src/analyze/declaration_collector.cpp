@@ -2,9 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <string>
-
 #include <format>
+#include <string>
 
 #include "ast/decl/declaration.h"
 #include "compiler/compiler_error_handler.h"
@@ -82,16 +81,16 @@ void DeclarationCollector::visitScriptDeclaration(
       return;
     }
 
-    VellumIdentifier parentId = parentScriptName.getState() ==
-                                        VellumTypeState::Unresolved
-                                    ? VellumIdentifier(parentScriptName.asRawType())
-                                    : parentScriptName.asIdentifier();
+    VellumIdentifier parentId =
+        parentScriptName.getState() == VellumTypeState::Unresolved
+            ? VellumIdentifier(parentScriptName.asRawType())
+            : parentScriptName.asIdentifier();
     if (auto resolved = resolver->resolveScriptType(parentId)) {
       resolvedParentType = resolved;
     } else {
-      errorHandler->errorAt(location.value(),
-                            CompilerErrorKind::UnknownParentScript,
-                            "Unknown parent script '{}'.", parentScriptName.toString());
+      errorHandler->errorAt(
+          location.value(), CompilerErrorKind::UnknownParentScript,
+          "Unknown parent script '{}'.", parentScriptName.toString());
       return;
     }
   }
@@ -112,7 +111,8 @@ void DeclarationCollector::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& declaration) {
   Opt<VellumType> annotatedType;
   if (auto type = declaration.typeName()) {
-    annotatedType = resolver->resolveType(type.value());
+    Token typeLocation = declaration.getTypeLocation().value_or(Token());
+    annotatedType = resolver->resolveType(type.value(), typeLocation);
     declaration.typeName() = annotatedType;
   }
 
@@ -150,32 +150,41 @@ void DeclarationCollector::visitFunctionDeclaration(
 
   for (auto& param : declaration.getParameters()) {
     if (!param.type.isResolved()) {
-      param.type = resolver->resolveType(param.type);
+      param.type = resolver->resolveType(param.type, param.typeLocation);
     }
     parameters.emplace_back(VellumIdentifier(param.name), param.type);
   }
 
   if (!declaration.getReturnTypeName().isResolved()) {
-    declaration.getReturnTypeName() =
-        resolver->resolveType(declaration.getReturnTypeName());
+    Token returnTypeLocation =
+        declaration.getReturnTypeLocation().value_or(Token());
+    declaration.getReturnTypeName() = resolver->resolveType(
+        declaration.getReturnTypeName(), returnTypeLocation);
   }
 
-  if (auto parentFunc =
-          resolver->resolveParentFunction(VellumIdentifier(declaration.getName().value()))) {
-    if (parentFunc->getArity() != static_cast<int>(declaration.getParameters().size()) ||
+  if (auto parentFunc = resolver->resolveParentFunction(
+          VellumIdentifier(declaration.getName().value()))) {
+    Token funcLocation = declaration.getNameLocation().value_or(Token());
+
+    if (parentFunc->getArity() !=
+            static_cast<int>(declaration.getParameters().size()) ||
         parentFunc->getReturnType() != declaration.getReturnTypeName() ||
         parentFunc->isStatic() != declaration.isStatic()) {
-      errorHandler->errorAt(Token(), CompilerErrorKind::OverrideSignatureMismatch,
-                           "Override of '{}' must match parent signature (parameters and return type).",
-                           declaration.getName().value());
+      errorHandler->errorAt(funcLocation,
+                            CompilerErrorKind::OverrideSignatureMismatch,
+                            "Override of '{}' must match parent signature "
+                            "(parameters and return type).",
+                            declaration.getName().value());
       return;
     }
     for (size_t i = 0; i < declaration.getParameters().size(); ++i) {
       if (parentFunc->getParameters()[i].getType() !=
           declaration.getParameters()[i].type) {
-        errorHandler->errorAt(Token(), CompilerErrorKind::OverrideSignatureMismatch,
-                             "Override of '{}' must match parent signature (parameters and return type).",
-                             declaration.getName().value());
+        errorHandler->errorAt(funcLocation,
+                              CompilerErrorKind::OverrideSignatureMismatch,
+                              "Override of '{}' must match parent signature "
+                              "(parameters and return type).",
+                              declaration.getName().value());
         return;
       }
     }
@@ -191,13 +200,16 @@ void DeclarationCollector::visitFunctionDeclaration(
 void DeclarationCollector::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
   if (!declaration.getTypeName().isResolved()) {
-    declaration.getTypeName() =
-        resolver->resolveType(declaration.getTypeName());
+    declaration.getTypeName() = resolver->resolveType(
+        declaration.getTypeName(), declaration.getTypeLocation());
   }
 
-  if (resolver->resolveParentProperty(VellumIdentifier(declaration.getName()))) {
+  if (resolver->resolveParentProperty(
+          VellumIdentifier(declaration.getName()))) {
+    Token propLocation = declaration.getNameLocation();
+
     errorHandler->errorAt(
-        Token(), CompilerErrorKind::CannotOverrideProperty,
+        propLocation, CompilerErrorKind::CannotOverrideProperty,
         "Cannot override property '{}'; properties in a parent script cannot "
         "be overridden in the child.",
         declaration.getName());

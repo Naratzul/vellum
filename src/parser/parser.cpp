@@ -181,6 +181,7 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
 
   bool isArray = false;
   Opt<VellumType> typeName;
+  Opt<Token> typeLocation = std::nullopt;
   if (match(TokenType::COLON)) {
     isArray = match(TokenType::LEFT_BRACK);
 
@@ -188,6 +189,7 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
             "Expect a type name.");
 
     auto subtype = VellumType::unresolved(previous.lexeme);
+    typeLocation = previous;
 
     typeName = isArray ? VellumType::array(subtype) : subtype;
 
@@ -211,8 +213,8 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
     throw ParseException(previous, "Type annotation is missing.");
   }
 
-  return makeUnique<ast::GlobalVariableDeclaration>(name, typeName,
-                                                    std::move(initializer));
+  return makeUnique<ast::GlobalVariableDeclaration>(
+      name, typeName, std::move(initializer), typeLocation);
 }
 
 Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
@@ -223,6 +225,7 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectFunctionName,
           "Expect a {} name.", functionTypeName);
   const std::string_view name = previous.lexeme;
+  Token nameLocation = previous;
 
   consume(TokenType::LEFT_PAREN, CompilerErrorKind::ExpectLeftParen,
           "Expect '(' after {} name.", functionTypeName);
@@ -233,39 +236,47 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
       consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectParamName,
               "Expect a parameter name.");
       std::string_view paramName = previous.lexeme;
+      Token paramNameLocation = previous;
 
       consume(TokenType::COLON, CompilerErrorKind::ExpectColon,
               "Expect ':' after parameter name.");
       consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
               "Expect a parameter type.");
       std::string_view paramType = previous.lexeme;
+      Token paramTypeLocation = previous;
 
-      parameters.emplace_back(paramName, VellumType::unresolved(paramType));
+      parameters.emplace_back(paramName, VellumType::unresolved(paramType),
+                              paramNameLocation, paramTypeLocation);
     } while (match(TokenType::COMMA));
   }
 
   consume(TokenType::RIGHT_PAREN, CompilerErrorKind::ExpectRightParen,
           "Expect ')' after {} declaration.", functionTypeName);
 
+  Opt<Token> returnTypeLocation = std::nullopt;
   auto returnTypeName = VellumType::none();
   if (functionType == FunctionType::Function && match(TokenType::ARROW)) {
     consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectReturnType,
             "Expect a function return type name after '->'.");
     returnTypeName = VellumType::unresolved(previous.lexeme);
+    returnTypeLocation = previous;
   }
 
   return makeUnique<ast::FunctionDeclaration>(
-      name, parameters, returnTypeName, functionBody(functionType), isStatic);
+      name, parameters, returnTypeName, functionBody(functionType), isStatic,
+      nameLocation, returnTypeLocation);
 }
 
 Unique<ast::Declaration> Parser::propertyDeclaration() {
   const std::string_view name = previous.lexeme;
+  Token nameLocation = previous;
   consume(TokenType::COLON, CompilerErrorKind::ExpectColon,
           "Expect ':' after property name.");
 
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
           "Expect a property type name.");
   const auto typeName = VellumType::unresolved(previous.lexeme);
+  Token typeLocation = previous;
 
   consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
           "Expect '{{' after property type.");
@@ -307,7 +318,8 @@ Unique<ast::Declaration> Parser::propertyDeclaration() {
   std::string_view documentationString = "";
   return makeUnique<ast::PropertyDeclaration>(
       name, typeName, documentationString, std::move(getAccessor),
-      std::move(setAccessor), std::nullopt);  // TODO: fix default value
+      std::move(setAccessor), std::nullopt, nameLocation,
+      typeLocation);  // TODO: fix default value
 }
 
 ast::FunctionBody Parser::functionBody(FunctionType type) {
@@ -397,12 +409,15 @@ Unique<ast::Statement> Parser::varStatement() {
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
           "Expect a variable name.");
   const VellumIdentifier name(previous.lexeme);
+  Token nameLocation = previous;
 
   Opt<VellumType> type;
+  Opt<Token> typeLocation = std::nullopt;
   if (match(TokenType::COLON)) {
     consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
             "Expect a type name.");
     type = VellumType::unresolved(previous.lexeme);
+    typeLocation = previous;
   }
 
   Unique<ast::Expression> initializer;
@@ -414,8 +429,8 @@ Unique<ast::Statement> Parser::varStatement() {
     throw ParseException(previous, "Type annotation is missing.");
   }
 
-  return makeUnique<ast::LocalVariableStatement>(name, type,
-                                                 std::move(initializer));
+  return makeUnique<ast::LocalVariableStatement>(
+      name, type, std::move(initializer), nameLocation, typeLocation);
 }
 
 Unique<ast::Statement> Parser::whileStatement() {

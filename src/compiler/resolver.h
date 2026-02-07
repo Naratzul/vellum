@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "common/types.h"
+#include "lexer/token.h"
 #include "scope.h"
 #include "vellum/vellum_object.h"
 #include "vellum/vellum_value.h"
@@ -22,9 +23,11 @@ class Resolver {
   }
 
   Resolver(VellumObject object,
-                    const Shared<CompilerErrorHandler>& errorHandler,
-                    const Shared<ImportLibrary>& importLibrary)
-      : object(std::move(object)), errorHandler(errorHandler), importLibrary(importLibrary) {}
+           const Shared<CompilerErrorHandler>& errorHandler,
+           const Shared<ImportLibrary>& importLibrary)
+      : object(std::move(object)),
+        errorHandler(errorHandler),
+        importLibrary(importLibrary) {}
 
   void setObject(const VellumObject& obj) { object = obj; }
   const VellumObject& getObject() const { return object; }
@@ -64,7 +67,7 @@ class Resolver {
   void pushScope();
   void popScope();
 
-  void pushLocalVar(const VellumVariable& var);
+  void pushLocalVar(const VellumVariable& var, Token location);
   void popLocalVar();
   void popLocalVar(int count);
 
@@ -84,7 +87,7 @@ class Resolver {
 
   Opt<VellumType> resolveScriptType(VellumIdentifier identifier) const;
 
-  VellumType resolveType(VellumType unresolvedType) const;
+  VellumType resolveType(VellumType unresolvedType, Token location) const;
 
  private:
   VellumObject object;
@@ -98,6 +101,6 @@ class Resolver {
   Opt<VellumFunction> currentFunction;
 
   VellumLiteralType resolveValueType(std::string_view rawType) const;
-  VellumType resolveObjectType(std::string_view rawType) const;
+  VellumType resolveObjectType(std::string_view rawType, Token location) const;
 };
 }  // namespace vellum

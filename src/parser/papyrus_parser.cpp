@@ -151,6 +151,7 @@ Unique<ast::Declaration> PapyrusParser::functionDeclarationWithReturnType(
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectFunctionName,
           "Expect a function name.");
   const std::string_view name = previous.lexeme;
+  Token nameLocation = previous;
 
   consume(TokenType::LEFT_PAREN, CompilerErrorKind::ExpectLeftParen,
           "Expect '(' after function name.");
@@ -171,14 +172,18 @@ Unique<ast::Declaration> PapyrusParser::functionDeclarationWithReturnType(
     skipUntilEndFunction();
   }
 
+  Opt<Token> returnTypeLocation = std::nullopt;
+  // Return type location is not available in Papyrus parser context
   return makeUnique<ast::FunctionDeclaration>(name, parameters, returnTypeName,
-                                              ast::FunctionBody{}, isGlobal);
+                                              ast::FunctionBody{}, isGlobal,
+                                              nameLocation, returnTypeLocation);
 }
 
 Unique<ast::Declaration> PapyrusParser::eventDeclaration() {
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectFunctionName,
           "Expect an event name.");
   const std::string_view name = previous.lexeme;
+  Token nameLocation = previous;
 
   consume(TokenType::LEFT_PAREN, CompilerErrorKind::ExpectLeftParen,
           "Expect '(' after event name.");
@@ -201,15 +206,20 @@ Unique<ast::Declaration> PapyrusParser::eventDeclaration() {
     skipUntilEndEvent();
   }
 
+  Opt<Token> returnTypeLocation = std::nullopt;
   return makeUnique<ast::FunctionDeclaration>(
-      name, parameters, VellumType::none(), ast::FunctionBody{}, false);
+      name, parameters, VellumType::none(), ast::FunctionBody{}, false,
+      nameLocation, returnTypeLocation);
 }
 
 Unique<ast::Declaration> PapyrusParser::propertyDeclarationWithType(
     VellumType typeName) {
+  // Type location was captured when parseType() was called before this function
+  Token typeLocation = previous;
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
           "Expect a property name.");
   const std::string_view name = previous.lexeme;
+  Token nameLocation = previous;
 
   if (match(TokenType::EQUAL)) {
     // Skip default value for now - just consume until Auto/AutoReadOnly
@@ -226,12 +236,14 @@ Unique<ast::Declaration> PapyrusParser::propertyDeclarationWithType(
   }
 
   return makeUnique<ast::PropertyDeclaration>(name, typeName, "", std::nullopt,
-                                              std::nullopt, std::nullopt);
+                                              std::nullopt, std::nullopt,
+                                              nameLocation, typeLocation);
 }
 
 Unique<ast::Declaration> PapyrusParser::propertyDeclaration() {
   // Parse type
   VellumType typeName = parseType();
+  Token typeLocation = previous;
 
   consume(TokenType::PROPERTY, CompilerErrorKind::ExpectDeclaration,
           "Expect 'Property' after type name.");
@@ -239,6 +251,7 @@ Unique<ast::Declaration> PapyrusParser::propertyDeclaration() {
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
           "Expect a property name.");
   const std::string_view name = previous.lexeme;
+  Token nameLocation = previous;
 
   if (match(TokenType::EQUAL)) {
     // Skip default value for now - just consume until Auto/AutoReadOnly
@@ -255,7 +268,8 @@ Unique<ast::Declaration> PapyrusParser::propertyDeclaration() {
   }
 
   return makeUnique<ast::PropertyDeclaration>(name, typeName, "", std::nullopt,
-                                              std::nullopt, std::nullopt);
+                                              std::nullopt, std::nullopt,
+                                              nameLocation, typeLocation);
 }
 
 Vec<ast::FunctionParameter> PapyrusParser::parseParameters() {
@@ -267,10 +281,12 @@ Vec<ast::FunctionParameter> PapyrusParser::parseParameters() {
     }
 
     VellumType paramType = parseType();
+    Token paramTypeLocation = previous;
 
     consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectParamName,
             "Expect a parameter name.");
     std::string_view paramName = previous.lexeme;
+    Token paramNameLocation = previous;
 
     if (match(TokenType::EQUAL)) {
       while (!check(TokenType::COMMA) && !check(TokenType::RIGHT_PAREN)) {
@@ -278,7 +294,8 @@ Vec<ast::FunctionParameter> PapyrusParser::parseParameters() {
       }
     }
 
-    parameters.emplace_back(paramName, paramType);
+    parameters.emplace_back(paramName, paramType, paramNameLocation,
+                            paramTypeLocation);
   } while (match(TokenType::COMMA));
 
   return parameters;
