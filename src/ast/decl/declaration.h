@@ -95,16 +95,19 @@ class GlobalVariableDeclaration : public Declaration {
  public:
   GlobalVariableDeclaration(std::string_view name, Opt<VellumType> typeName,
                             Unique<Expression> initializer,
+                            Opt<Token> nameLocation = std::nullopt,
                             Opt<Token> typeLocation = std::nullopt)
       : name_(name),
         typeName_(typeName),
         initializer_(std::move(initializer)),
+        nameLocation_(nameLocation),
         typeLocation_(typeLocation) {}
 
   std::string_view name() const { return name_; }
   Opt<VellumType> typeName() const { return typeName_; }
   Opt<VellumType>& typeName() { return typeName_; }
   const Unique<Expression>& initializer() const { return initializer_; }
+  Opt<Token> getNameLocation() const { return nameLocation_; }
   Opt<Token> getTypeLocation() const { return typeLocation_; }
 
   VellumValue getValue() const;
@@ -120,6 +123,7 @@ class GlobalVariableDeclaration : public Declaration {
   std::string_view name_;
   Opt<VellumType> typeName_;
   Unique<Expression> initializer_;
+  Opt<Token> nameLocation_;
   Opt<Token> typeLocation_;
 };
 

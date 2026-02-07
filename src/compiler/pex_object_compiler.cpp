@@ -2,6 +2,7 @@
 
 #include "ast/decl/declaration.h"
 #include "common/string_set.h"
+#include "common/string_utils.h"
 #include "common/types.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
@@ -48,7 +49,8 @@ void PexObjectCompiler::visitScriptDeclaration(
 
 void PexObjectCompiler::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& declaration) {
-  const pex::PexString name = file.getString(declaration.name());
+  const pex::PexString name =
+      file.getString(common::normalizeToLower(declaration.name()));
 
   assert(declaration.typeName().has_value());
   const pex::PexString typeName =
@@ -68,7 +70,8 @@ void PexObjectCompiler::visitFunctionDeclaration(
 
 void PexObjectCompiler::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
-  const pex::PexString name = file.getString(declaration.getName());
+  const pex::PexString name =
+      file.getString(common::normalizeToLower(declaration.getName()));
   const pex::PexString typeName =
       file.getString(declaration.getTypeName().toString());
   const pex::PexString documentationString =
@@ -104,8 +107,9 @@ void PexObjectCompiler::visitPropertyDeclaration(
 
   Opt<pex::PexString> backedVariableName;
   if (declaration.isAutoProperty()) {
+    std::string normalizedPropName(common::normalizeToLower(declaration.getName()));
     const std::string_view varName = common::StringSet::insert(
-        "::" + std::string(declaration.getName()) + "_var");
+        "::" + normalizedPropName + "_var");
     pex::PexVariable backedVariable(
         file.getString(varName), typeName,
         makeValueFromToken(

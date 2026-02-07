@@ -178,6 +178,7 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
           "Expect a variable name.");
   const std::string_view name = previous.lexeme;
+  Token nameLocation = previous;
 
   bool isArray = false;
   Opt<VellumType> typeName;
@@ -214,7 +215,7 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
   }
 
   return makeUnique<ast::GlobalVariableDeclaration>(
-      name, typeName, std::move(initializer), typeLocation);
+      name, typeName, std::move(initializer), nameLocation, typeLocation);
 }
 
 Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,

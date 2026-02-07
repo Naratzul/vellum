@@ -6,6 +6,7 @@
 #include <string>
 
 #include "ast/decl/declaration.h"
+#include "common/string_utils.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
 #include "vellum/vellum_function.h"
@@ -139,8 +140,29 @@ void DeclarationCollector::visitVariableDeclaration(
     }
   }
 
-  resolver->addVariable(VellumVariable(VellumIdentifier(declaration.name()),
-                                       declaration.typeName().value()));
+  auto varName = VellumIdentifier(declaration.name());
+  std::string normalized =
+      std::string(common::normalizeToLower(varName.toString()));
+
+  if (normalizedVariableNames.contains(normalized)) {
+    auto it = normalizedToOriginal.find(normalized);
+    if (it != normalizedToOriginal.end() && it->second != varName) {
+      Token varLocation = declaration.getNameLocation().value_or(Token());
+      errorHandler->errorAt(
+          varLocation, CompilerErrorKind::CaseConflict,
+          "Variable '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
+          "format), these names are case-insensitive and would create a "
+          "duplicate.",
+          varName.toString(), it->second.toString());
+      return;
+    }
+  }
+
+  normalizedVariableNames.insert(normalized);
+  normalizedToOriginal.emplace(normalized, varName);
+
+  resolver->addVariable(
+      VellumVariable(varName, declaration.typeName().value()));
 }
 
 void DeclarationCollector::visitFunctionDeclaration(
@@ -162,10 +184,25 @@ void DeclarationCollector::visitFunctionDeclaration(
         declaration.getReturnTypeName(), returnTypeLocation);
   }
 
-  if (auto parentFunc = resolver->resolveParentFunction(
-          VellumIdentifier(declaration.getName().value()))) {
-    Token funcLocation = declaration.getNameLocation().value_or(Token());
+  auto funcName = VellumIdentifier(declaration.getName().value());
+  std::string normalized =
+      std::string(common::normalizeToLower(funcName.toString()));
+  Token funcLocation = declaration.getNameLocation().value_or(Token());
 
+  if (normalizedFunctionNames.contains(normalized)) {
+    auto it = normalizedToOriginal.find(normalized);
+    if (it != normalizedToOriginal.end() && it->second != funcName) {
+      errorHandler->errorAt(
+          funcLocation, CompilerErrorKind::CaseConflict,
+          "Function '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
+          "format), these names are case-insensitive and would create a "
+          "duplicate.",
+          funcName.toString(), it->second.toString());
+      return;
+    }
+  }
+
+  if (auto parentFunc = resolver->resolveParentFunction(funcName)) {
     if (parentFunc->getArity() !=
             static_cast<int>(declaration.getParameters().size()) ||
         parentFunc->getReturnType() != declaration.getReturnTypeName() ||
@@ -190,9 +227,11 @@ void DeclarationCollector::visitFunctionDeclaration(
     }
   }
 
-  VellumFunction func(VellumIdentifier(declaration.getName().value()),
-                      declaration.getReturnTypeName(), std::move(parameters),
-                      declaration.isStatic());
+  normalizedFunctionNames.insert(normalized);
+  normalizedToOriginal.emplace(normalized, funcName);
+
+  VellumFunction func(funcName, declaration.getReturnTypeName(),
+                      std::move(parameters), declaration.isStatic());
 
   resolver->addFunction(func);
 }
@@ -204,10 +243,25 @@ void DeclarationCollector::visitPropertyDeclaration(
         declaration.getTypeName(), declaration.getTypeLocation());
   }
 
-  if (resolver->resolveParentProperty(
-          VellumIdentifier(declaration.getName()))) {
-    Token propLocation = declaration.getNameLocation();
+  auto propName = VellumIdentifier(declaration.getName());
+  std::string normalized =
+      std::string(common::normalizeToLower(propName.toString()));
+  Token propLocation = declaration.getNameLocation();
 
+  if (normalizedPropertyNames.contains(normalized)) {
+    auto it = normalizedToOriginal.find(normalized);
+    if (it != normalizedToOriginal.end() && it->second != propName) {
+      errorHandler->errorAt(
+          propLocation, CompilerErrorKind::CaseConflict,
+          "Property '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
+          "format), these names are case-insensitive and would create a "
+          "duplicate.",
+          propName.toString(), it->second.toString());
+      return;
+    }
+  }
+
+  if (resolver->resolveParentProperty(propName)) {
     errorHandler->errorAt(
         propLocation, CompilerErrorKind::CannotOverrideProperty,
         "Cannot override property '{}'; properties in a parent script cannot "
@@ -216,8 +270,10 @@ void DeclarationCollector::visitPropertyDeclaration(
     return;
   }
 
-  resolver->addProperty(VellumProperty(VellumIdentifier(declaration.getName()),
-                                       declaration.getTypeName(),
+  normalizedPropertyNames.insert(normalized);
+  normalizedToOriginal.emplace(normalized, propName);
+
+  resolver->addProperty(VellumProperty(propName, declaration.getTypeName(),
                                        declaration.isReadonly()));
 }
 }  // namespace vellum

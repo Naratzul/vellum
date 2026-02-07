@@ -7,6 +7,8 @@
 #include "vellum/vellum_identifier.h"
 
 namespace vellum {
+using common::Map;
+using common::Set;
 using common::Shared;
 using common::Unique;
 using common::Vec;
@@ -40,5 +42,10 @@ class DeclarationCollector : public ast::DeclarationVisitor {
   Shared<Resolver> resolver;
   std::string_view scriptFilename;
   int scriptDeclCount = 0;
+
+  Set<std::string> normalizedFunctionNames;
+  Set<std::string> normalizedPropertyNames;
+  Set<std::string> normalizedVariableNames;
+  Map<std::string, VellumIdentifier> normalizedToOriginal;
 };
 }  // namespace vellum

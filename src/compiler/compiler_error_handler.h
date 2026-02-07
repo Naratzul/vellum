@@ -71,7 +71,8 @@ enum class CompilerErrorKind {
   CannotExtendOutself,
   UnknownParentScript,
   OverrideSignatureMismatch,
-  CannotOverrideProperty
+  CannotOverrideProperty,
+  CaseConflict
 };
 
 enum class CompilerWarningKind {};
