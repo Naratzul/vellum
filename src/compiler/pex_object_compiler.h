@@ -35,6 +35,7 @@ class PexObjectCompiler : public ast::DeclarationVisitor {
 
   void visitImportDeclaration(ast::ImportDeclaration&) override {}
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
+  void visitStateDeclaration(ast::StateDeclaration& declaration) override;
   void visitVariableDeclaration(
       ast::GlobalVariableDeclaration& declaration) override;
   void visitFunctionDeclaration(ast::FunctionDeclaration& declaration) override;

@@ -108,6 +108,9 @@ void DeclarationCollector::visitScriptDeclaration(
   }
 }
 
+void DeclarationCollector::visitStateDeclaration(
+    ast::StateDeclaration& declaration) {}
+
 void DeclarationCollector::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& declaration) {
   Opt<VellumType> annotatedType;

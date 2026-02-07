@@ -47,6 +47,9 @@ void PexObjectCompiler::visitScriptDeclaration(
   }
 }
 
+void PexObjectCompiler::visitStateDeclaration(
+    ast::StateDeclaration& declaration) {}
+
 void PexObjectCompiler::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& declaration) {
   const pex::PexString name =

@@ -25,7 +25,12 @@ void TypeCollector::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
   collectTypeFromVellumType(declaration.getParentScriptName());
 
-  // Recursively collect types from script members
+  for (const auto& memberDecl : declaration.getMemberDecls()) {
+    memberDecl->accept(*this);
+  }
+}
+
+void TypeCollector::visitStateDeclaration(ast::StateDeclaration& declaration) {
   for (const auto& memberDecl : declaration.getMemberDecls()) {
     memberDecl->accept(*this);
   }

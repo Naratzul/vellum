@@ -45,6 +45,9 @@ void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
   }
 }
 
+void SemanticAnalyzer::visitStateDeclaration(
+    ast::StateDeclaration& declaration) {}
+
 void SemanticAnalyzer::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& statement) {
   (void)statement;
