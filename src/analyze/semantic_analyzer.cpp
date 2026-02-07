@@ -264,7 +264,7 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     return;
   }
 
-  if (func->getParameters().size() != expr.getArguments().size()) {
+  if (func->getArity() != expr.getArguments().size()) {
     errorHandler->errorAt(
         expr.getLocation(), CompilerErrorKind::FunctionArgumentsCountMismatch,
         "Function '{}' expects {} arguments, but {} were provided.",
@@ -272,7 +272,8 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
         expr.getArguments().size());
   }
 
-  for (size_t i = 0; i < expr.getArguments().size(); i++) {
+  auto argsCount = std::min((int)expr.getArguments().size(), func->getArity());
+  for (size_t i = 0; i < argsCount; i++) {
     auto& arg = expr.getArguments()[i];
     arg->accept(*this);
 

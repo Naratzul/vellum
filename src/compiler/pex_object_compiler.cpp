@@ -109,11 +109,15 @@ void PexObjectCompiler::visitPropertyDeclaration(
   if (declaration.isAutoProperty()) {
     std::string normalizedPropName(common::normalizeToLower(declaration.getName()));
     const std::string_view varName = common::StringSet::insert(
-        "::" + normalizedPropName + "_var");
+        "::" + std::string(normalizedPropName) + "_var");
+    VellumType type = declaration.getTypeName();
+    auto defaultValueType =
+        type.getState() == VellumTypeState::Literal ? type : VellumType::none();
     pex::PexVariable backedVariable(
         file.getString(varName), typeName,
         makeValueFromToken(
-            declaration.getDefaultValue().value()));  // TODO: fix this
+            declaration.getDefaultValue().value_or(makeDefaultLiteral(
+                defaultValueType.asLiteralType()))));
     backedVariableName = backedVariable.name();
     object.getVariables().push_back(backedVariable);
   }
