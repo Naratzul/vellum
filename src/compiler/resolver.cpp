@@ -2,6 +2,7 @@
 
 #include "analyze/import_library.h"
 #include "common/types.h"
+#include "compiler/builtin_functions.h"
 #include "compiler_error_handler.h"
 #include "lexer/token.h"
 #include "vellum/vellum_identifier.h"
@@ -54,6 +55,10 @@ Opt<VellumValue> Resolver::resolveIdentifier(
 
   if (auto id = object.findIdentifier(identifier)) {
     return id;
+  }
+
+  if (auto func = builtinFunctions->getFunction(identifier)) {
+    return VellumValue(*func);
   }
 
   if (parentType && parentType->getState() == VellumTypeState::Identifier) {
@@ -132,6 +137,10 @@ Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
                                               VellumIdentifier function) const {
   if (type == object.getType()) {
     if (auto func = this->object.findFunction(function)) {
+      return func;
+    }
+
+    if (auto func = builtinFunctions->getFunction(function)) {
       return func;
     }
     if (parentType && parentType->getState() == VellumTypeState::Identifier) {

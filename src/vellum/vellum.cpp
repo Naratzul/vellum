@@ -10,6 +10,7 @@
 #include "common/fs.h"
 #include "common/os.h"
 #include "common/types.h"
+#include "compiler/builtin_functions.h"
 #include "compiler/compiler.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
@@ -32,9 +33,10 @@ void Vellum::run(const fs::path& inputFile,
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(importPaths);
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver =
       makeShared<Resolver>(VellumObject(VellumType::identifier(filename)),
-                           errorHandler, importLibrary);
+                           errorHandler, importLibrary, builtinFunctions);
 
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();
@@ -54,17 +56,6 @@ void Vellum::run(const fs::path& inputFile,
   if (errorHandler->hadError()) {
     return;
   }
-
-  VellumFunction getState(VellumIdentifier("GetState"),
-                          VellumType::literal(VellumLiteralType::String), {},
-                          false);
-  VellumFunction goToState(
-      VellumIdentifier("GoToState"), VellumType::none(),
-      {VellumVariable(VellumIdentifier("name"),
-                      VellumType::literal(VellumLiteralType::String))},
-      false);
-  resolver->addFunction(getState);
-  resolver->addFunction(goToState);
 
   SemanticAnalyzer semantic(errorHandler, resolver, filename);
   const SemanticAnalyzeResult semanticResult =

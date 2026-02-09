@@ -8,6 +8,7 @@
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
 #include "common/types.h"
+#include "compiler/builtin_functions.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
 #include "lexer/token.h"
@@ -29,9 +30,10 @@ class SemanticTestsFixture {
   SemanticTestsFixture() {
     errorHandler = makeShared<CompilerErrorHandler>();
     importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+    auto builtinFunctions = makeShared<BuiltinFunctions>();
     resolver =
         makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
-                             errorHandler, importLibrary);
+                             errorHandler, importLibrary, builtinFunctions);
     collector =
         makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
     analyzer =
@@ -42,8 +44,9 @@ class SemanticTestsFixture {
     VellumIdentifier name = object.getType().asIdentifier();
     auto module =
         makeShared<ImportModule>(name, ImportModuleType::Vellum, fs::path(""));
-    auto objectResolver =
-        makeShared<Resolver>(object, errorHandler, importLibrary);
+    auto builtinFunctions = makeShared<BuiltinFunctions>();
+    auto objectResolver = makeShared<Resolver>(object, errorHandler,
+                                               importLibrary, builtinFunctions);
     module->setResolver(objectResolver);
     importLibrary->addTestModule(module);
     resolver->importObject(name);
@@ -1035,9 +1038,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticInheritance_SuperCall_Resolves") {
   VellumObject parentObj(VellumType::identifier("ParentScript"));
-  parentObj.addFunction(VellumFunction(VellumIdentifier("foo"),
-                                      VellumType::literal(VellumLiteralType::Int),
-                                      {}, false));
+  parentObj.addFunction(
+      VellumFunction(VellumIdentifier("foo"),
+                     VellumType::literal(VellumLiteralType::Int), {}, false));
   addTestObject(parentObj);
 
   Token scriptToken = makeToken(TokenType::IDENTIFIER, 1, "testscript");
@@ -1048,8 +1051,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   auto callExpr = makeUnique<ast::CallExpression>(
       std::move(propGet), Vec<Unique<ast::Expression>>{}, Token());
   ast::FunctionBody body;
-  body.push_back(
-      makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
@@ -1073,8 +1075,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(funcDecl.getBody().size() == 1);
   const auto& stmt =
       dynamic_cast<ast::ExpressionStatement&>(*funcDecl.getBody()[0]);
-  const auto& call =
-      dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
+  const auto& call = dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
   REQUIRE(call.getFunctionCall().has_value());
   REQUIRE(call.getFunctionCall()->isParentCall());
   CHECK(call.getType().isInt());
@@ -1088,8 +1089,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   auto callExpr = makeUnique<ast::CallExpression>(
       std::move(propGet), Vec<Unique<ast::Expression>>{}, Token());
   ast::FunctionBody body;
-  body.push_back(
-      makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
@@ -1105,16 +1105,15 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hadError());
-  REQUIRE(
-      errorHandler->hasError(CompilerErrorKind::UndefinedFunction));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedFunction));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticInheritance_PropertyShadow_Error") {
   VellumObject parentObj(VellumType::identifier("ParentScript"));
-  parentObj.addProperty(VellumProperty(VellumIdentifier("X"),
-                                       VellumType::literal(VellumLiteralType::Int),
-                                       false));
+  parentObj.addProperty(
+      VellumProperty(VellumIdentifier("X"),
+                     VellumType::literal(VellumLiteralType::Int), false));
   addTestObject(parentObj);
 
   Vec<Unique<ast::Declaration>> members;
@@ -1127,8 +1126,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       VellumType::identifier("testscript"),
       makeToken(TokenType::IDENTIFIER, 1, "testscript"),
       VellumType::identifier("ParentScript"),
-      makeToken(TokenType::IDENTIFIER, 1, "ParentScript"),
-      std::move(members)));
+      makeToken(TokenType::IDENTIFIER, 1, "ParentScript"), std::move(members)));
 
   collector->collect(ast);
   const auto result = analyzer->analyze(std::move(ast));
@@ -1139,17 +1137,16 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticInheritance_CallInheritedFunction") {
   VellumObject parentObj(VellumType::identifier("ParentScript"));
-  parentObj.addFunction(VellumFunction(VellumIdentifier("inherited"),
-                                      VellumType::literal(VellumLiteralType::Bool),
-                                      {}, false));
+  parentObj.addFunction(
+      VellumFunction(VellumIdentifier("inherited"),
+                     VellumType::literal(VellumLiteralType::Bool), {}, false));
   addTestObject(parentObj);
 
   auto callExpr = makeUnique<ast::CallExpression>(
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("inherited")),
       Vec<Unique<ast::Expression>>{}, Token());
   ast::FunctionBody body;
-  body.push_back(
-      makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
@@ -1160,8 +1157,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       VellumType::identifier("testscript"),
       makeToken(TokenType::IDENTIFIER, 1, "testscript"),
       VellumType::identifier("ParentScript"),
-      makeToken(TokenType::IDENTIFIER, 1, "ParentScript"),
-      std::move(members)));
+      makeToken(TokenType::IDENTIFIER, 1, "ParentScript"), std::move(members)));
 
   collector->collect(ast);
   const auto result = analyzer->analyze(std::move(ast));
@@ -1173,7 +1169,6 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       dynamic_cast<ast::FunctionDeclaration&>(*scriptDecl.getMemberDecls()[0]);
   const auto& stmt =
       dynamic_cast<ast::ExpressionStatement&>(*funcDecl.getBody()[0]);
-  const auto& call =
-      dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
+  const auto& call = dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
   CHECK(call.getType().isBool());
 }

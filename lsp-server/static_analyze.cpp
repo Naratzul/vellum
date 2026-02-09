@@ -4,6 +4,7 @@
 #include "analyze/import_resolver.h"
 #include "analyze/semantic_analyzer.h"
 #include "analyze/type_collector.h"
+#include "compiler/builtin_functions.h"
 #include "compiler/resolver.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
@@ -20,9 +21,10 @@ Vec<DiagnosticMessage> StaticAnalyze::analyze(std::string_view filename,
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver =
       makeShared<Resolver>(VellumObject(VellumType::identifier(filename)),
-                           errorHandler, importLibrary);
+                           errorHandler, importLibrary, builtinFunctions);
 
   Parser parser(std::move(lexer), errorHandler);
   ParserResult parseResult = parser.parse();

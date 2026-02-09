@@ -6,6 +6,7 @@
 #include "analyze/declaration_collector.h"
 #include "analyze/type_collector.h"
 #include "common/fs.h"
+#include "compiler/builtin_functions.h"
 #include "compiler/resolver.h"
 #include "lexer/lexer.h"
 #include "parser/papyrus_lexer.h"
@@ -77,9 +78,10 @@ void ImportResolver::doResolveAllModules() {
 
     const auto filename = module->getFilePath().stem().string();
 
+    auto builtinFunctions = makeShared<BuiltinFunctions>();
     auto resolver =
         makeShared<Resolver>(VellumObject(VellumType::identifier(name)),
-                             errorHandler, importLibrary);
+                             errorHandler, importLibrary, builtinFunctions);
 
     module->setResolver(resolver);
 

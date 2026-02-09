@@ -16,6 +16,7 @@ using common::Vec;
 
 class ImportLibrary;
 class CompilerErrorHandler;
+class BuiltinFunctions;
 
 class Resolver {
  public:
@@ -25,10 +26,12 @@ class Resolver {
 
   Resolver(VellumObject object,
            const Shared<CompilerErrorHandler>& errorHandler,
-           const Shared<ImportLibrary>& importLibrary)
+           const Shared<ImportLibrary>& importLibrary,
+           const Shared<BuiltinFunctions>& builtinFunctions)
       : object(std::move(object)),
         errorHandler(errorHandler),
-        importLibrary(importLibrary) {}
+        importLibrary(importLibrary),
+        builtinFunctions(builtinFunctions) {}
 
   void setObject(const VellumObject& obj) { object = obj; }
   const VellumObject& getObject() const { return object; }
@@ -100,6 +103,7 @@ class Resolver {
   VellumObject object;
   Shared<CompilerErrorHandler> errorHandler;
   Shared<ImportLibrary> importLibrary;
+  Shared<BuiltinFunctions> builtinFunctions;
   Opt<VellumType> parentType;
 
   static Vec<VellumObject> builtinObjects;
