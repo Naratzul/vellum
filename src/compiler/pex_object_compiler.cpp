@@ -44,6 +44,7 @@ void PexObjectCompiler::visitScriptDeclaration(
   object.setParentName(
       file.getString(declaration.getParentScriptName().toString()));
   object.setDocumentationString(file.getString(""));
+  object.setAutoStateName(file.getString(""));
 
   for (auto& member : declaration.getMemberDecls()) {
     member->accept(*this);

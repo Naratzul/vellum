@@ -1,7 +1,5 @@
 #include "semantic_analyzer.h"
 
-#include <bsm/audit.h>
-
 #include <cassert>
 #include <optional>
 

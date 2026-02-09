@@ -168,6 +168,8 @@ TokenType Lexer::identifierType() const {
           return checkKeyword(2, 1, "d", TokenType::AND);
         case 's':
           return checkKeyword(2, 0, "", TokenType::AS);
+        case 'u':
+          return checkKeyword(2, 2, "to", TokenType::AUTO);
       }
       break;
     case 'e':

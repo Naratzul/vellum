@@ -55,6 +55,17 @@ void Vellum::run(const fs::path& inputFile,
     return;
   }
 
+  VellumFunction getState(VellumIdentifier("GetState"),
+                          VellumType::literal(VellumLiteralType::String), {},
+                          false);
+  VellumFunction goToState(
+      VellumIdentifier("GoToState"), VellumType::none(),
+      {VellumVariable(VellumIdentifier("name"),
+                      VellumType::literal(VellumLiteralType::String))},
+      false);
+  resolver->addFunction(getState);
+  resolver->addFunction(goToState);
+
   SemanticAnalyzer semantic(errorHandler, resolver, filename);
   const SemanticAnalyzeResult semanticResult =
       semantic.analyze(std::move(parseResult.declarations));
