@@ -95,7 +95,7 @@ void SemanticAnalyzer::visitFunctionDeclaration(
       assert(nameLocation.has_value());
 
       errorHandler->errorAt(
-          nameLocation.value(),
+          nameLocation.value(), CompilerErrorKind::StateFunctionNotInEmptyState,
           "Function '{}' cannot be defined in state '{}' without also being "
           "defined in the empty state.",
           funcName.toString(), state->getName().toString());
@@ -108,6 +108,7 @@ void SemanticAnalyzer::visitFunctionDeclaration(
 
       errorHandler->errorAt(
           nameLocation.value(),
+          CompilerErrorKind::StateFunctionSignatureMismatch,
           "The signature of function '{}' in state '{}' doesn't match the "
           "signature in the root state.",
           funcName.toString(), state->getName().toString());

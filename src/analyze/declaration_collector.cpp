@@ -58,7 +58,6 @@ void DeclarationCollector::visitScriptDeclaration(
                           CompilerErrorKind::FilenameMismatch,
                           "Filename '{}' doesn't match scriptname '{}'.",
                           scriptFilename, scriptName.toString());
-    return;
   }
 
   Opt<VellumType> resolvedParentType;
@@ -115,6 +114,7 @@ void DeclarationCollector::visitStateDeclaration(
 
   if (autoStateCount > 1) {
     errorHandler->errorAt(declaration.getStateNameLocation(),
+                          CompilerErrorKind::MultipleAutoStates,
                           "Only one auto state is allowed.");
   }
 

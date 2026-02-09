@@ -72,7 +72,11 @@ enum class CompilerErrorKind {
   UnknownParentScript,
   OverrideSignatureMismatch,
   CannotOverrideProperty,
-  CaseConflict
+  CaseConflict,
+
+  MultipleAutoStates,
+  StateFunctionNotInEmptyState,
+  StateFunctionSignatureMismatch
 };
 
 enum class CompilerWarningKind {};

@@ -48,7 +48,7 @@ void CompilerErrorHandler::printError(const Token& token,
   std::cerr << stream.str() << std::endl;
 
   if (common::isDebuggerPresent()) {
-    common::debugBreak();
+    // common::debugBreak();
   }
 }
 

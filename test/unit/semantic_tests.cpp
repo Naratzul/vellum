@@ -16,6 +16,7 @@
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_object.h"
 #include "vellum/vellum_property.h"
+#include "vellum/vellum_type.h"
 namespace fs = std::filesystem;
 
 using namespace vellum;
@@ -1171,4 +1172,426 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       dynamic_cast<ast::ExpressionStatement&>(*funcDecl.getBody()[0]);
   const auto& call = dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
   CHECK(call.getType().isBool());
+}
+
+// ============================================================================
+// State Tests
+// ============================================================================
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_OnlyOneAutoState") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // First auto state - should be OK
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "State1", makeToken(TokenType::IDENTIFIER, 1, "State1"), true,
+      Vec<Unique<ast::Declaration>>{}));
+
+  // Second auto state - should error
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "State2", makeToken(TokenType::IDENTIFIER, 2, "State2"), true,
+      Vec<Unique<ast::Declaration>>{}));
+
+  collector->collect(ast);
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::MultipleAutoStates));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_OnlyFunctionsAllowed") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Try to declare a variable in a state - should error
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "myVar", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 1, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ExpectDeclaration));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_PropertyNotAllowed") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Try to declare a property in a state - should error
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "MyProperty", VellumType::unresolved("String"), "", std::nullopt,
+      std::nullopt, std::nullopt));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 1, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ExpectDeclaration));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionMustBeInEmptyState") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define function only in state, not in empty state - should error
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 1, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 1, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(
+      errorHandler->hasError(CompilerErrorKind::StateFunctionNotInEmptyState));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionSignatureMustMatch") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define function in empty state with return type Int
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 1, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  // Define same function in state with different return type - should error
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Bool"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateFunctionSignatureMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionParameterCountMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define function in empty state with one parameter
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc",
+      Vec<ast::FunctionParameter>{
+          ast::FunctionParameter{"x", VellumType::unresolved("Int")}},
+      VellumType::unresolved("Int"), Vec<Unique<ast::Statement>>{}, false));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  // Define same function in state with no parameters - should error
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateFunctionSignatureMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionParameterTypeMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define function in empty state with Int parameter
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc",
+      Vec<ast::FunctionParameter>{
+          ast::FunctionParameter{"x", VellumType::unresolved("Int")}},
+      VellumType::unresolved("Int"), Vec<Unique<ast::Statement>>{}, false));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  // Define same function in state with Bool parameter - should error
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc",
+      Vec<ast::FunctionParameter>{
+          ast::FunctionParameter{"x", VellumType::unresolved("Bool")}},
+      VellumType::unresolved("Int"), Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateFunctionSignatureMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionStaticMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define static function in empty state
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, true));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  // Define same function in state as non-static - should error
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateFunctionSignatureMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_ValidStateWithFunction") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define function in empty state
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  // Define same function in state with matching signature - should be OK
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_ValidAutoState") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define function in empty state
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  // Define auto state with matching function - should be OK
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), true,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_MultipleStatesWithValidFunctions") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define function in empty state
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  // Define first state with matching function
+  Vec<Unique<ast::Declaration>> state1Members;
+  state1Members.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "State1", makeToken(TokenType::IDENTIFIER, 2, "State1"), false,
+      std::move(state1Members)));
+
+  // Define second state with matching function - should be OK
+  Vec<Unique<ast::Declaration>> state2Members;
+  state2Members.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 3, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "State2", makeToken(TokenType::IDENTIFIER, 3, "State2"), false,
+      std::move(state2Members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 3);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_EventAllowedInState") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define event in empty state
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onActivate", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  // Define same event in state - should be OK (events are functions)
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onActivate", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "onActivate")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_EmptyStateAllowed") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define script
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, Vec<Unique<ast::Declaration>>{}));
+
+  // Define state with no functions - should be OK
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      Vec<Unique<ast::Declaration>>{}));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "State_MultipleFunctionsInState") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Define multiple functions in empty state
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "func1", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "func2", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Bool"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  // Define same functions in state - should be OK
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "func1", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "func1")));
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "func2", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Bool"),
+      Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "func2")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
 }
