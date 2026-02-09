@@ -1,5 +1,7 @@
 #include "vellum_object.h"
 
+#include <optional>
+
 #include "common/types.h"
 
 namespace vellum {
@@ -18,6 +20,15 @@ Opt<VellumProperty> VellumObject::getProperty(VellumIdentifier id) const {
   for (const auto& prop : properties) {
     if (prop.getName() == id) {
       return prop;
+    }
+  }
+  return std::nullopt;
+}
+
+Opt<VellumState> VellumObject::getState(VellumIdentifier name) const {
+  for (const auto& state : states) {
+    if (state.getName() == name) {
+      return state;
     }
   }
   return std::nullopt;

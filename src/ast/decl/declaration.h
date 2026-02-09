@@ -20,10 +20,10 @@ class DeclarationVisitor;
 enum class DeclarationOrder {
   Import,
   Script,
-  State,
   Variable,
   Function,
-  Property
+  Property,
+  State,
 };
 
 class Declaration {
@@ -114,6 +114,8 @@ class StateDeclaration : public Declaration {
   const Vec<Unique<ast::Declaration>>& getMemberDecls() const {
     return members;
   }
+
+  Vec<Unique<ast::Declaration>>& getMemberDecls() { return members; }
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;

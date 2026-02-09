@@ -72,6 +72,8 @@ class VellumFunction {
   int getArity() const { return parameters.size(); }
   bool isStatic() const { return staticFunc; }
 
+  bool matchSignature(const VellumFunction& other) const;
+
  private:
   VellumIdentifier name;
   VellumType returnType;

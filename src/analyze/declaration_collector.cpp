@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <format>
+#include <optional>
 #include <string>
 
 #include "ast/decl/declaration.h"
@@ -10,16 +11,14 @@
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
 #include "vellum/vellum_function.h"
+#include "vellum/vellum_identifier.h"
 #include "vellum/vellum_literal.h"
 #include "vellum/vellum_property.h"
+#include "vellum/vellum_state.h"
 
 namespace vellum {
 void DeclarationCollector::collect(
     Vec<Unique<ast::Declaration>>& declarations) {
-  std::ranges::sort(declarations, [](const auto& lhs, const auto& rhs) {
-    return lhs->getOrder() < rhs->getOrder();
-  });
-
   for (auto& decl : declarations) {
     decl->accept(*this);
   }
@@ -109,10 +108,44 @@ void DeclarationCollector::visitScriptDeclaration(
 }
 
 void DeclarationCollector::visitStateDeclaration(
-    ast::StateDeclaration& declaration) {}
+    ast::StateDeclaration& declaration) {
+  if (declaration.getIsAuto()) {
+    autoStateCount++;
+  }
+
+  if (autoStateCount > 1) {
+    errorHandler->errorAt(declaration.getStateNameLocation(),
+                          "Only one auto state is allowed.");
+  }
+
+  // TODO: add name case collision check
+  state = VellumState(VellumIdentifier(declaration.getStateName()));
+
+  auto& members = declaration.getMemberDecls();
+  for (const auto& member : members) {
+    member->accept(*this);
+  }
+
+  std::erase_if(members, [](const auto& decl) {
+    return decl->getOrder() != ast::DeclarationOrder::Function;
+  });
+
+  resolver->addState(state.value());
+  state = std::nullopt;
+}
 
 void DeclarationCollector::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& declaration) {
+  if (state.has_value()) {
+    errorHandler->errorAt(
+        declaration.getNameLocation().value_or(Token()),
+        CompilerErrorKind::ExpectDeclaration,
+        "Variable '{}' is not allowed inside states. Only functions and events "
+        "are allowed in state declarations.",
+        declaration.name());
+    return;
+  }
+
   Opt<VellumType> annotatedType;
   if (auto type = declaration.typeName()) {
     Token typeLocation = declaration.getTypeLocation().value_or(Token());
@@ -236,11 +269,24 @@ void DeclarationCollector::visitFunctionDeclaration(
   VellumFunction func(funcName, declaration.getReturnTypeName(),
                       std::move(parameters), declaration.isStatic());
 
-  resolver->addFunction(func);
+  if (state.has_value()) {
+    state->addFunction(func);
+  } else {
+    resolver->addFunction(func);
+  }
 }
 
 void DeclarationCollector::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
+  if (state.has_value()) {
+    errorHandler->errorAt(
+        declaration.getNameLocation(), CompilerErrorKind::ExpectDeclaration,
+        "Property '{}' is not allowed inside states. Only functions and events "
+        "are allowed in state declarations.",
+        declaration.getName());
+    return;
+  }
+
   if (!declaration.getTypeName().isResolved()) {
     declaration.getTypeName() = resolver->resolveType(
         declaration.getTypeName(), declaration.getTypeLocation());

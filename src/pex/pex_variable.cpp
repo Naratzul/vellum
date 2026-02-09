@@ -17,7 +17,7 @@ bool operator==(const PexVariable& lhs, const PexVariable& rhs) {
 }
 
 bool operator!=(const PexVariable& lhs, const PexVariable& rhs) {
-  return false;
+  return !(lhs == rhs);
 }
 }  // namespace pex
 }  // namespace vellum

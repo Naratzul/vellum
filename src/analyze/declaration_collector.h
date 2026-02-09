@@ -5,9 +5,11 @@
 #include "ast/decl/declaration_visitor.h"
 #include "common/types.h"
 #include "vellum/vellum_identifier.h"
+#include "vellum/vellum_state.h"
 
 namespace vellum {
 using common::Map;
+using common::Opt;
 using common::Set;
 using common::Shared;
 using common::Unique;
@@ -43,6 +45,8 @@ class DeclarationCollector : public ast::DeclarationVisitor {
   Shared<Resolver> resolver;
   std::string_view scriptFilename;
   int scriptDeclCount = 0;
+  int autoStateCount = 0;
+  Opt<VellumState> state;
 
   Set<std::string> normalizedFunctionNames;
   Set<std::string> normalizedPropertyNames;

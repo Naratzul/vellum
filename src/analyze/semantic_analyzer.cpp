@@ -1,12 +1,17 @@
 #include "semantic_analyzer.h"
 
+#include <bsm/audit.h>
+
 #include <cassert>
+#include <optional>
 
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
 #include "common/types.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
+#include "vellum/vellum_function.h"
+#include "vellum/vellum_identifier.h"
 
 namespace vellum {
 using common::Opt;
@@ -37,7 +42,9 @@ SemanticAnalyzeResult SemanticAnalyzer::analyze(
 }
 
 void SemanticAnalyzer::visitImportDeclaration(
-    ast::ImportDeclaration& declaration) {}
+    ast::ImportDeclaration& declaration) {
+  (void)declaration;
+}
 
 void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
   for (const auto& memberDecl : decl.getMemberDecls()) {
@@ -46,7 +53,23 @@ void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
 }
 
 void SemanticAnalyzer::visitStateDeclaration(
-    ast::StateDeclaration& declaration) {}
+    ast::StateDeclaration& declaration) {
+  VellumIdentifier stateName(declaration.getStateName());
+  state = resolver->getState(stateName);
+  assert(state);
+
+  for (const auto& func : state->getFunctions()) {
+    stateFunc.emplace(func.getName(), func);
+  }
+
+  for (const auto& memberDecl : declaration.getMemberDecls()) {
+    assert(memberDecl->getOrder() == ast::DeclarationOrder::Function);
+    memberDecl->accept(*this);
+  }
+
+  state = std::nullopt;
+  stateFunc.clear();
+}
 
 void SemanticAnalyzer::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& statement) {
@@ -56,10 +79,43 @@ void SemanticAnalyzer::visitVariableDeclaration(
 void SemanticAnalyzer::visitFunctionDeclaration(
     ast::FunctionDeclaration& declaration) {
   assert(declaration.getName().has_value());
-  Opt<VellumFunction> func =
-      resolver->getFunction(VellumIdentifier(declaration.getName().value()));
+  VellumIdentifier funcName(declaration.getName().value());
+
+  Opt<VellumFunction> func;
+  if (state.has_value()) {
+    func = state->getFunction(funcName);
+  } else {
+    func = resolver->getFunction(funcName);
+  }
 
   assert(func.has_value());
+
+  if (state.has_value()) {
+    auto rootFunc = resolver->getFunction(funcName);
+    if (!rootFunc) {
+      auto nameLocation = declaration.getNameLocation();
+      assert(nameLocation.has_value());
+
+      errorHandler->errorAt(
+          nameLocation.value(),
+          "Function '{}' cannot be defined in state '{}' without also being "
+          "defined in the empty state.",
+          funcName.toString(), state->getName().toString());
+      return;
+    }
+
+    if (!func->matchSignature(rootFunc.value())) {
+      auto nameLocation = declaration.getNameLocation();
+      assert(nameLocation.has_value());
+
+      errorHandler->errorAt(
+          nameLocation.value(),
+          "The signature of function '{}' in state '{}' doesn't match the "
+          "signature in the root state.",
+          funcName.toString(), state->getName().toString());
+      return;
+    }
+  }
 
   resolver->startFunction(func.value());
   for (auto& statement : declaration.getBody()) {

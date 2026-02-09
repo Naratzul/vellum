@@ -8,9 +8,11 @@
 #include "ast/statement/statement_visitor.h"
 #include "common/types.h"
 #include "type_checker.h"
+#include "vellum/vellum_state.h"
 #include "vellum/vellum_type.h"
 
 namespace vellum {
+using common::Map;
 using common::Opt;
 using common::Shared;
 using common::Unique;
@@ -69,5 +71,8 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   Shared<Resolver> resolver;
   std::string_view scriptFilename;
   TypeChecker checker;
+
+  Opt<VellumState> state;
+  Map<VellumIdentifier, VellumFunction> stateFunc;
 };
 }  // namespace vellum

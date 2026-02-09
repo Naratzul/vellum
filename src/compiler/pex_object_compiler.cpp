@@ -1,5 +1,7 @@
 #include "pex_object_compiler.h"
 
+#include <cassert>
+
 #include "ast/decl/declaration.h"
 #include "common/string_set.h"
 #include "common/string_utils.h"
@@ -26,6 +28,7 @@ pex::PexObject PexObjectCompiler::compile(
 
   pex::PexState rootState(file.getString(""));
   object.getStates().push_back(std::move(rootState));
+  currentStateIndex = 0;
 
   for (const auto& declaration : declarations) {
     declaration->accept(*this);
@@ -36,11 +39,11 @@ pex::PexObject PexObjectCompiler::compile(
 
 void PexObjectCompiler::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
-  object.setName(file.getString(declaration.getScriptName().toString()));
+  auto name = common::normalizeToLower(declaration.getScriptName().toString());
+  object.setName(file.getString(name));
   object.setParentName(
       file.getString(declaration.getParentScriptName().toString()));
   object.setDocumentationString(file.getString(""));
-  object.setAutoStateName(file.getString(""));
 
   for (auto& member : declaration.getMemberDecls()) {
     member->accept(*this);
@@ -48,7 +51,23 @@ void PexObjectCompiler::visitScriptDeclaration(
 }
 
 void PexObjectCompiler::visitStateDeclaration(
-    ast::StateDeclaration& declaration) {}
+    ast::StateDeclaration& declaration) {
+  currentStateIndex = object.getStates().size();
+
+  auto stateName = file.getString(declaration.getStateName());
+  object.getStates().emplace_back(stateName);
+
+  if (declaration.getIsAuto()) {
+    object.setAutoStateName(stateName);
+  }
+
+  for (auto& member : declaration.getMemberDecls()) {
+    assert(member->getOrder() == ast::DeclarationOrder::Function);
+    member->accept(*this);
+  }
+
+  currentStateIndex = 0;
+}
 
 void PexObjectCompiler::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& declaration) {
@@ -68,7 +87,8 @@ void PexObjectCompiler::visitFunctionDeclaration(
   PexFunctionCompiler compiler(errorHandler, file);
   pex::PexFunction function = compiler.compile(declaration);
 
-  object.getRootState().getFunctions().push_back(std::move(function));
+  object.getStates()[currentStateIndex].getFunctions().push_back(
+      std::move(function));
 }
 
 void PexObjectCompiler::visitPropertyDeclaration(
@@ -110,7 +130,8 @@ void PexObjectCompiler::visitPropertyDeclaration(
 
   Opt<pex::PexString> backedVariableName;
   if (declaration.isAutoProperty()) {
-    std::string normalizedPropName(common::normalizeToLower(declaration.getName()));
+    std::string normalizedPropName(
+        common::normalizeToLower(declaration.getName()));
     const std::string_view varName = common::StringSet::insert(
         "::" + std::string(normalizedPropName) + "_var");
     VellumType type = declaration.getTypeName();
@@ -118,9 +139,8 @@ void PexObjectCompiler::visitPropertyDeclaration(
         type.getState() == VellumTypeState::Literal ? type : VellumType::none();
     pex::PexVariable backedVariable(
         file.getString(varName), typeName,
-        makeValueFromToken(
-            declaration.getDefaultValue().value_or(makeDefaultLiteral(
-                defaultValueType.asLiteralType()))));
+        makeValueFromToken(declaration.getDefaultValue().value_or(
+            makeDefaultLiteral(defaultValueType.asLiteralType()))));
     backedVariableName = backedVariable.name();
     object.getVariables().push_back(backedVariable);
   }

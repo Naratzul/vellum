@@ -53,4 +53,26 @@ std::ostream& operator<<(std::ostream& os, const VellumFunction& value) {
      << " -> " << value.getReturnType();
   return os;
 }
+
+bool VellumFunction::matchSignature(const VellumFunction& other) const {
+  if (staticFunc != other.staticFunc) {
+    return false;
+  }
+
+  if (returnType != other.returnType) {
+    return false;
+  }
+
+  if (parameters.size() != other.parameters.size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < parameters.size(); ++i) {
+    if (parameters[i].getType() != other.parameters[i].getType()) {
+      return false;
+    }
+  }
+
+  return true;
+}
 }  // namespace vellum

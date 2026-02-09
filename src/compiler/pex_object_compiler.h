@@ -46,6 +46,7 @@ class PexObjectCompiler : public ast::DeclarationVisitor {
   Shared<Resolver> resolver;
   pex::PexFile& file;
   pex::PexObject object;
+  int currentStateIndex = 0;
 
   pex::PexValue makeValueFromToken(VellumValue value);
 };

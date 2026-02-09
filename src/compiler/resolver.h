@@ -6,6 +6,7 @@
 #include "lexer/token.h"
 #include "scope.h"
 #include "vellum/vellum_object.h"
+#include "vellum/vellum_state.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -37,6 +38,12 @@ class Resolver {
 
   void addFunction(VellumFunction function) {
     object.addFunction(std::move(function));
+  }
+
+  void addState(VellumState state) { object.addState(std::move(state)); }
+
+  Opt<VellumState> getState(VellumIdentifier name) const {
+    return object.getState(name);
   }
 
   Opt<VellumFunction> getFunction(VellumIdentifier id) const {

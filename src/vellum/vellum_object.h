@@ -4,9 +4,11 @@
 #include <vector>
 
 #include "common/types.h"
+#include "vellum/vellum_type.h"
 #include "vellum_function.h"
 #include "vellum_identifier.h"
 #include "vellum_property.h"
+#include "vellum_state.h"
 #include "vellum_value.h"
 #include "vellum_variable.h"
 
@@ -38,6 +40,10 @@ class VellumObject {
     variables.push_back(std::move(variable));
   }
 
+  const Vec<VellumState>& getStates() const { return states; }
+  void addState(VellumState state) { states.push_back(std::move(state)); }
+  Opt<VellumState> getState(VellumIdentifier name) const;
+
   Opt<VellumValue> findIdentifier(VellumIdentifier identifier) const;
   Opt<VellumValue> findProperty(VellumIdentifier identifier) const;
   Opt<VellumFunction> findFunction(VellumIdentifier identifier) const;
@@ -49,5 +55,6 @@ class VellumObject {
   Vec<VellumFunction> functions;
   Vec<VellumProperty> properties;
   Vec<VellumVariable> variables;
+  Vec<VellumState> states;
 };
 }  // namespace vellum
