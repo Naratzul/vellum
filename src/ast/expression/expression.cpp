@@ -100,6 +100,10 @@ IdentifierExpression& Expression::asIdentifier() {
   return static_cast<IdentifierExpression&>(*this);
 }
 
+ArrayIndexExpression& Expression::asArrayIndex() {
+  return static_cast<ArrayIndexExpression&>(*this);
+}
+
 PropertyGetExpression& Expression::asPropertyGet() {
   return static_cast<PropertyGetExpression&>(*this);
 }
@@ -188,6 +192,37 @@ void NewArrayExpression::accept(ExpressionVisitor& visitor) {
 
 pex::PexValue NewArrayExpression::compile(ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
+}
+
+bool ArrayIndexExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const ArrayIndexExpression&>(other_);
+  return getArray()->equals(*other.getArray()) &&
+         getIndex()->equals(*other.getIndex());
+}
+
+void ArrayIndexExpression::accept(ExpressionVisitor& visitor) { (void)visitor; }
+
+pex::PexValue ArrayIndexExpression::compile(
+    ExpressionCompiler& compiler) const {
+  (void)compiler;
+  return pex::PexValue{};
+}
+
+bool ArrayIndexSetExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const ArrayIndexSetExpression&>(other_);
+  return getArray()->equals(*other.getArray()) &&
+         getIndex()->equals(*other.getIndex()) &&
+         getValue()->equals(*other.getValue());
+}
+
+void ArrayIndexSetExpression::accept(ExpressionVisitor& visitor) {
+  (void)visitor;
+}
+
+pex::PexValue ArrayIndexSetExpression::compile(
+    ExpressionCompiler& compiler) const {
+  (void)compiler;
+  return pex::PexValue{};
 }
 
 }  // namespace ast

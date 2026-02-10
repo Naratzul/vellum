@@ -22,6 +22,8 @@ class ExpressionCompiler;
 
 class LiteralExpression;
 class IdentifierExpression;
+class ArrayIndexExpression;
+class ArrayIndexSetExpression;
 class PropertyGetExpression;
 class SuperExpression;
 
@@ -42,11 +44,13 @@ class Expression {
 
   virtual bool isLiteralExpression() const { return false; }
   virtual bool isIdentifierExpression() const { return false; }
+  virtual bool isArrayIndexExpression() const { return false; }
   virtual bool isPropertyGetExpression() const { return false; }
   virtual bool isSuperExpression() const { return false; }
 
   LiteralExpression& asLiteral();
   IdentifierExpression& asIdentifier();
+  ArrayIndexExpression& asArrayIndex();
   PropertyGetExpression& asPropertyGet();
   SuperExpression& asSuperExpression();
 
@@ -208,6 +212,56 @@ class PropertySetExpression : public Expression {
  private:
   Unique<Expression> object;
   VellumIdentifier property;
+  Unique<Expression> value;
+};
+
+class ArrayIndexExpression : public Expression {
+ public:
+  ArrayIndexExpression(Unique<Expression> array, Unique<Expression> index,
+                       Token location = Token{})
+      : Expression(location),
+        array(std::move(array)),
+        index(std::move(index)) {}
+
+  const Unique<Expression>& getArray() const { return array; }
+  Unique<Expression> releaseArray() { return std::move(array); }
+
+  const Unique<Expression>& getIndex() const { return index; }
+  Unique<Expression> releaseIndex() { return std::move(index); }
+
+  bool equals(const Expression& other) const override;
+
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  bool isArrayIndexExpression() const override { return true; }
+
+ private:
+  Unique<Expression> array;
+  Unique<Expression> index;
+};
+
+class ArrayIndexSetExpression : public Expression {
+ public:
+  ArrayIndexSetExpression(Unique<Expression> array, Unique<Expression> index,
+                          Unique<Expression> value, Token location = Token{})
+      : Expression(location),
+        array(std::move(array)),
+        index(std::move(index)),
+        value(std::move(value)) {}
+
+  const Unique<Expression>& getArray() const { return array; }
+  const Unique<Expression>& getIndex() const { return index; }
+  const Unique<Expression>& getValue() const { return value; }
+
+  bool equals(const Expression& other) const override;
+
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+ private:
+  Unique<Expression> array;
+  Unique<Expression> index;
   Unique<Expression> value;
 };
 

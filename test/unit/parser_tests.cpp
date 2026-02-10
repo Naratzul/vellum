@@ -67,15 +67,14 @@ TEST_CASE("ParserSuperCallInFunction") {
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
   REQUIRE(funcDecl->getBody().size() == 1);
-  const auto* exprStmt =
-      dynamic_cast<const ast::ExpressionStatement*>(funcDecl->getBody()[0].get());
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
   REQUIRE(exprStmt != nullptr);
-  const auto* call = dynamic_cast<const ast::CallExpression*>(
-      exprStmt->getExpression().get());
+  const auto* call =
+      dynamic_cast<const ast::CallExpression*>(exprStmt->getExpression().get());
   REQUIRE(call != nullptr);
   REQUIRE(call->getCallee()->isPropertyGetExpression());
-  REQUIRE(
-      call->getCallee()->asPropertyGet().getObject()->isSuperExpression());
+  REQUIRE(call->getCallee()->asPropertyGet().getObject()->isSuperExpression());
   REQUIRE(call->getCallee()->asPropertyGet().getProperty().toString() == "foo");
 }
 
@@ -304,6 +303,86 @@ TEST_CASE("ParserFunctionDeclaration_MultipleParams_MixedTypes") {
   CHECK(expected == *result.declarations[0]);
 }
 
+TEST_CASE("ParserArrayIndexExpression") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::IDENTIFIER, 1, "arr"),
+                    makeToken(TokenType::LEFT_BRACK, 1, "["),
+                    makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+                    makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() == 1);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody().size() == 1);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  const auto* indexExpr = dynamic_cast<const ast::ArrayIndexExpression*>(
+      exprStmt->getExpression().get());
+  REQUIRE(indexExpr != nullptr);
+}
+
+TEST_CASE("ParserArrayIndexAssignment") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::IDENTIFIER, 1, "arr"),
+                    makeToken(TokenType::LEFT_BRACK, 1, "["),
+                    makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+                    makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::INT, 1, "42", VellumLiteral(42)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() == 1);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody().size() == 1);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  const auto* setExpr = dynamic_cast<const ast::ArrayIndexSetExpression*>(
+      exprStmt->getExpression().get());
+  REQUIRE(setExpr != nullptr);
+}
+
 TEST_CASE("ParserCall_NoArgs") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
@@ -395,4 +474,183 @@ TEST_CASE("ParserCall_WithArgs") {
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
+}
+
+TEST_CASE("ParserArrayIndex_LiteralIndex") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "test"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "arr"),
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() == 1);
+
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody().size() == 1);
+
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(exprStmt != nullptr);
+
+  const auto* indexExpr = dynamic_cast<const ast::ArrayIndexExpression*>(
+      exprStmt->getExpression().get());
+  REQUIRE(indexExpr != nullptr);
+  REQUIRE(indexExpr->getArray()->isIdentifierExpression());
+  REQUIRE(indexExpr->getArray()->asIdentifier().getIdentifier().toString() ==
+          "arr");
+  REQUIRE(indexExpr->getIndex()->isLiteralExpression());
+  REQUIRE(indexExpr->getIndex()->asLiteral().getLiteral().asInt() == 0);
+}
+
+TEST_CASE("ParserArrayIndex_Nested") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "test"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "arr"),
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() == 1);
+
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody().size() == 1);
+
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(exprStmt != nullptr);
+
+  const auto* outerIndexExpr = dynamic_cast<const ast::ArrayIndexExpression*>(
+      exprStmt->getExpression().get());
+  REQUIRE(outerIndexExpr != nullptr);
+
+  const auto* innerIndexExpr = dynamic_cast<const ast::ArrayIndexExpression*>(
+      outerIndexExpr->getArray().get());
+  REQUIRE(innerIndexExpr != nullptr);
+
+  REQUIRE(innerIndexExpr->getArray()->isIdentifierExpression());
+  REQUIRE(
+      innerIndexExpr->getArray()->asIdentifier().getIdentifier().toString() ==
+      "arr");
+
+  REQUIRE(innerIndexExpr->getIndex()->isLiteralExpression());
+  REQUIRE(innerIndexExpr->getIndex()->asLiteral().getLiteral().asInt() == 0);
+
+  REQUIRE(outerIndexExpr->getIndex()->isLiteralExpression());
+  REQUIRE(outerIndexExpr->getIndex()->asLiteral().getLiteral().asInt() == 1);
+}
+
+TEST_CASE("ParserArrayIndex_Precedence_IndexBeforePropertyAndCall") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "test"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "arr"),
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+      makeToken(TokenType::DOT, 1, "."),
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() == 1);
+
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody().size() == 1);
+
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(exprStmt != nullptr);
+
+  const auto* callExpr =
+      dynamic_cast<const ast::CallExpression*>(exprStmt->getExpression().get());
+  REQUIRE(callExpr != nullptr);
+
+  const auto* propertyExpr = dynamic_cast<const ast::PropertyGetExpression*>(
+      callExpr->getCallee().get());
+  REQUIRE(propertyExpr != nullptr);
+
+  REQUIRE(propertyExpr->getProperty().toString() == "foo");
+
+  const auto* indexExpr = dynamic_cast<const ast::ArrayIndexExpression*>(
+      propertyExpr->getObject().get());
+  REQUIRE(indexExpr != nullptr);
+
+  REQUIRE(indexExpr->getArray()->isIdentifierExpression());
+  REQUIRE(indexExpr->getArray()->asIdentifier().getIdentifier().toString() ==
+          "arr");
+
+  REQUIRE(indexExpr->getIndex()->isLiteralExpression());
+  REQUIRE(indexExpr->getIndex()->asLiteral().getLiteral().asInt() == 0);
 }

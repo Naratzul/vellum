@@ -7,6 +7,8 @@ namespace vellum {
 namespace ast {
 
 class CallExpression;
+class ArrayIndexExpression;
+class ArrayIndexSetExpression;
 class PropertyGetExpression;
 class PropertySetExpression;
 class IdentifierExpression;

@@ -508,6 +508,11 @@ Unique<ast::Expression> Parser::assignExpression() {
       return makeUnique<ast::PropertySetExpression>(
           getExpr.releaseObject(), getExpr.getProperty(), assignExpression(),
           previous);
+    } else if (expr->isArrayIndexExpression()) {
+      ast::ArrayIndexExpression& indexExpr = expr->asArrayIndex();
+      return makeUnique<ast::ArrayIndexSetExpression>(
+          indexExpr.releaseArray(), indexExpr.releaseIndex(),
+          assignExpression(), previous);
     } else {
       errorHandler->errorAt(previous, "Invalid assignment target.");
     }
@@ -646,7 +651,14 @@ Unique<ast::Expression> Parser::callOrGetExpression() {
   auto expr = primaryExpression();
 
   while (true) {
-    if (match(TokenType::LEFT_PAREN)) {
+    if (match(TokenType::LEFT_BRACK)) {
+      const Token location = previous;
+      auto index = expression();
+      consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
+              "Expect ']' after array index.");
+      expr = makeUnique<ast::ArrayIndexExpression>(std::move(expr),
+                                                   std::move(index), location);
+    } else if (match(TokenType::LEFT_PAREN)) {
       expr = callExpression(std::move(expr), previous);
     } else if (match(TokenType::DOT)) {
       consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
