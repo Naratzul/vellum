@@ -44,6 +44,8 @@ class ExpressionCompiler {
   virtual pex::PexValue compile(const ast::CallExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::PropertyGetExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::PropertySetExpression& expr) = 0;
+  virtual pex::PexValue compile(const ast::ArrayIndexExpression& expr) = 0;
+  virtual pex::PexValue compile(const ast::ArrayIndexSetExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::AssignExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::BinaryExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::UnaryExpression& expr) = 0;

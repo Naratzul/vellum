@@ -284,6 +284,34 @@ pex::PexValue PexFunctionCompiler::compile(
   return value;
 }
 
+pex::PexValue PexFunctionCompiler::compile(
+    const ast::ArrayIndexExpression& expr) {
+  const pex::PexValue retVal =
+      makeTempVar(file.getString(expr.getType().toString()));
+
+  const pex::PexValue arrayVal = expr.getArray()->compile(*this);
+  const pex::PexValue indexVal = expr.getIndex()->compile(*this);
+
+  Vec<pex::PexValue> args = {pex::PexIdentifier(retVal.asTempVar().getName()),
+                             arrayVal, indexVal};
+
+  instructions.emplace_back(pex::PexOpCode::ArrayGetElement, std::move(args));
+
+  return pex::PexIdentifier(retVal.asTempVar().getName());
+}
+
+pex::PexValue PexFunctionCompiler::compile(
+    const ast::ArrayIndexSetExpression& expr) {
+  const pex::PexValue arrayVal = expr.getArray()->compile(*this);
+  const pex::PexValue indexVal = expr.getIndex()->compile(*this);
+  const pex::PexValue value = expr.getValue()->compile(*this);
+
+  Vec<pex::PexValue> args = {arrayVal, indexVal, value};
+  instructions.emplace_back(pex::PexOpCode::ArraySetElement, std::move(args));
+
+  return value;
+}
+
 pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
   const pex::PexValue value = expr.getValue()->compile(*this);
   Vec<pex::PexValue> args = {makePexValue(expr.getName(), file), value};

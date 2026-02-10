@@ -2,6 +2,8 @@
 
 #include "ast/expression/expression_visitor.h"
 #include "declaration_visitor.h"
+#include "vellum/vellum_literal.h"
+#include "vellum/vellum_type.h"
 
 namespace vellum {
 namespace ast {
@@ -62,6 +64,9 @@ bool StateDeclaration::equals(const Declaration& other_) const {
 VellumValue GlobalVariableDeclaration::getValue() const {
   if (initializer_) {
     return initializer_->asLiteral().getLiteral();
+  }
+  if (typeName_->isArray()) {
+    return makeDefaultLiteral(VellumLiteralType::None);
   }
   return makeDefaultLiteral(typeName_->asLiteralType());
 }

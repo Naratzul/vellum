@@ -74,3 +74,92 @@ TEST_CASE("CompileFunctionCallTest") {
   const auto& instruction = pex_test_func.getInstructions()[0];
   CHECK(instruction.getOpCode() == pex::PexOpCode::CallStatic);
 }
+
+TEST_CASE("CompileArrayIndexGetTest") {
+  // Build AST: var arr: Int[]; function test() { arr[0]; }
+  Vec<Unique<ast::Declaration>> ast;
+
+  // Global array declaration: var arr: Int[] = none
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "arr", VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      nullptr));
+
+  // arr[0]
+  auto arrIdent =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("arr"));
+  auto indexExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token{});
+  auto arrayIndexExpr = makeUnique<ast::ArrayIndexExpression>(
+      std::move(arrIdent), std::move(indexExpr), Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(arrayIndexExpr)));
+
+  // function test() { arr[0]; }
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(file.objects().size() == 1);
+  REQUIRE(file.objects()[0].getStates().size() == 1);
+  REQUIRE(file.objects()[0].getStates()[0].getFunctions().size() == 1);
+
+  const auto& pex_test_func =
+      file.objects()[0].getStates()[0].getFunctions()[0];
+
+  // Expect a single ArrayGetElement instruction
+  const auto& instructions = pex_test_func.getInstructions();
+  REQUIRE(instructions.size() == 1);
+  const auto& instr = instructions[0];
+  CHECK(instr.getOpCode() == pex::PexOpCode::ArrayGetElement);
+  REQUIRE(instr.getArgs().size() == 3);
+}
+
+TEST_CASE("CompileArrayIndexSetTest") {
+  // Build AST: var arr: Int[]; function test() { arr[0] = 42; }
+  Vec<Unique<ast::Declaration>> ast;
+
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "arr", VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      nullptr));
+
+  // arr[0] = 42
+  auto arrIdent =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("arr"));
+  auto indexExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token{});
+  auto valueExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42), Token{});
+  auto arraySetExpr = makeUnique<ast::ArrayIndexSetExpression>(
+      std::move(arrIdent), std::move(indexExpr), std::move(valueExpr), Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(arraySetExpr)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(file.objects().size() == 1);
+  REQUIRE(file.objects()[0].getStates().size() == 1);
+  REQUIRE(file.objects()[0].getStates()[0].getFunctions().size() == 1);
+
+  const auto& pex_test_func =
+      file.objects()[0].getStates()[0].getFunctions()[0];
+
+  const auto& instructions = pex_test_func.getInstructions();
+  REQUIRE(instructions.size() == 1);
+  const auto& instr = instructions[0];
+  CHECK(instr.getOpCode() == pex::PexOpCode::ArraySetElement);
+  REQUIRE(instr.getArgs().size() == 3);
+}

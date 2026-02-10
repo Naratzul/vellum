@@ -206,8 +206,7 @@ void ArrayIndexExpression::accept(ExpressionVisitor& visitor) {
 
 pex::PexValue ArrayIndexExpression::compile(
     ExpressionCompiler& compiler) const {
-  (void)compiler;
-  return pex::PexValue{};
+  return compiler.compile(*this);
 }
 
 bool ArrayIndexSetExpression::equals(const Expression& other_) const {
@@ -223,8 +222,7 @@ void ArrayIndexSetExpression::accept(ExpressionVisitor& visitor) {
 
 pex::PexValue ArrayIndexSetExpression::compile(
     ExpressionCompiler& compiler) const {
-  (void)compiler;
-  return pex::PexValue{};
+  return compiler.compile(*this);
 }
 
 }  // namespace ast

@@ -48,6 +48,8 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::CallExpression& expr) override;
   pex::PexValue compile(const ast::PropertyGetExpression& expr) override;
   pex::PexValue compile(const ast::PropertySetExpression& expr) override;
+  pex::PexValue compile(const ast::ArrayIndexExpression& expr) override;
+  pex::PexValue compile(const ast::ArrayIndexSetExpression& expr) override;
   pex::PexValue compile(const ast::AssignExpression& expr) override;
   pex::PexValue compile(const ast::BinaryExpression& expr) override;
   pex::PexValue compile(const ast::UnaryExpression& expr) override;
