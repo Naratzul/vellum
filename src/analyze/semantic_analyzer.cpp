@@ -10,6 +10,7 @@
 #include "compiler/resolver.h"
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_identifier.h"
+#include "vellum/vellum_property.h"
 
 namespace vellum {
 using common::Opt;
@@ -273,16 +274,27 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
       expr.setFunctionCall(VellumFunctionCall::parentCall(
           *resolver->getParentType(), callee->asPropertyGet().getProperty()));
     } else {
-      const auto& calleeIdentifier =
-          callee->asPropertyGet().getObject()->asIdentifier();
+      const VellumType objectType =
+          callee->asPropertyGet().getObject()->getType();
 
-      if (calleeIdentifier.getIdentifierType() == VellumValueType::ScriptType) {
-        expr.setFunctionCall(VellumFunctionCall::staticCall(
-            calleeIdentifier.getType(), callee->asPropertyGet().getProperty()));
+      if (callee->asPropertyGet().getObject()->isIdentifierExpression()) {
+        const auto& calleeIdentifier =
+            callee->asPropertyGet().getObject()->asIdentifier();
+
+        if (calleeIdentifier.getIdentifierType() ==
+            VellumValueType::ScriptType) {
+          expr.setFunctionCall(VellumFunctionCall::staticCall(
+              calleeIdentifier.getType(),
+              callee->asPropertyGet().getProperty()));
+        } else {
+          expr.setFunctionCall(VellumFunctionCall::methodCall(
+              calleeIdentifier.getIdentifier(), objectType,
+              callee->asPropertyGet().getProperty()));
+        }
       } else {
+        VellumIdentifier objectName("self");
         expr.setFunctionCall(VellumFunctionCall::methodCall(
-            calleeIdentifier.getIdentifier(), calleeIdentifier.getType(),
-            callee->asPropertyGet().getProperty()));
+            objectName, objectType, callee->asPropertyGet().getProperty()));
       }
     }
   } else {
@@ -322,12 +334,26 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     return;
   }
 
-  if (func->getArity() != expr.getArguments().size()) {
+  bool isArrayIntrinsic =
+      func->getIntrinsicKind() == IntrinsicKind::ArrayFind ||
+      func->getIntrinsicKind() == IntrinsicKind::ArrayRFind;
+
+  if (!isArrayIntrinsic && func->getArity() != expr.getArguments().size()) {
     errorHandler->errorAt(
         expr.getLocation(), CompilerErrorKind::FunctionArgumentsCountMismatch,
         "Function '{}' expects {} arguments, but {} were provided.",
         func->getName().toString(), func->getParameters().size(),
         expr.getArguments().size());
+  }
+
+  if (isArrayIntrinsic) {
+    if (expr.getArguments().size() < 1 || expr.getArguments().size() > 2) {
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::FunctionArgumentsCountMismatch,
+          "Array '{}' expects 1-2 arguments, but {} were provided.",
+          func->getName().toString(), expr.getArguments().size());
+      return;
+    }
   }
 
   auto argsCount = std::min((int)expr.getArguments().size(), func->getArity());
@@ -377,8 +403,12 @@ void SemanticAnalyzer::visitPropertyGetExpression(
     expr.setIdentifierType(VellumValueType::Property);
     return;
   } else {
-    property = resolver->resolveProperty(expr.getObject()->getType(),
-                                         expr.getProperty());
+    const VellumType objectType = expr.getObject()->getType();
+
+    property = resolver->resolveProperty(objectType, expr.getProperty());
+    if (objectType.isArray() && !property) {
+      property = resolver->resolveFunction(objectType, expr.getProperty());
+    }
   }
 
   if (!property) {
@@ -442,6 +472,13 @@ void SemanticAnalyzer::visitPropertySetExpression(
 
   switch (property->getType()) {
     case VellumValueType::Property:
+      if (property->asProperty().getIntrinsicKind() ==
+          IntrinsicKind::ArrayLength) {
+        errorHandler->errorAt(
+            expr.getLocation(), CompilerErrorKind::NotAssignable,
+            "Cannot assign to the 'length' property of an array.");
+        return;
+      }
       if (property->asProperty().isReadonly()) {
         errorHandler->errorAt(expr.getLocation(),
                               CompilerErrorKind::NotAssignable,

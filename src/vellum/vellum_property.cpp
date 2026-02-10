@@ -3,7 +3,8 @@
 namespace vellum {
 bool operator==(const VellumProperty& lhs, const VellumProperty& rhs) {
   return lhs.getName() == rhs.getName() && lhs.getType() == rhs.getType() &&
-         lhs.isReadonly() == rhs.isReadonly();
+         lhs.isReadonly() == rhs.isReadonly() &&
+         lhs.getIntrinsicKind() == rhs.getIntrinsicKind();
 }
 
 bool operator!=(const VellumProperty& lhs, const VellumProperty& rhs) {

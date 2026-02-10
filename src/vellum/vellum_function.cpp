@@ -41,7 +41,8 @@ std::ostream& operator<<(std::ostream& os, const VellumFunctionCall& value) {
 bool operator==(const VellumFunction& lhs, const VellumFunction& rhs) {
   return lhs.isStatic() == rhs.isStatic() && lhs.getName() == rhs.getName() &&
          lhs.getReturnType() == rhs.getReturnType() &&
-         lhs.getParameters() == rhs.getParameters();
+         lhs.getParameters() == rhs.getParameters() &&
+         lhs.getIntrinsicKind() == rhs.getIntrinsicKind();
 }
 
 bool operator!=(const VellumFunction& lhs, const VellumFunction& rhs) {

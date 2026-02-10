@@ -12,6 +12,9 @@
 namespace vellum {
 using common::Opt;
 using common::Vec;
+
+enum class IntrinsicKind { None, ArrayLength, ArrayFind, ArrayRFind };
+
 class VellumFunctionCall {
  public:
   VellumFunctionCall() = delete;
@@ -63,7 +66,8 @@ class VellumFunction {
       : name(name),
         returnType(returnType),
         parameters(parameters),
-        staticFunc(staticFunc) {}
+        staticFunc(staticFunc),
+        intrinsicKind(IntrinsicKind::None) {}
 
   VellumIdentifier getName() const { return name; }
   VellumType getReturnType() const { return returnType; }
@@ -72,6 +76,9 @@ class VellumFunction {
   int getArity() const { return parameters.size(); }
   bool isStatic() const { return staticFunc; }
 
+  IntrinsicKind getIntrinsicKind() const { return intrinsicKind; }
+  void setIntrinsicKind(IntrinsicKind kind) { intrinsicKind = kind; }
+
   bool matchSignature(const VellumFunction& other) const;
 
  private:
@@ -79,6 +86,7 @@ class VellumFunction {
   VellumType returnType;
   Vec<VellumVariable> parameters;
   bool staticFunc;
+  IntrinsicKind intrinsicKind;
 };
 
 bool operator==(const VellumFunction& lhs, const VellumFunction& rhs);

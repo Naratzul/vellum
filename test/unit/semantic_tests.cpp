@@ -1769,3 +1769,261 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_MultipleFunctionsInState") {
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 2);
 }
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLength_Valid") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto lengthGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(propGet), VellumIdentifier("length"), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(lengthGet)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  REQUIRE(funcDecl.getBody().size() == 1);
+  const auto& stmt =
+      dynamic_cast<ast::ExpressionStatement&>(*funcDecl.getBody()[0]);
+  const auto& lengthExpr =
+      dynamic_cast<ast::PropertyGetExpression&>(*stmt.getExpression());
+  CHECK(lengthExpr.getType().isInt());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLength_NonArray_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(
+      VellumProperty(VellumIdentifier("valueProp"),
+                     VellumType::literal(VellumLiteralType::Int), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("valueProp"), Token{});
+  auto lengthGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(propGet), VellumIdentifier("length"), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(lengthGet)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedProperty));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLength_Readonly_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto valueExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(5), Token{});
+  auto lengthSet = makeUnique<ast::PropertySetExpression>(
+      std::move(propGet), VellumIdentifier("length"), std::move(valueExpr),
+      Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(lengthSet)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::NotAssignable));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayFind_Valid") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto findProp = makeUnique<ast::PropertyGetExpression>(
+      std::move(propGet), VellumIdentifier("find"), Token{});
+  auto valueExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42), Token{});
+  Vec<Unique<ast::Expression>> args;
+  args.push_back(std::move(valueExpr));
+  auto callExpr = makeUnique<ast::CallExpression>(std::move(findProp),
+                                                  std::move(args), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  REQUIRE(funcDecl.getBody().size() == 1);
+  const auto& stmt =
+      dynamic_cast<ast::ExpressionStatement&>(*funcDecl.getBody()[0]);
+  const auto& call = dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
+  CHECK(call.getType().isInt());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayFind_WithStartIndex") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto findProp = makeUnique<ast::PropertyGetExpression>(
+      std::move(propGet), VellumIdentifier("find"), Token{});
+  auto valueExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42), Token{});
+  auto indexExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token{});
+  Vec<Unique<ast::Expression>> args2;
+  args2.push_back(std::move(valueExpr));
+  args2.push_back(std::move(indexExpr));
+  auto callExpr = makeUnique<ast::CallExpression>(std::move(findProp),
+                                                  std::move(args2), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayFind_WrongType_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto findProp = makeUnique<ast::PropertyGetExpression>(
+      std::move(propGet), VellumIdentifier("find"), Token{});
+  auto valueExpr = makeUnique<ast::LiteralExpression>(
+      VellumLiteral(std::string_view("wrong-type")), Token{});
+  Vec<Unique<ast::Expression>> args3;
+  args3.push_back(std::move(valueExpr));
+  auto callExpr = makeUnique<ast::CallExpression>(std::move(findProp),
+                                                  std::move(args3), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayRFind_Valid") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto rfindProp = makeUnique<ast::PropertyGetExpression>(
+      std::move(propGet), VellumIdentifier("rfind"), Token{});
+  auto valueExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42), Token{});
+  Vec<Unique<ast::Expression>> args4;
+  args4.push_back(std::move(valueExpr));
+  auto callExpr = makeUnique<ast::CallExpression>(std::move(rfindProp),
+                                                  std::move(args4), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  REQUIRE(funcDecl.getBody().size() == 1);
+  const auto& stmt =
+      dynamic_cast<ast::ExpressionStatement&>(*funcDecl.getBody()[0]);
+  const auto& call = dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
+  CHECK(call.getType().isInt());
+}

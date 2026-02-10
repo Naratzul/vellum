@@ -208,10 +208,40 @@ pex::PexValue PexFunctionCompiler::compile(
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
+  const VellumFunctionCall functionCall = expr.getFunctionCall().value();
+  const VellumType objectType = functionCall.getObjectType();
+  const auto funcName = std::string(functionCall.getFunction().toString());
+
+  if (objectType.isArray() && (funcName == "find" || funcName == "rfind")) {
+    const auto& callee = expr.getCallee();
+    assert(callee->isPropertyGetExpression());
+    const auto& propGet = callee->asPropertyGet();
+
+    const pex::PexValue arrayVal = propGet.getObject()->compile(*this);
+    assert(expr.getArguments().size() >= 1);
+    const pex::PexValue elementVal = expr.getArguments()[0]->compile(*this);
+
+    pex::PexValue indexVal;
+    if (expr.getArguments().size() == 2) {
+      indexVal = expr.getArguments()[1]->compile(*this);
+    } else {
+      indexVal = pex::PexValue(int32_t(funcName == "find" ? 0 : -1));
+    }
+
+    const pex::PexValue dest = makeTempVar(file.getString("Int"));
+    auto opcode = funcName == "find" ? pex::PexOpCode::ArrayFindElement
+                                     : pex::PexOpCode::ArrayRFindElement;
+
+    Vec<pex::PexValue> args = {
+        pex::PexIdentifier(dest.asTempVar().getName()),
+        pex::PexIdentifier(arrayVal.asIdentifier().getValue()), elementVal,
+        indexVal};
+    instructions.emplace_back(opcode, std::move(args));
+    return pex::PexIdentifier(dest.asTempVar().getName());
+  }
+
   pex::PexOpCode opcode;
   Vec<pex::PexValue> args;
-
-  const VellumFunctionCall functionCall = expr.getFunctionCall().value();
 
   const pex::PexValue retVal =
       expr.getType() == VellumType::none()
@@ -260,6 +290,19 @@ pex::PexValue PexFunctionCompiler::compile(const ast::SuperExpression& expr) {
 
 pex::PexValue PexFunctionCompiler::compile(
     const ast::PropertyGetExpression& expr) {
+  const VellumType objectType = expr.getObject()->getType();
+  const auto propertyName = std::string(expr.getProperty().toString());
+
+  if (objectType.isArray() && propertyName == "length") {
+    const pex::PexValue arrayVal = expr.getObject()->compile(*this);
+    const pex::PexValue dest = makeTempVar(file.getString("Int"));
+    Vec<pex::PexValue> args = {
+        pex::PexIdentifier(dest.asTempVar().getName()),
+        pex::PexIdentifier(arrayVal.asIdentifier().getValue())};
+    instructions.emplace_back(pex::PexOpCode::ArrayLength, std::move(args));
+    return pex::PexIdentifier(dest.asTempVar().getName());
+  }
+
   const pex::PexValue retVal =
       makeTempVar(file.getString(expr.getType().toString()));
 

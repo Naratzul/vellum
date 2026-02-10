@@ -5,7 +5,9 @@
 #include "compiler/builtin_functions.h"
 #include "compiler_error_handler.h"
 #include "lexer/token.h"
+#include "vellum/vellum_function.h"
 #include "vellum/vellum_identifier.h"
+#include "vellum/vellum_property.h"
 
 namespace vellum {
 using common::Opt;
@@ -75,6 +77,17 @@ Opt<VellumValue> Resolver::resolveIdentifier(
 
 Opt<VellumValue> Resolver::resolveProperty(VellumType type,
                                            VellumIdentifier member) const {
+  if (type.isArray()) {
+    if (member.toString() == "length") {
+      VellumProperty lengthProp(VellumIdentifier("length"),
+                                VellumType::literal(VellumLiteralType::Int),
+                                true);
+      lengthProp.setIntrinsicKind(IntrinsicKind::ArrayLength);
+      return VellumValue(lengthProp);
+    }
+    return std::nullopt;
+  }
+
   if (type == object.getType()) {
     if (auto prop = this->object.findProperty(member)) {
       return prop;
@@ -135,6 +148,28 @@ Opt<VellumValue> Resolver::resolveProperty(VellumType type,
 
 Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
                                               VellumIdentifier function) const {
+  if (type.isArray()) {
+    const auto funcName = std::string(function.toString());
+    if (funcName == "find" || funcName == "rfind") {
+      const auto elementType = type.asArraySubtype();
+      assert(elementType);
+
+      Vec<VellumVariable> parameters;
+      parameters.emplace_back(VellumIdentifier("value"), *elementType);
+      parameters.emplace_back(VellumIdentifier("startIndex"),
+                              VellumType::literal(VellumLiteralType::Int));
+
+      VellumFunction arrayFunc(function,
+                               VellumType::literal(VellumLiteralType::Int),
+                               parameters, false);
+      arrayFunc.setIntrinsicKind(funcName == "find"
+                                     ? IntrinsicKind::ArrayFind
+                                     : IntrinsicKind::ArrayRFind);
+      return arrayFunc;
+    }
+    return std::nullopt;
+  }
+
   if (type == object.getType()) {
     if (auto func = this->object.findFunction(function)) {
       return func;
