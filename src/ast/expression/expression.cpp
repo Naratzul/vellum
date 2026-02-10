@@ -200,7 +200,9 @@ bool ArrayIndexExpression::equals(const Expression& other_) const {
          getIndex()->equals(*other.getIndex());
 }
 
-void ArrayIndexExpression::accept(ExpressionVisitor& visitor) { (void)visitor; }
+void ArrayIndexExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitArrayIndexExpression(*this);
+}
 
 pex::PexValue ArrayIndexExpression::compile(
     ExpressionCompiler& compiler) const {
@@ -216,7 +218,7 @@ bool ArrayIndexSetExpression::equals(const Expression& other_) const {
 }
 
 void ArrayIndexSetExpression::accept(ExpressionVisitor& visitor) {
-  (void)visitor;
+  visitor.visitArrayIndexSetExpression(*this);
 }
 
 pex::PexValue ArrayIndexSetExpression::compile(

@@ -1036,6 +1036,180 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(errorHandler->hasError(CompilerErrorKind::VariableTypeMismatch));
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayIndex_ValidIntIndex") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto indexExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token{});
+  auto arrayIndex = makeUnique<ast::ArrayIndexExpression>(
+      std::move(propGet), std::move(indexExpr), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(arrayIndex)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  REQUIRE(funcDecl.getBody().size() == 1);
+  const auto& stmt =
+      dynamic_cast<ast::ExpressionStatement&>(*funcDecl.getBody()[0]);
+  const auto& indexExprResult =
+      dynamic_cast<ast::ArrayIndexExpression&>(*stmt.getExpression());
+  CHECK(indexExprResult.getType().isInt());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticArrayIndex_NonArrayTarget_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(
+      VellumProperty(VellumIdentifier("valueProp"),
+                     VellumType::literal(VellumLiteralType::Int), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("valueProp"), Token{});
+  auto indexExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token{});
+  auto arrayIndex = makeUnique<ast::ArrayIndexExpression>(
+      std::move(propGet), std::move(indexExpr), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(arrayIndex)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ArrayIndexNotArray));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayIndex_NonIntIndex_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto indexExpr = makeUnique<ast::LiteralExpression>(
+      VellumLiteral(std::string_view("not-int")), Token{});
+  auto arrayIndex = makeUnique<ast::ArrayIndexExpression>(
+      std::move(propGet), std::move(indexExpr), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(arrayIndex)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ArrayIndexNotInt));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticArrayIndex_AssignValidElement") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto indexExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token{});
+  auto valueExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42), Token{});
+  auto arraySet = makeUnique<ast::ArrayIndexSetExpression>(
+      std::move(propGet), std::move(indexExpr), std::move(valueExpr), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(arraySet)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticArrayIndex_AssignTypeMismatch_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arrayProp"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)), false));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(objExpr), VellumIdentifier("arrayProp"), Token{});
+  auto indexExpr =
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token{});
+  auto valueExpr = makeUnique<ast::LiteralExpression>(
+      VellumLiteral(std::string_view("not-int")), Token{});
+  auto arraySet = makeUnique<ast::ArrayIndexSetExpression>(
+      std::move(propGet), std::move(indexExpr), std::move(valueExpr), Token{});
+
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(arraySet)));
+
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
+}
+
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticInheritance_SuperCall_Resolves") {
   VellumObject parentObj(VellumType::identifier("ParentScript"));

@@ -679,4 +679,71 @@ void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
 }
 
 void SemanticAnalyzer::visitSuperExpression(ast::SuperExpression&) {}
+
+void SemanticAnalyzer::visitArrayIndexExpression(
+    ast::ArrayIndexExpression& expr) {
+  expr.getArray()->accept(*this);
+  const VellumType arrayType = expr.getArray()->getType();
+
+  if (!arrayType.isArray()) {
+    errorHandler->errorAt(
+        expr.getArray()->getLocation(), CompilerErrorKind::ArrayIndexNotArray,
+        "Cannot index value of non-array type '{}'.", arrayType.toString());
+    return;
+  }
+
+  expr.getIndex()->accept(*this);
+  const VellumType indexType = expr.getIndex()->getType();
+
+  if (!indexType.isInt()) {
+    errorHandler->errorAt(expr.getIndex()->getLocation(),
+                          CompilerErrorKind::ArrayIndexNotInt,
+                          "Array index must be of type 'Int'. Got type '{}'.",
+                          indexType.toString());
+    return;
+  }
+
+  const auto elementType = arrayType.asArraySubtype();
+  assert(elementType);
+  expr.setType(*elementType);
+}
+
+void SemanticAnalyzer::visitArrayIndexSetExpression(
+    ast::ArrayIndexSetExpression& expr) {
+  expr.getArray()->accept(*this);
+  const VellumType arrayType = expr.getArray()->getType();
+
+  if (!arrayType.isArray()) {
+    errorHandler->errorAt(
+        expr.getArray()->getLocation(), CompilerErrorKind::ArrayIndexNotArray,
+        "Cannot index value of non-array type '{}'.", arrayType.toString());
+    return;
+  }
+
+  expr.getIndex()->accept(*this);
+  const VellumType indexType = expr.getIndex()->getType();
+
+  if (!indexType.isInt()) {
+    errorHandler->errorAt(expr.getIndex()->getLocation(),
+                          CompilerErrorKind::ArrayIndexNotInt,
+                          "Array index must be of type 'Int'. Got type '{}'.",
+                          indexType.toString());
+    return;
+  }
+
+  const auto elementType = arrayType.asArraySubtype();
+  assert(elementType);
+
+  expr.getValue()->accept(*this);
+
+  auto result = checker.check(expr.getValue(), *elementType,
+                              TypeChecker::Context::Assignment, "array-index");
+  if (!result.compatible) {
+    errorHandler->errorAt(expr.getValue()->getLocation(), result.errorKind,
+                          result.errorMessage);
+    return;
+  }
+
+  expr.setType(*elementType);
+}
 }  // namespace vellum

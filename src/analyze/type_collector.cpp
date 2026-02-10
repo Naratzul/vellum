@@ -187,4 +187,16 @@ void TypeCollector::visitNewArrayExpression(ast::NewArrayExpression& expr) {
 
 void TypeCollector::visitSuperExpression(ast::SuperExpression&) {}
 
+void TypeCollector::visitArrayIndexExpression(ast::ArrayIndexExpression& expr) {
+  expr.getArray()->accept(*this);
+  expr.getIndex()->accept(*this);
+}
+
+void TypeCollector::visitArrayIndexSetExpression(
+    ast::ArrayIndexSetExpression& expr) {
+  expr.getArray()->accept(*this);
+  expr.getIndex()->accept(*this);
+  expr.getValue()->accept(*this);
+}
+
 }  // namespace vellum

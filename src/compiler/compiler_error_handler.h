@@ -66,6 +66,9 @@ enum class CompilerErrorKind {
   ArrayLengthMustBePositive,
   ArrayLengthMaximumExceeded,
 
+  ArrayIndexNotArray,
+  ArrayIndexNotInt,
+
   CannotImportLiteralType,
   CannotExtendFromLiteralType,
   CannotExtendOutself,

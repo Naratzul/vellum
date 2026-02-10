@@ -24,6 +24,9 @@ class ExpressionVisitor {
  public:
   virtual void visitIdentifierExpression(ast::IdentifierExpression& expr) = 0;
   virtual void visitCallExpression(ast::CallExpression& expr) = 0;
+  virtual void visitArrayIndexExpression(ast::ArrayIndexExpression& expr) = 0;
+  virtual void visitArrayIndexSetExpression(
+      ast::ArrayIndexSetExpression& expr) = 0;
   virtual void visitPropertyGetExpression(ast::PropertyGetExpression& expr) = 0;
   virtual void visitPropertySetExpression(ast::PropertySetExpression& expr) = 0;
   virtual void visitAssignExpression(ast::AssignExpression& expr) = 0;
