@@ -126,7 +126,9 @@ void TypeCollector::visitLocalVariableStatement(
     collectTypeFromVellumType(type.value());
   }
 
-  statement.getInitializer()->accept(*this);
+  if (auto& init = statement.getInitializer()) {
+    init->accept(*this);
+  }
 }
 
 void TypeCollector::visitWhileStatement(ast::WhileStatement& statement) {

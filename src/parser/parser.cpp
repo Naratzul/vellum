@@ -450,10 +450,18 @@ Unique<ast::Statement> Parser::varStatement() {
   Opt<VellumType> type;
   Opt<Token> typeLocation = std::nullopt;
   if (match(TokenType::COLON)) {
+    bool isArray = match(TokenType::LEFT_BRACK);
     consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
             "Expect a type name.");
-    type = VellumType::unresolved(previous.lexeme);
+
+    auto subtype = VellumType::unresolved(previous.lexeme);
     typeLocation = previous;
+    type = isArray ? VellumType::array(subtype) : subtype;
+
+    if (isArray) {
+      consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
+              "Expect ']' after array type.");
+    }
   }
 
   Unique<ast::Expression> initializer;
