@@ -24,6 +24,18 @@ struct ParserResult {
 
 enum class FunctionType { Function, Event, Getter, Setter };
 
+class ParseException : public std::runtime_error {
+ public:
+  ParseException(Token token, const std::string& message)
+      : std::runtime_error(message), token(token) {}
+
+  Token getToken() const { return token; }
+  std::string getMessage() const { return what(); }
+
+ private:
+  Token token;
+};
+
 class Parser {
  public:
   Parser(Unique<ILexer> lexer, Shared<CompilerErrorHandler> errorHandler);
@@ -88,6 +100,7 @@ class Parser {
   void synchronizeTopDeclaration();
   void synchronizeDeclaration();
   void synchronizeStatement();
+  void synchronizeToRightParen();
 };
 template <typename... Args>
 inline void Parser::consume(TokenType type, CompilerErrorKind error,
@@ -96,6 +109,6 @@ inline void Parser::consume(TokenType type, CompilerErrorKind error,
     advance();
     return;
   }
-  errorHandler->errorAt(current, error, fmt, std::forward<Args>(args)...);
+  throw ParseException(current, std::format(fmt, std::forward<Args>(args)...));
 }
 }  // namespace vellum

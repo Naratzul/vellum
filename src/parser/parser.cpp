@@ -12,20 +12,6 @@ using common::Shared;
 using common::Unique;
 using common::Vec;
 
-namespace {
-class ParseException : public std::runtime_error {
- public:
-  ParseException(Token token, const std::string& message)
-      : std::runtime_error(message), token(token) {}
-
-  Token getToken() const { return token; }
-  std::string getMessage() const { return what(); }
-
- private:
-  Token token;
-};
-}  // namespace
-
 static std::string_view getFunctionTypeName(FunctionType type) {
   switch (type) {
     case FunctionType::Event:
@@ -285,48 +271,55 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
   Vec<ast::FunctionParameter> parameters;
   if (!check(TokenType::RIGHT_PAREN)) {
     do {
-      consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectParamName,
-              "Expect a parameter name.");
-      std::string_view paramName = previous.lexeme;
-      Token paramNameLocation = previous;
+      try {
+        consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectParamName,
+                "Expect a parameter name.");
+        std::string_view paramName = previous.lexeme;
+        Token paramNameLocation = previous;
 
-      consume(TokenType::COLON, CompilerErrorKind::ExpectColon,
-              "Expect ':' after parameter name.");
-      consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
-              "Expect a parameter type.");
-      std::string_view paramType = previous.lexeme;
-      Token paramTypeLocation = previous;
+        consume(TokenType::COLON, CompilerErrorKind::ExpectColon,
+                "Expect ':' after parameter name.");
+        consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
+                "Expect a parameter type.");
+        std::string_view paramType = previous.lexeme;
+        Token paramTypeLocation = previous;
 
-      Opt<VellumLiteral> defaultValue = std::nullopt;
-      if (match(TokenType::EQUAL)) {
-        bool negate = match(TokenType::MINUS);
-        if (!negate) {
-          match(TokenType::PLUS);
-        }
-        if (match({TokenType::INT, TokenType::FLOAT})) {
-          VellumLiteral lit = previous.value ? *previous.value : VellumLiteral();
-          if (negate) {
-            lit = lit.getType() == VellumLiteralType::Int
-                      ? VellumLiteral(-lit.asInt())
-                      : VellumLiteral(-lit.asFloat());
+        Opt<VellumLiteral> defaultValue = std::nullopt;
+        if (match(TokenType::EQUAL)) {
+          bool negate = match(TokenType::MINUS);
+          if (!negate) {
+            match(TokenType::PLUS);
           }
-          defaultValue = lit;
-        } else if (match({TokenType::FALSE, TokenType::TRUE, TokenType::STRING,
-                          TokenType::NONE})) {
-          if (negate) {
+          if (match({TokenType::INT, TokenType::FLOAT})) {
+            VellumLiteral lit =
+                previous.value ? *previous.value : VellumLiteral();
+            if (negate) {
+              lit = lit.getType() == VellumLiteralType::Int
+                        ? VellumLiteral(-lit.asInt())
+                        : VellumLiteral(-lit.asFloat());
+            }
+            defaultValue = lit;
+          } else if (match({TokenType::FALSE, TokenType::TRUE,
+                            TokenType::STRING, TokenType::NONE})) {
+            if (negate) {
+              throw ParseException(
+                  current, "Unary minus not applicable to this literal.");
+            }
+            defaultValue = previous.value ? *previous.value : VellumLiteral();
+          } else {
             throw ParseException(
-                current, "Unary minus not applicable to this literal.");
+                current, "Expect a literal value for default argument.");
           }
-          defaultValue = previous.value ? *previous.value : VellumLiteral();
-        } else {
-          throw ParseException(
-              current, "Expect a literal value for default argument.");
         }
-      }
 
-      parameters.emplace_back(paramName, VellumType::unresolved(paramType),
-                              std::move(defaultValue), paramNameLocation,
-                              paramTypeLocation);
+        parameters.emplace_back(paramName, VellumType::unresolved(paramType),
+                                std::move(defaultValue), paramNameLocation,
+                                paramTypeLocation);
+      } catch (const ParseException& e) {
+        errorHandler->errorAt(e.getToken(), e.getMessage());
+        synchronizeToRightParen();
+        break;
+      }
     } while (match(TokenType::COMMA));
   }
 
@@ -847,6 +840,13 @@ void Parser::synchronizeStatement() {
       default:
         break;
     }
+    advance();
+  }
+}
+
+void Parser::synchronizeToRightParen() {
+  errorHandler->disablePanicMode();
+  while (!check(TokenType::RIGHT_PAREN) && !check(TokenType::END_OF_FILE)) {
     advance();
   }
 }

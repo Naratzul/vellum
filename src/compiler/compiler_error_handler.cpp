@@ -41,14 +41,14 @@ void CompilerErrorHandler::printError(const Token& token,
   if (token.type == TokenType::END_OF_FILE) {
     stream << " at end";
   } else if (token.type != TokenType::ERROR) {
-    stream << std::format(" at {}", token.lexeme);
+    stream << std::format(" at '{}'", token.lexeme);
   }
 
   stream << std::format(": {}", message);
   std::cerr << stream.str() << std::endl;
 
   if (common::isDebuggerPresent()) {
-     common::debugBreak();
+    common::debugBreak();
   }
 }
 

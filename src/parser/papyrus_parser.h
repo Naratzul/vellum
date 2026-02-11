@@ -21,7 +21,8 @@ class Statement;
 
 class PapyrusParser {
  public:
-  PapyrusParser(Unique<ILexer> lexer, Shared<CompilerErrorHandler> errorHandler);
+  PapyrusParser(Unique<ILexer> lexer,
+                Shared<CompilerErrorHandler> errorHandler);
 
   ParserResult parse();
 
@@ -45,7 +46,8 @@ class PapyrusParser {
   void consume(TokenType type, CompilerErrorKind error,
                std::format_string<Args...> fmt, Args&&... args);
 
-  Unique<ast::Declaration> functionDeclarationWithReturnType(VellumType returnType);
+  Unique<ast::Declaration> functionDeclarationWithReturnType(
+      VellumType returnType);
   Unique<ast::Declaration> eventDeclaration();
   Unique<ast::Declaration> propertyDeclaration();
   Unique<ast::Declaration> propertyDeclarationWithType(VellumType type);

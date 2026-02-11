@@ -11,20 +11,6 @@ using common::Shared;
 using common::Unique;
 using common::Vec;
 
-namespace {
-class ParseException : public std::runtime_error {
- public:
-  ParseException(Token token, const std::string& message)
-      : std::runtime_error(message), token(token) {}
-
-  Token getToken() const { return token; }
-  std::string getMessage() const { return what(); }
-
- private:
-  Token token;
-};
-}  // namespace
-
 PapyrusParser::PapyrusParser(Unique<ILexer> lexer,
                              Shared<CompilerErrorHandler> errorHandler)
     : lexer(std::move(lexer)), errorHandler(errorHandler) {}
