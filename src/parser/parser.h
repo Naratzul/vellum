@@ -70,7 +70,10 @@ class Parser {
   Unique<ast::Declaration> variableDeclaration();
   Unique<ast::Declaration> functionDeclaration(FunctionType functionType,
                                                bool isStatic);
-  Unique<ast::Declaration> propertyDeclaration();
+  Unique<ast::Declaration> propertyDeclaration(std::string_view name,
+                                               const Token& nameLocation,
+                                               const VellumType& type,
+                                               const Token& typeLocation);
 
   ast::FunctionBody functionBody(FunctionType type);
 

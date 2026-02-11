@@ -1,8 +1,12 @@
 #include "parser.h"
 
+#include <string_view>
+
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
 #include "common/types.h"
+#include "lexer/token.h"
+#include "vellum/vellum_type.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -183,8 +187,6 @@ Unique<ast::Declaration> Parser::scriptMemberDeclaration() {
     return functionDeclaration(FunctionType::Function, false);
   } else if (match(TokenType::EVENT)) {
     return functionDeclaration(FunctionType::Event, false);
-  } else if (match(TokenType::IDENTIFIER)) {
-    return propertyDeclaration();
   } else if (match(TokenType::STATIC)) {
     consume(TokenType::FUN, CompilerErrorKind::ExpectDeclaration,
             "Expect function declaration after 'static'.");
@@ -219,6 +221,11 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
       consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
               "Expect ']' after array type.");
     }
+  }
+
+  if (typeName.has_value() && check(TokenType::LEFT_BRACE)) {
+    return propertyDeclaration(name, nameLocation, typeName.value(),
+                               typeLocation.value());
   }
 
   Unique<ast::Expression> initializer;
@@ -340,17 +347,9 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
       nameLocation, returnTypeLocation);
 }
 
-Unique<ast::Declaration> Parser::propertyDeclaration() {
-  const std::string_view name = previous.lexeme;
-  Token nameLocation = previous;
-  consume(TokenType::COLON, CompilerErrorKind::ExpectColon,
-          "Expect ':' after property name.");
-
-  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
-          "Expect a property type name.");
-  const auto typeName = VellumType::unresolved(previous.lexeme);
-  Token typeLocation = previous;
-
+Unique<ast::Declaration> Parser::propertyDeclaration(
+    std::string_view name, const Token& nameLocation, const VellumType& type,
+    const Token& typeLocation) {
   consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
           "Expect '{{' after property type.");
 
@@ -390,7 +389,7 @@ Unique<ast::Declaration> Parser::propertyDeclaration() {
 
   std::string_view documentationString = "";
   return makeUnique<ast::PropertyDeclaration>(
-      name, typeName, documentationString, std::move(getAccessor),
+      name, type, documentationString, std::move(getAccessor),
       std::move(setAccessor), std::nullopt, nameLocation,
       typeLocation);  // TODO: fix default value
 }
@@ -816,7 +815,6 @@ void Parser::synchronizeDeclaration() {
     switch (current.type) {
       case TokenType::FUN:
       case TokenType::EVENT:
-      case TokenType::IDENTIFIER:
       case TokenType::VAR:
         return;
       default:
