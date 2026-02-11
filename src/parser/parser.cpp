@@ -805,7 +805,10 @@ void Parser::synchronizeTopDeclaration() {
   errorHandler->disablePanicMode();
   while (!check(TokenType::END_OF_FILE)) {
     switch (current.type) {
+      case TokenType::AUTO:
+      case TokenType::IMPORT:
       case TokenType::SCRIPT:
+      case TokenType::STATE:
         return;
       default:
         break;
