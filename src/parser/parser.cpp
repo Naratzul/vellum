@@ -238,6 +238,22 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
   Unique<ast::Expression> initializer;
   if (!isArray && match(TokenType::EQUAL)) {
     initializer = expression();
+    const auto* unary =
+        dynamic_cast<const ast::UnaryExpression*>(initializer.get());
+    if (unary &&
+        unary->getOperator() == ast::UnaryExpression::Operator::Negate &&
+        unary->getOperand()->isLiteralExpression()) {
+      const auto& litExpr =
+          static_cast<const ast::LiteralExpression&>(*unary->getOperand());
+      const VellumLiteral& lit = litExpr.getLiteral();
+      if (lit.getType() == VellumLiteralType::Int) {
+        initializer = makeUnique<ast::LiteralExpression>(
+            VellumLiteral(-lit.asInt()), litExpr.getLocation());
+      } else if (lit.getType() == VellumLiteralType::Float) {
+        initializer = makeUnique<ast::LiteralExpression>(
+            VellumLiteral(-lit.asFloat()), litExpr.getLocation());
+      }
+    }
     if (!initializer->isLiteralExpression()) {
       throw ParseException(
           current,
@@ -283,8 +299,24 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
 
       Opt<VellumLiteral> defaultValue = std::nullopt;
       if (match(TokenType::EQUAL)) {
-        if (match({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
-                   TokenType::TRUE, TokenType::STRING, TokenType::NONE})) {
+        bool negate = match(TokenType::MINUS);
+        if (!negate) {
+          match(TokenType::PLUS);
+        }
+        if (match({TokenType::INT, TokenType::FLOAT})) {
+          VellumLiteral lit = previous.value ? *previous.value : VellumLiteral();
+          if (negate) {
+            lit = lit.getType() == VellumLiteralType::Int
+                      ? VellumLiteral(-lit.asInt())
+                      : VellumLiteral(-lit.asFloat());
+          }
+          defaultValue = lit;
+        } else if (match({TokenType::FALSE, TokenType::TRUE, TokenType::STRING,
+                          TokenType::NONE})) {
+          if (negate) {
+            throw ParseException(
+                current, "Unary minus not applicable to this literal.");
+          }
           defaultValue = previous.value ? *previous.value : VellumLiteral();
         } else {
           throw ParseException(

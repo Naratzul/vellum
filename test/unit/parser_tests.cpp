@@ -110,6 +110,39 @@ TEST_CASE("ParserGlobalVarDeclarationTest") {
   CHECK(expected == *result.declarations[0]);
 }
 
+TEST_CASE("ParserGlobalVarDeclaration_NegativeInitializer") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "num"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::MINUS, 1, "-"),
+                    makeToken(TokenType::INT, 1, "42", VellumLiteral(42)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() == 1);
+  const auto* varDecl = dynamic_cast<const ast::GlobalVariableDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(varDecl != nullptr);
+  REQUIRE(varDecl->initializer() != nullptr);
+  REQUIRE(varDecl->initializer()->isLiteralExpression());
+  REQUIRE(varDecl->initializer()->asLiteral().getLiteral().asInt() == -42);
+}
+
 TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
@@ -219,6 +252,45 @@ TEST_CASE("ParserFunctionDeclaration_ParamWithDefaultValue") {
   REQUIRE(funcDecl->getParameters()[0].defaultValue->getType() ==
           VellumLiteralType::Int);
   REQUIRE(funcDecl->getParameters()[0].defaultValue->asInt() == 5);
+}
+
+TEST_CASE("ParserFunctionDeclaration_NegativeDefaultValue") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::MINUS, 1, "-"),
+                    makeToken(TokenType::INT, 1, "5", VellumLiteral(5)),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getParameters().size() == 1);
+  REQUIRE(funcDecl->getParameters()[0].defaultValue.has_value());
+  REQUIRE(funcDecl->getParameters()[0].defaultValue->getType() ==
+          VellumLiteralType::Int);
+  REQUIRE(funcDecl->getParameters()[0].defaultValue->asInt() == -5);
 }
 
 TEST_CASE("ParserFunctionDeclaration_MultipleParamsWithTrailingDefault") {
