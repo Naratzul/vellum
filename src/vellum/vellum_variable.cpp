@@ -2,7 +2,8 @@
 
 namespace vellum {
 bool operator==(const VellumVariable& lhs, const VellumVariable& rhs) {
-  return lhs.getName() == rhs.getName() && lhs.getType() == rhs.getType();
+  return lhs.getName() == rhs.getName() && lhs.getType() == rhs.getType() &&
+         lhs.getDefaultValue() == rhs.getDefaultValue();
 }
 
 bool operator!=(const VellumVariable& lhs, const VellumVariable& rhs) {

@@ -72,6 +72,10 @@ bool VellumFunction::matchSignature(const VellumFunction& other) const {
     if (parameters[i].getType() != other.parameters[i].getType()) {
       return false;
     }
+    if (parameters[i].getDefaultValue() !=
+        other.parameters[i].getDefaultValue()) {
+      return false;
+    }
   }
 
   return true;

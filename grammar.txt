@@ -14,7 +14,7 @@
 
 <func-decl>      ::= "fun" <identifier> "(" <params>? ")" ("->" <type>)? <block>
 <params>         ::= <param> ("," <param>)*
-<param>          ::= <identifier> ":" <type>
+<param>          ::= <identifier> ":" <type> ("=" <literal>)?
 
 <block>          ::= "{" <statement>* "}"
 <statement>      ::= <local-var-decl> | <expr-stmt> | <return-stmt> | <if-stmt>

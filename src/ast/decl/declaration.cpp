@@ -146,7 +146,8 @@ bool operator!=(const Declaration& lhs, const Declaration& rhs) {
 }
 
 bool operator==(const FunctionParameter& lhs, const FunctionParameter& rhs) {
-  return lhs.name == rhs.name && lhs.type == rhs.type;
+  return lhs.name == rhs.name && lhs.type == rhs.type &&
+         lhs.defaultValue == rhs.defaultValue;
 }
 
 bool operator!=(const FunctionParameter& lhs, const FunctionParameter& rhs) {

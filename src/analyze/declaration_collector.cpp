@@ -206,11 +206,51 @@ void DeclarationCollector::visitFunctionDeclaration(
   Vec<VellumVariable> parameters;
   parameters.reserve(declaration.getParameters().size());
 
+  bool seenOptional = false;
   for (auto& param : declaration.getParameters()) {
     if (!param.type.isResolved()) {
       param.type = resolver->resolveType(param.type, param.typeLocation);
     }
-    parameters.emplace_back(VellumIdentifier(param.name), param.type);
+
+    if (param.defaultValue.has_value()) {
+      seenOptional = true;
+      const auto& lit = *param.defaultValue;
+      const auto& paramType = param.type;
+      bool typeOk = false;
+      switch (lit.getType()) {
+        case VellumLiteralType::Int:
+          typeOk = paramType.isInt();
+          break;
+        case VellumLiteralType::Float:
+          typeOk = paramType.isFloat();
+          break;
+        case VellumLiteralType::Bool:
+          typeOk = paramType.isBool();
+          break;
+        case VellumLiteralType::String:
+          typeOk = paramType.isString();
+          break;
+        case VellumLiteralType::None:
+          typeOk = paramType.isArray() ||
+                   paramType.getState() == VellumTypeState::Identifier;
+          break;
+      }
+      if (!typeOk) {
+        errorHandler->errorAt(
+            param.typeLocation, CompilerErrorKind::VariableTypeMismatch,
+            "Default value type does not match parameter type '{}'.",
+            paramType.toString());
+        return;
+      }
+    } else if (seenOptional) {
+      errorHandler->errorAt(
+          param.nameLocation, CompilerErrorKind::ExpectParamName,
+          "Required parameter cannot follow optional parameter.");
+      return;
+    }
+
+    parameters.emplace_back(VellumIdentifier(param.name), param.type,
+                            param.defaultValue);
   }
 
   if (!declaration.getReturnTypeName().isResolved()) {
@@ -258,6 +298,16 @@ void DeclarationCollector::visitFunctionDeclaration(
                               "Override of '{}' must match parent signature "
                               "(parameters and return type).",
                               declaration.getName().value());
+        return;
+      }
+      if (parentFunc->getParameters()[i].getDefaultValue() !=
+          declaration.getParameters()[i].defaultValue) {
+        errorHandler->errorAt(funcLocation,
+                              CompilerErrorKind::OverrideSignatureMismatch,
+                              "Override of '{}' must match parent default value "
+                              "for parameter '{}'.",
+                              declaration.getName().value(),
+                              declaration.getParameters()[i].name);
         return;
       }
     }

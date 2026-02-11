@@ -180,6 +180,14 @@ struct FunctionParameter {
         type(type),
         nameLocation(nameLocation),
         typeLocation(typeLocation) {}
+  FunctionParameter(std::string_view name, VellumType type,
+                    Opt<VellumLiteral> defaultValue,
+                    Token nameLocation = Token(), Token typeLocation = Token())
+      : name(name),
+        type(type),
+        defaultValue(std::move(defaultValue)),
+        nameLocation(nameLocation),
+        typeLocation(typeLocation) {}
 };
 
 bool operator==(const FunctionParameter& lhs, const FunctionParameter& rhs);

@@ -338,12 +338,40 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
       func->getIntrinsicKind() == IntrinsicKind::ArrayFind ||
       func->getIntrinsicKind() == IntrinsicKind::ArrayRFind;
 
-  if (!isArrayIntrinsic && func->getArity() != expr.getArguments().size()) {
-    errorHandler->errorAt(
-        expr.getLocation(), CompilerErrorKind::FunctionArgumentsCountMismatch,
-        "Function '{}' expects {} arguments, but {} were provided.",
-        func->getName().toString(), func->getParameters().size(),
-        expr.getArguments().size());
+  if (!isArrayIntrinsic) {
+    auto requiredArity = static_cast<size_t>(func->getArity());
+    for (size_t i = 0; i < static_cast<size_t>(func->getArity()); ++i) {
+      if (func->getParameters()[i].getDefaultValue().has_value()) {
+        requiredArity = i;
+        break;
+      }
+    }
+
+    if (expr.getArguments().size() < requiredArity) {
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::FunctionArgumentsCountMismatch,
+          "Function '{}' expects at least {} arguments, but {} were provided.",
+          func->getName().toString(), requiredArity,
+          expr.getArguments().size());
+      return;
+    }
+
+    if (expr.getArguments().size() > static_cast<size_t>(func->getArity())) {
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::FunctionArgumentsCountMismatch,
+          "Function '{}' expects {} arguments, but {} were provided.",
+          func->getName().toString(), func->getArity(),
+          expr.getArguments().size());
+      return;
+    }
+
+    while (expr.getArguments().size() < static_cast<size_t>(func->getArity())) {
+      size_t idx = expr.getArguments().size();
+      const auto& defaultVal =
+          func->getParameters()[idx].getDefaultValue().value();
+      expr.addArgument(common::makeUnique<ast::LiteralExpression>(
+          defaultVal, expr.getLocation()));
+    }
   }
 
   if (isArrayIntrinsic) {
@@ -356,7 +384,7 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     }
   }
 
-  auto argsCount = std::min((int)expr.getArguments().size(), func->getArity());
+  auto argsCount = expr.getArguments().size();
   for (size_t i = 0; i < argsCount; i++) {
     auto& arg = expr.getArguments()[i];
     arg->accept(*this);

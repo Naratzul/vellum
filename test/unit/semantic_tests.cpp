@@ -306,6 +306,127 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_TooManyArguments") {
       CompilerErrorKind::FunctionArgumentsCountMismatch));
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_DefaultArgs_AllProvided") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<ast::FunctionParameter> params = {
+      {"a", VellumType::unresolved("Int")},
+      {"b", VellumType::unresolved("String"),
+       VellumLiteral(std::string_view("hi"))}};
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", params, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  auto args = Vec<Unique<ast::Expression>>{};
+  args.emplace_back(makeUnique<ast::LiteralExpression>(VellumLiteral(10)));
+  args.emplace_back(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("x"))));
+  auto call_expr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      std::move(args));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_DefaultArgs_Partial") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<ast::FunctionParameter> params = {
+      {"a", VellumType::unresolved("Int")},
+      {"b", VellumType::unresolved("String"),
+       VellumLiteral(std::string_view("hi"))}};
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", params, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  auto args = Vec<Unique<ast::Expression>>{};
+  args.emplace_back(makeUnique<ast::LiteralExpression>(VellumLiteral(10)));
+  auto call_expr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      std::move(args));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_DefaultArgs_AllOptional") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<ast::FunctionParameter> params = {
+      {"x", VellumType::unresolved("Int"), VellumLiteral(5)}};
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", params, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  auto call_expr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      Vec<Unique<ast::Expression>>{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticCall_DefaultArgs_TooFewRequired") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<ast::FunctionParameter> params = {
+      {"a", VellumType::unresolved("Int")},
+      {"b", VellumType::unresolved("String"),
+       VellumLiteral(std::string_view("hi"))}};
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", params, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  auto call_expr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      Vec<Unique<ast::Expression>>{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::FunctionArgumentsCountMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticCall_DefaultArgs_TypeMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<ast::FunctionParameter> params = {
+      {"x", VellumType::unresolved("Int"),
+       VellumLiteral(std::string_view("bad"))}};
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", params, VellumType::unresolved("Int"),
+      Vec<Unique<ast::Statement>>{}, false));
+
+  collector->collect(ast);
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::VariableTypeMismatch));
+}
+
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticFunction_MismatchedReturnType") {
   Vec<Unique<ast::Declaration>> ast;
@@ -1522,6 +1643,42 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionParameterTypeMismatch") {
       "myFunc",
       Vec<ast::FunctionParameter>{
           ast::FunctionParameter{"x", VellumType::unresolved("Bool")}},
+      VellumType::unresolved("Int"), Vec<Unique<ast::Statement>>{}, false,
+      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateFunctionSignatureMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_FunctionDefaultValueMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc",
+      Vec<ast::FunctionParameter>{ast::FunctionParameter{
+          "x", VellumType::unresolved("Int"), VellumLiteral(5)}},
+      VellumType::unresolved("Int"), Vec<Unique<ast::Statement>>{}, false));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "myFunc",
+      Vec<ast::FunctionParameter>{ast::FunctionParameter{
+          "x", VellumType::unresolved("Int"), VellumLiteral(10)}},
       VellumType::unresolved("Int"), Vec<Unique<ast::Statement>>{}, false,
       makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
 

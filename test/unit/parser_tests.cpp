@@ -183,6 +183,88 @@ TEST_CASE("ParserFunctionDeclaration_Params_NoReturn") {
   CHECK(expected == *result.declarations[0]);
 }
 
+TEST_CASE("ParserFunctionDeclaration_ParamWithDefaultValue") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::INT, 1, "5", VellumLiteral(5)),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getParameters().size() == 1);
+  REQUIRE(funcDecl->getParameters()[0].defaultValue.has_value());
+  REQUIRE(funcDecl->getParameters()[0].defaultValue->getType() ==
+          VellumLiteralType::Int);
+  REQUIRE(funcDecl->getParameters()[0].defaultValue->asInt() == 5);
+}
+
+TEST_CASE("ParserFunctionDeclaration_MultipleParamsWithTrailingDefault") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "bar"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::IDENTIFIER, 1, "a"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::COMMA, 1, ","),
+                    makeToken(TokenType::IDENTIFIER, 1, "b"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "String"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::STRING, 1, "hi",
+                             VellumLiteral(std::string_view("hi"))),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getParameters().size() == 2);
+  REQUIRE_FALSE(funcDecl->getParameters()[0].defaultValue.has_value());
+  REQUIRE(funcDecl->getParameters()[1].defaultValue.has_value());
+  REQUIRE(funcDecl->getParameters()[1].defaultValue->getType() ==
+          VellumLiteralType::String);
+  REQUIRE(funcDecl->getParameters()[1].defaultValue->asString() == "hi");
+}
+
 TEST_CASE("ParserFunctionDeclaration_NoParams_WithReturn") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),

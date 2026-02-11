@@ -281,8 +281,20 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
       std::string_view paramType = previous.lexeme;
       Token paramTypeLocation = previous;
 
+      Opt<VellumLiteral> defaultValue = std::nullopt;
+      if (match(TokenType::EQUAL)) {
+        if (match({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
+                   TokenType::TRUE, TokenType::STRING, TokenType::NONE})) {
+          defaultValue = previous.value ? *previous.value : VellumLiteral();
+        } else {
+          throw ParseException(
+              current, "Expect a literal value for default argument.");
+        }
+      }
+
       parameters.emplace_back(paramName, VellumType::unresolved(paramType),
-                              paramNameLocation, paramTypeLocation);
+                              std::move(defaultValue), paramNameLocation,
+                              paramTypeLocation);
     } while (match(TokenType::COMMA));
   }
 

@@ -129,6 +129,9 @@ class CallExpression : public Expression {
   const Unique<Expression>& getCallee() const { return callee; }
 
   const Vec<Unique<Expression>>& getArguments() const { return arguments; }
+  void addArgument(Unique<Expression> arg) {
+    arguments.push_back(std::move(arg));
+  }
 
   void setFunctionCall(VellumFunctionCall function_) { function = function_; }
   Opt<VellumFunctionCall> getFunctionCall() const { return function; }
