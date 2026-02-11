@@ -233,11 +233,10 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
                                      : pex::PexOpCode::ArrayRFindElement;
 
     Vec<pex::PexValue> args = {
-        pex::PexIdentifier(dest.asTempVar().getName()),
-        pex::PexIdentifier(arrayVal.asIdentifier().getValue()), elementVal,
-        indexVal};
+        pex::PexIdentifier(arrayVal.asIdentifier().getValue()),
+        pex::PexIdentifier(dest.asTempVar().getName()), elementVal, indexVal};
     instructions.emplace_back(opcode, std::move(args));
-    return pex::PexIdentifier(dest.asTempVar().getName());
+    return pex::PexValue(pex::PexIdentifier(dest.asTempVar().getName()));
   }
 
   pex::PexOpCode opcode;
