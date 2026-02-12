@@ -129,7 +129,7 @@ void SemanticAnalyzer::visitPropertyDeclaration(
   VellumFunction dummyFunc(VellumIdentifier(declaration.getName()),
                            declaration.getTypeName(), {}, false);
 
-  if (auto getFunc = declaration.getGetAccessor()) {
+  if (auto& getFunc = declaration.getGetAccessor()) {
     resolver->startFunction(dummyFunc);
     for (auto& statement : getFunc.value()) {
       statement->accept(*this);
@@ -137,7 +137,7 @@ void SemanticAnalyzer::visitPropertyDeclaration(
     resolver->endFunction();
   }
 
-  if (auto setFunc = declaration.getSetAccessor()) {
+  if (auto& setFunc = declaration.getSetAccessor()) {
     resolver->startFunction(dummyFunc);
     for (auto& statement : setFunc.value()) {
       statement->accept(*this);

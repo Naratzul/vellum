@@ -276,10 +276,10 @@ class PropertyDeclaration : public Declaration {
   }
 
   const Opt<ast::FunctionBody>& getGetAccessor() const { return getAccessor; }
-  Opt<ast::FunctionBody> getGetAccessor() { return std::move(getAccessor); }
+  Opt<ast::FunctionBody> releaseGetAccessor() { return std::move(getAccessor); }
 
   const Opt<ast::FunctionBody>& getSetAccessor() const { return setAccessor; }
-  Opt<ast::FunctionBody> getSetAccessor() { return std::move(setAccessor); }
+  Opt<ast::FunctionBody> releaseSetAccessor() { return std::move(setAccessor); }
 
   Opt<VellumLiteral> getDefaultValue() const { return defaultValue; }
   Token getNameLocation() const { return nameLocation; }

@@ -104,7 +104,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
   Opt<pex::PexFunction> getAccessorFunc;
   Opt<pex::PexFunction> setAccessorFunc;
 
-  if (auto getAccessor = declaration.getGetAccessor();
+  if (auto getAccessor = declaration.releaseGetAccessor();
       !declaration.isAutoProperty()) {
     ast::FunctionBody body;
     if (!getAccessor->empty()) {
@@ -120,7 +120,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
     getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(funcDecl);
   }
 
-  if (auto setAccessor = declaration.getSetAccessor()) {
+  if (auto setAccessor = declaration.releaseSetAccessor()) {
     if (!setAccessor.value().empty()) {
       ast::FunctionDeclaration funcDecl({}, {}, VellumType::none(),
                                         std::move(setAccessor.value()), false);
