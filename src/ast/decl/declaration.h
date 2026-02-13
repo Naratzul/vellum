@@ -266,6 +266,7 @@ class PropertyDeclaration : public Declaration {
     return getAccessor && setAccessor && getAccessor->empty() &&
            setAccessor->empty();
   }
+  bool isAutoReadonly() const { return isReadonly() && getAccessor->empty(); }
   bool isReadonly() const { return !setAccessor && getAccessor; }
 
   std::string_view getName() const { return name; }

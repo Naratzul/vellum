@@ -175,6 +175,168 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
   CHECK(expected == *result.declarations[0]);
 }
 
+TEST_CASE("ParserPropertyDeclaration_NoInitializer") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::GET, 1, "get"),
+                    makeToken(TokenType::SET, 1, "set"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() == 1);
+  const auto* propDecl = dynamic_cast<const ast::PropertyDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(propDecl != nullptr);
+  REQUIRE(propDecl->getName() == "x");
+  REQUIRE(propDecl->getTypeName().toString() == "Int");
+  REQUIRE_FALSE(propDecl->getDefaultValue().has_value());
+  REQUIRE(propDecl->getGetAccessor().has_value());
+  REQUIRE(propDecl->getSetAccessor().has_value());
+  REQUIRE(propDecl->getGetAccessor()->empty());
+  REQUIRE(propDecl->getSetAccessor()->empty());
+}
+
+TEST_CASE("ParserPropertyDeclaration_WithIntInitializer") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::GET, 1, "get"),
+                    makeToken(TokenType::SET, 1, "set"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::INT, 1, "42", VellumLiteral(42)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* propDecl = dynamic_cast<const ast::PropertyDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(propDecl != nullptr);
+  REQUIRE(propDecl->getDefaultValue().has_value());
+  REQUIRE(propDecl->getDefaultValue()->getType() == VellumLiteralType::Int);
+  REQUIRE(propDecl->getDefaultValue()->asInt() == 42);
+}
+
+TEST_CASE("ParserPropertyDeclaration_WithNoneInitializer") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "obj"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "SomeScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::GET, 1, "get"),
+                    makeToken(TokenType::SET, 1, "set"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::NONE, 1, "None", VellumLiteral()),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* propDecl = dynamic_cast<const ast::PropertyDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(propDecl != nullptr);
+  REQUIRE(propDecl->getDefaultValue().has_value());
+  REQUIRE(propDecl->getDefaultValue()->getType() == VellumLiteralType::None);
+}
+
+TEST_CASE("ParserPropertyDeclaration_ReadonlyAuto") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::GET, 1, "get"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* propDecl = dynamic_cast<const ast::PropertyDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(propDecl != nullptr);
+  REQUIRE(propDecl->isReadonly());
+  REQUIRE(propDecl->getGetAccessor().has_value());
+  REQUIRE_FALSE(propDecl->getSetAccessor().has_value());
+}
+
+TEST_CASE("ParserPropertyDeclaration_InitializerMustBeLiteral") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::GET, 1, "get"),
+                    makeToken(TokenType::SET, 1, "set"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hadError());
+}
+
 TEST_CASE("ParserFunctionDeclaration_Params_NoReturn") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),

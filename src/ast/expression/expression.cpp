@@ -96,6 +96,10 @@ LiteralExpression& Expression::asLiteral() {
   return static_cast<LiteralExpression&>(*this);
 }
 
+UnaryExpression& Expression::asUnary() {
+  return static_cast<UnaryExpression&>(*this);
+}
+
 IdentifierExpression& Expression::asIdentifier() {
   return static_cast<IdentifierExpression&>(*this);
 }

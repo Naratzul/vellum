@@ -100,6 +100,8 @@ class Parser {
   Unique<ast::Expression> primaryExpression();
   Unique<ast::Expression> arrayExpression();
 
+  Unique<ast::Expression> unaryNumericToLiteral(Unique<ast::Expression> expr);
+
   void synchronizeTopDeclaration();
   void synchronizeDeclaration();
   void synchronizeStatement();

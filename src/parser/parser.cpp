@@ -1,11 +1,13 @@
 #include "parser.h"
 
+#include <optional>
 #include <string_view>
 
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
 #include "common/types.h"
 #include "lexer/token.h"
+#include "vellum/vellum_literal.h"
 #include "vellum/vellum_type.h"
 #include "vellum/vellum_value.h"
 
@@ -230,23 +232,7 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
 
   Unique<ast::Expression> initializer;
   if (!isArray && match(TokenType::EQUAL)) {
-    initializer = expression();
-    const auto* unary =
-        dynamic_cast<const ast::UnaryExpression*>(initializer.get());
-    if (unary &&
-        unary->getOperator() == ast::UnaryExpression::Operator::Negate &&
-        unary->getOperand()->isLiteralExpression()) {
-      const auto& litExpr =
-          static_cast<const ast::LiteralExpression&>(*unary->getOperand());
-      const VellumLiteral& lit = litExpr.getLiteral();
-      if (lit.getType() == VellumLiteralType::Int) {
-        initializer = makeUnique<ast::LiteralExpression>(
-            VellumLiteral(-lit.asInt()), litExpr.getLocation());
-      } else if (lit.getType() == VellumLiteralType::Float) {
-        initializer = makeUnique<ast::LiteralExpression>(
-            VellumLiteral(-lit.asFloat()), litExpr.getLocation());
-      }
-    }
+    initializer = unaryNumericToLiteral(expression());
     if (!initializer->isLiteralExpression()) {
       throw ParseException(
           current,
@@ -293,30 +279,12 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
 
         Opt<VellumLiteral> defaultValue = std::nullopt;
         if (match(TokenType::EQUAL)) {
-          bool negate = match(TokenType::MINUS);
-          if (!negate) {
-            match(TokenType::PLUS);
-          }
-          if (match({TokenType::INT, TokenType::FLOAT})) {
-            VellumLiteral lit =
-                previous.value ? *previous.value : VellumLiteral();
-            if (negate) {
-              lit = lit.getType() == VellumLiteralType::Int
-                        ? VellumLiteral(-lit.asInt())
-                        : VellumLiteral(-lit.asFloat());
-            }
-            defaultValue = lit;
-          } else if (match({TokenType::FALSE, TokenType::TRUE,
-                            TokenType::STRING, TokenType::NONE})) {
-            if (negate) {
-              throw ParseException(
-                  current, "Unary minus not applicable to this literal.");
-            }
-            defaultValue = previous.value ? *previous.value : VellumLiteral();
-          } else {
+          auto initializer = unaryNumericToLiteral(expression());
+          if (!initializer->isLiteralExpression()) {
             throw ParseException(
                 current, "Expect a literal value for default argument.");
           }
+          defaultValue = initializer->asLiteral().getLiteral();
         }
 
         parameters.emplace_back(paramName, VellumType::unresolved(paramType),
@@ -387,11 +355,20 @@ Unique<ast::Declaration> Parser::propertyDeclaration(
   consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
           "Expect '}}' after property type.");
 
+  Opt<VellumLiteral> value = std::nullopt;
+  if (match(TokenType::EQUAL)) {
+    auto expr = unaryNumericToLiteral(expression());
+    if (!expr->isLiteralExpression()) {
+      throw ParseException(previous,
+                           "Expect a literal value for property initializer.");
+    }
+    value = expr->asLiteral().getLiteral();
+  }
+
   std::string_view documentationString = "";
   return makeUnique<ast::PropertyDeclaration>(
       name, type, documentationString, std::move(getAccessor),
-      std::move(setAccessor), std::nullopt, nameLocation,
-      typeLocation);  // TODO: fix default value
+      std::move(setAccessor), value, nameLocation, typeLocation);
 }
 
 ast::FunctionBody Parser::functionBody(FunctionType type) {
@@ -791,6 +768,30 @@ Unique<ast::Expression> Parser::arrayExpression() {
           "Expect ']' after array.");
 
   return makeUnique<ast::NewArrayExpression>(subtype, length, previous);
+}
+
+Unique<ast::Expression> Parser::unaryNumericToLiteral(
+    Unique<ast::Expression> expr) {
+  if (!expr->isUnaryExpression()) {
+    return expr;
+  }
+
+  auto& unary = expr->asUnary();
+
+  if (unary.getOperator() == ast::UnaryExpression::Operator::Negate &&
+      unary.getOperand()->isLiteralExpression()) {
+    const auto& litExpr = unary.getOperand()->asLiteral();
+    const VellumLiteral& lit = litExpr.getLiteral();
+    if (lit.getType() == VellumLiteralType::Int) {
+      expr = makeUnique<ast::LiteralExpression>(VellumLiteral(-lit.asInt()),
+                                                litExpr.getLocation());
+    } else if (lit.getType() == VellumLiteralType::Float) {
+      expr = makeUnique<ast::LiteralExpression>(VellumLiteral(-lit.asFloat()),
+                                                litExpr.getLocation());
+    }
+  }
+
+  return expr;
 }
 
 void Parser::synchronizeTopDeclaration() {

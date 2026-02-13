@@ -11,7 +11,9 @@
 #include "pex/pex_function.h"
 #include "pex/pex_object.h"
 #include "pex/pex_state.h"
+#include "pex/pex_variable.h"
 #include "pex_function_compiler.h"
+#include "vellum/vellum_literal.h"
 
 namespace vellum {
 using common::makeUnique;
@@ -103,47 +105,38 @@ void PexObjectCompiler::visitPropertyDeclaration(
 
   Opt<pex::PexFunction> getAccessorFunc;
   Opt<pex::PexFunction> setAccessorFunc;
+  Opt<pex::PexString> backedVariableName;
 
-  if (auto getAccessor = declaration.releaseGetAccessor();
-      !declaration.isAutoProperty()) {
+  if (declaration.isAutoProperty()) {
+    auto backedVariable = makePropertyBackedVariable(declaration);
+    backedVariableName = backedVariable.name();
+    object.getVariables().push_back(std::move(backedVariable));
+  } else if (declaration.isAutoReadonly()) {
+    VellumType type = declaration.getTypeName();
+    auto defaultValueType =
+        type.getState() == VellumTypeState::Literal ? type : VellumType::none();
+
     ast::FunctionBody body;
-    if (!getAccessor->empty()) {
-      body = std::move(getAccessor.value());
-    } else {
-      body.push_back(
-          makeUnique<ast::ReturnStatement>(makeUnique<ast::LiteralExpression>(
-              declaration.getDefaultValue().value())));  // TODO: fix this
-    }
+    body.push_back(
+        makeUnique<ast::ReturnStatement>(makeUnique<ast::LiteralExpression>(
+            declaration.getDefaultValue().value_or(
+                makeDefaultLiteral(defaultValueType.asLiteralType())))));
 
     ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
                                       std::move(body), false);
     getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(funcDecl);
-  }
+  } else {
+    ast::FunctionDeclaration getFuncDecl(
+        {}, {}, VellumType::none(), declaration.releaseGetAccessor().value(),
+        false);
+    getAccessorFunc =
+        PexFunctionCompiler(errorHandler, file).compile(getFuncDecl);
 
-  if (auto setAccessor = declaration.releaseSetAccessor()) {
-    if (!setAccessor.value().empty()) {
-      ast::FunctionDeclaration funcDecl({}, {}, VellumType::none(),
-                                        std::move(setAccessor.value()), false);
-      setAccessorFunc =
-          PexFunctionCompiler(errorHandler, file).compile(funcDecl);
-    }
-  }
-
-  Opt<pex::PexString> backedVariableName;
-  if (declaration.isAutoProperty()) {
-    std::string normalizedPropName(
-        common::normalizeToLower(declaration.getName()));
-    const std::string_view varName = common::StringSet::insert(
-        "::" + std::string(normalizedPropName) + "_var");
-    VellumType type = declaration.getTypeName();
-    auto defaultValueType =
-        type.getState() == VellumTypeState::Literal ? type : VellumType::none();
-    pex::PexVariable backedVariable(
-        file.getString(varName), typeName,
-        makeValueFromToken(declaration.getDefaultValue().value_or(
-            makeDefaultLiteral(defaultValueType.asLiteralType()))));
-    backedVariableName = backedVariable.name();
-    object.getVariables().push_back(backedVariable);
+    ast::FunctionDeclaration setFuncDecl(
+        {}, {}, VellumType::none(), declaration.releaseSetAccessor().value(),
+        false);
+    setAccessorFunc =
+        PexFunctionCompiler(errorHandler, file).compile(setFuncDecl);
   }
 
   object.getProperties().emplace_back(name, typeName, documentationString,
@@ -158,6 +151,27 @@ pex::PexValue PexObjectCompiler::makeValueFromToken(VellumValue value) {
     return pex::PexValue();
   }
   return pexValue.value();
+}
+
+pex::PexVariable PexObjectCompiler::makePropertyBackedVariable(
+    const ast::PropertyDeclaration& declaration) {
+  const pex::PexString typeName =
+      file.getString(declaration.getTypeName().toString());
+  std::string normalizedPropName(
+      common::normalizeToLower(declaration.getName()));
+  const std::string_view varName = common::StringSet::insert(
+      "::" + std::string(normalizedPropName) + "_var");
+
+  VellumType type = declaration.getTypeName();
+  auto defaultValueType =
+      type.getState() == VellumTypeState::Literal ? type : VellumType::none();
+
+  pex::PexVariable backedVariable(
+      file.getString(varName), typeName,
+      makeValueFromToken(declaration.getDefaultValue().value_or(
+          makeDefaultLiteral(defaultValueType.asLiteralType()))));
+
+  return backedVariable;
 }
 
 }  // namespace vellum

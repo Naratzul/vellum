@@ -348,3 +348,47 @@ TEST_CASE("CompileNegativeGlobalVar") {
   const pex::PexVariable& var = file.objects()[0].getVariables()[0];
   CHECK(var == expected);
 }
+
+TEST_CASE("CompileAutoProperty_WithInitializer") {
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "value", VellumType::literal(VellumLiteralType::Int), "",
+      ast::FunctionBody{}, ast::FunctionBody{}, VellumLiteral(42)));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importResolver =
+      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  DeclarationCollector collector(errorHandler, resolver, "testscript");
+  collector.collect(ast);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  REQUIRE(file.objects().size() == 1);
+  REQUIRE(file.objects()[0].getProperties().size() == 1);
+  const auto& vars = file.objects()[0].getVariables();
+  REQUIRE(vars.size() == 1);
+  REQUIRE(vars[0].defaultValue().getType() == pex::PexValueType::Integer);
+  CHECK(vars[0].defaultValue().asInt() == 42);
+}

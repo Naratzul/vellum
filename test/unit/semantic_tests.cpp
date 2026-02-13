@@ -100,6 +100,69 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAutoPropertyTest") {
   CHECK(expected == *result.declarations[0]);
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticProperty_WithIntDefaultValue") {
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "value", VellumType::unresolved("Int"), "", ast::FunctionBody{},
+      ast::FunctionBody{}, VellumLiteral(42)));
+
+  collector->collect(ast);
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto* prop = dynamic_cast<const ast::PropertyDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(prop != nullptr);
+  REQUIRE(prop->getDefaultValue().has_value());
+  REQUIRE(prop->getDefaultValue()->getType() == VellumLiteralType::Int);
+  REQUIRE(prop->getDefaultValue()->asInt() == 42);
+  REQUIRE(prop->isAutoProperty());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticProperty_WithNoneDefaultValue") {
+  addTestObject(VellumObject(VellumType::identifier("TestScript")));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "obj", VellumType::unresolved("TestScript"), "", ast::FunctionBody{},
+      ast::FunctionBody{}, VellumLiteral()));
+
+  collector->collect(ast);
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto* prop = dynamic_cast<const ast::PropertyDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(prop != nullptr);
+  REQUIRE(prop->getDefaultValue().has_value());
+  REQUIRE(prop->getDefaultValue()->getType() == VellumLiteralType::None);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticProperty_ReadonlyAuto_NoDefault") {
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "readonlyVal", VellumType::unresolved("Int"), "", ast::FunctionBody{},
+      std::nullopt, std::nullopt));
+
+  collector->collect(ast);
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto* prop = dynamic_cast<const ast::PropertyDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(prop != nullptr);
+  REQUIRE(prop->isReadonly());
+  REQUIRE_FALSE(prop->getDefaultValue().has_value());
+}
+
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticFunctionTest") {
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
@@ -1658,8 +1721,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionParameterTypeMismatch") {
       CompilerErrorKind::StateFunctionSignatureMismatch));
 }
 
-TEST_CASE_METHOD(SemanticTestsFixture,
-                 "State_FunctionDefaultValueMismatch") {
+TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionDefaultValueMismatch") {
   Vec<Unique<ast::Declaration>> ast;
 
   Vec<Unique<ast::Declaration>> scriptMembers;

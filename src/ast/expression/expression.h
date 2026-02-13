@@ -26,6 +26,7 @@ class ArrayIndexExpression;
 class ArrayIndexSetExpression;
 class PropertyGetExpression;
 class SuperExpression;
+class UnaryExpression;
 
 class Expression {
  public:
@@ -43,12 +44,14 @@ class Expression {
   virtual pex::PexValue compile(ExpressionCompiler& compiler) const = 0;
 
   virtual bool isLiteralExpression() const { return false; }
+  virtual bool isUnaryExpression() const { return false; }
   virtual bool isIdentifierExpression() const { return false; }
   virtual bool isArrayIndexExpression() const { return false; }
   virtual bool isPropertyGetExpression() const { return false; }
   virtual bool isSuperExpression() const { return false; }
 
   LiteralExpression& asLiteral();
+  UnaryExpression& asUnary();
   IdentifierExpression& asIdentifier();
   ArrayIndexExpression& asArrayIndex();
   PropertyGetExpression& asPropertyGet();
@@ -286,8 +289,8 @@ class BinaryExpression : public Expression {
     Or
   };
 
-  BinaryExpression(Operator op, Unique<Expression> left, Unique<Expression> right,
-                   Token location = Token{})
+  BinaryExpression(Operator op, Unique<Expression> left,
+                   Unique<Expression> right, Token location = Token{})
       : Expression(location),
         op(op),
         left(std::move(left)),
@@ -322,6 +325,8 @@ class UnaryExpression : public Expression {
   bool equals(const Expression& other) const override;
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  bool isUnaryExpression() const override { return true; }
 
  private:
   Operator op;
@@ -378,7 +383,8 @@ class CastExpression : public Expression {
 
 class NewArrayExpression : public Expression {
  public:
-  NewArrayExpression(Opt<VellumType> subtype, VellumLiteral length, Token location)
+  NewArrayExpression(Opt<VellumType> subtype, VellumLiteral length,
+                     Token location)
       : Expression(location), subtype(subtype), length(length) {}
 
   bool equals(const Expression& other) const override;
