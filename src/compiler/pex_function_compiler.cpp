@@ -6,7 +6,6 @@
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
 #include "common/string_set.h"
-#include "common/string_utils.h"
 #include "common/types.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
@@ -61,7 +60,9 @@ pex::PexOpCode getBinaryOpCode(ast::BinaryExpression::Operator op,
 
 PexFunctionCompiler::PexFunctionCompiler(
     Shared<CompilerErrorHandler> errorHandler, pex::PexFile& file)
-    : errorHandler(errorHandler), file(file) {}
+    : errorHandler(errorHandler),
+      file(file),
+      noneVar(file.getString("::nonevar")) {}
 
 pex::PexFunction PexFunctionCompiler::compile(
     const ast::FunctionDeclaration& func) {
@@ -74,7 +75,7 @@ pex::PexFunction PexFunctionCompiler::compile(
 
   Opt<pex::PexString> name;
   if (auto funcName = func.getName()) {
-    name = file.getString(common::normalizeToLower(funcName.value()));
+    name = file.getString(funcName.value());
   }
 
   pex::PexString returnTypeName =
@@ -150,7 +151,7 @@ void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
 void PexFunctionCompiler::visitLocalVariableStatement(
     ast::LocalVariableStatement& statement) {
   localVariables.emplace_back(
-      file.getString(common::normalizeToLower(statement.getName().toString())),
+      file.getString(statement.getName().toString()),
       file.getString(statement.getType()->toString()));
 
   if (statement.getInitializer()) {
@@ -251,23 +252,27 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
 
   if (functionCall.isParentCall()) {
     opcode = pex::PexOpCode::CallParent;
-    args = {pex::PexIdentifier(file.getString(common::normalizeToLower(
-                functionCall.getFunction().getValue()))),
+    args = {pex::PexIdentifier(file.getString(functionCall.getFunction().getValue())),
             retVal};
   } else if (functionCall.isStatic()) {
     opcode = pex::PexOpCode::CallStatic;
     args = {pex::PexIdentifier(
                 file.getString(functionCall.getObjectType().toString())),
-            pex::PexIdentifier(file.getString(common::normalizeToLower(
-                functionCall.getFunction().getValue()))),
+            pex::PexIdentifier(file.getString(functionCall.getFunction().getValue())),
             retVal};
   } else {
     opcode = pex::PexOpCode::CallMethod;
+    pex::PexValue objectVal;
+    if (expr.getCallee()->isPropertyGetExpression()) {
+      objectVal =
+          expr.getCallee()->asPropertyGet().getObject()->compile(*this);
+    } else {
+      objectVal =
+          pex::PexValue(pex::PexIdentifier(file.getString("self")));
+    }
     args = {
-        pex::PexIdentifier(file.getString(
-            common::normalizeToLower(functionCall.getFunction().getValue()))),
-        pex::PexIdentifier(file.getString(functionCall.getObject().getValue())),
-        retVal};
+        pex::PexIdentifier(file.getString(functionCall.getFunction().getValue())),
+        objectVal, retVal};
   }
 
   Vec<pex::PexValue> variadicArgs;
@@ -307,8 +312,7 @@ pex::PexValue PexFunctionCompiler::compile(
 
   const pex::PexValue objectVal = expr.getObject()->compile(*this);
   Vec<pex::PexValue> args = {
-      pex::PexIdentifier(file.getString(
-          common::normalizeToLower(expr.getProperty().getValue()))),
+      pex::PexIdentifier(file.getString(expr.getProperty().getValue())),
       objectVal, pex::PexIdentifier(retVal.asTempVar().getName())};
 
   instructions.emplace_back(pex::PexOpCode::PropGet, std::move(args));
@@ -514,13 +518,10 @@ pex::PexTemporaryVariable PexFunctionCompiler::makeTempVar(
 }
 
 pex::PexIdentifier PexFunctionCompiler::getNoneVar() {
-  static bool isCreated = false;
-  static pex::PexIdentifier noneVar(file.getString("::nonevar"));
-
-  if (!isCreated) {
+  if (!isNoneVarAdded) {
     localVariables.emplace_back(noneVar.getValue(),
                                 file.getString(VellumType::none().toString()));
-    isCreated = true;
+    isNoneVarAdded = true;
   }
 
   return noneVar;

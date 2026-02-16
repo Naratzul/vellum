@@ -831,7 +831,6 @@ void Parser::synchronizeStatement() {
     switch (current.type) {
       case TokenType::VAR:
       case TokenType::IF:
-      case TokenType::FOR:
       case TokenType::WHILE:
       case TokenType::RETURN:
       case TokenType::RIGHT_BRACE:

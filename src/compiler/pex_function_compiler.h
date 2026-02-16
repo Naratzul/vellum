@@ -64,6 +64,8 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   Vec<pex::PexFunctionParameter> localVariables;
   Vec<pex::PexInstruction> instructions;
   int tempVarCount = 0;
+  bool isNoneVarAdded = false;
+  pex::PexIdentifier noneVar;
 
   pex::PexValue makeValueFromToken(VellumValue value);
 

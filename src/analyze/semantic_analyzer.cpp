@@ -396,7 +396,6 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     if (!result.compatible) {
       errorHandler->errorAt(arg->getLocation(), result.errorKind,
                             result.errorMessage);
-      return;
     }
   }
 

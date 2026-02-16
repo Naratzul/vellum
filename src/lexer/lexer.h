@@ -28,6 +28,7 @@ class Lexer : public ILexer {
   TokenType identifierType() const;
   TokenType checkKeyword(int start, int length, const char* rest,
                          TokenType type) const;
+  bool compare(int start, int length, const char* rest) const;
 
   char advance();
   char peek();

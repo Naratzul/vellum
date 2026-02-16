@@ -228,8 +228,8 @@ TokenType Lexer::identifierType() const {
           case 'c':
             return checkKeyword(2, 4, "ript", TokenType::SCRIPT);
           case 't':
-            if (current - start > 2 && start[2] == 'a') {
-              return checkKeyword(3, 2, "te", TokenType::STATE);
+            if (compare(2, 3, "ate")) {
+              return TokenType::STATE;
             }
             return checkKeyword(2, 4, "atic", TokenType::STATIC);
           case 'u':
@@ -260,11 +260,12 @@ TokenType Lexer::identifierType() const {
 
 TokenType Lexer::checkKeyword(int start, int length, const char* rest,
                               TokenType type) const {
-  if (current - this->start == start + length &&
-      memcmp(this->start + start, rest, length) == 0) {
-    return type;
-  }
-  return TokenType::IDENTIFIER;
+  return compare(start, length, rest) ? type : TokenType::IDENTIFIER;
+}
+
+bool Lexer::compare(int start, int length, const char* rest) const {
+  return current - this->start == start + length &&
+         memcmp(this->start + start, rest, length) == 0;
 }
 
 char Lexer::advance() {

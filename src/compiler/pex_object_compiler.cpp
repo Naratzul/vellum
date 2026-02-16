@@ -4,7 +4,6 @@
 
 #include "ast/decl/declaration.h"
 #include "common/string_set.h"
-#include "common/string_utils.h"
 #include "common/types.h"
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
@@ -41,8 +40,7 @@ pex::PexObject PexObjectCompiler::compile(
 
 void PexObjectCompiler::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
-  auto name = common::normalizeToLower(declaration.getScriptName().toString());
-  object.setName(file.getString(name));
+  object.setName(file.getString(declaration.getScriptName().toString()));
   object.setParentName(
       file.getString(declaration.getParentScriptName().toString()));
   object.setDocumentationString(file.getString(""));
@@ -74,8 +72,7 @@ void PexObjectCompiler::visitStateDeclaration(
 
 void PexObjectCompiler::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& declaration) {
-  const pex::PexString name =
-      file.getString(common::normalizeToLower(declaration.name()));
+  const pex::PexString name = file.getString(declaration.name());
 
   assert(declaration.typeName().has_value());
   const pex::PexString typeName =
@@ -96,8 +93,7 @@ void PexObjectCompiler::visitFunctionDeclaration(
 
 void PexObjectCompiler::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
-  const pex::PexString name =
-      file.getString(common::normalizeToLower(declaration.getName()));
+  const pex::PexString name = file.getString(declaration.getName());
   const pex::PexString typeName =
       file.getString(declaration.getTypeName().toString());
   const pex::PexString documentationString =
@@ -157,10 +153,8 @@ pex::PexVariable PexObjectCompiler::makePropertyBackedVariable(
     const ast::PropertyDeclaration& declaration) {
   const pex::PexString typeName =
       file.getString(declaration.getTypeName().toString());
-  std::string normalizedPropName(
-      common::normalizeToLower(declaration.getName()));
   const std::string_view varName = common::StringSet::insert(
-      "::" + std::string(normalizedPropName) + "_var");
+      "::" + std::string(declaration.getName()) + "_var");
 
   VellumType type = declaration.getTypeName();
   auto defaultValueType =

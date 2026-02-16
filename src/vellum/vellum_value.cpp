@@ -1,6 +1,5 @@
 #include "vellum_value.h"
 
-#include "common/string_utils.h"
 #include "pex/pex_file.h"
 
 namespace vellum {
@@ -8,8 +7,8 @@ namespace vellum {
 pex::PexValue makePexValue(VellumValue value, pex::PexFile& file) {
   switch (value.getType()) {
     case VellumValueType::Identifier:
-      return pex::PexValue(pex::PexIdentifier(
-          file.getString(common::normalizeToLower(value.asIdentifier().getValue()))));
+      return pex::PexValue(
+          pex::PexIdentifier(file.getString(value.asIdentifier().getValue())));
     case VellumValueType::Literal:
       return makePexValue(value.asLiteral(), file);
     default:
