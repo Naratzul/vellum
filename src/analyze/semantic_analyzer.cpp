@@ -277,7 +277,11 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
       const VellumType objectType =
           callee->asPropertyGet().getObject()->getType();
 
-      if (callee->asPropertyGet().getObject()->isIdentifierExpression()) {
+      if (callee->asPropertyGet().getObject()->isSelfExpression()) {
+        expr.setFunctionCall(VellumFunctionCall::methodCall(
+            VellumIdentifier("self"), resolver->getObject().getType(),
+            callee->asPropertyGet().getProperty()));
+      } else if (callee->asPropertyGet().getObject()->isIdentifierExpression()) {
         const auto& calleeIdentifier =
             callee->asPropertyGet().getObject()->asIdentifier();
 
@@ -740,6 +744,10 @@ void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
                           CompilerErrorKind::ArrayLengthMaximumExceeded,
                           "Maximum array length (128) is exceeded.");
   }
+}
+
+void SemanticAnalyzer::visitSelfExpression(ast::SelfExpression& expr) {
+  expr.setType(resolver->getObject().getType());
 }
 
 void SemanticAnalyzer::visitSuperExpression(ast::SuperExpression&) {}

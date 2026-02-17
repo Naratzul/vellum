@@ -287,6 +287,11 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
   return retVal;
 }
 
+pex::PexValue PexFunctionCompiler::compile(const ast::SelfExpression& expr) {
+  (void)expr;
+  return pex::PexValue(pex::PexIdentifier(file.getString("self")));
+}
+
 pex::PexValue PexFunctionCompiler::compile(const ast::SuperExpression& expr) {
   (void)expr;
   return pex::PexValue(pex::PexIdentifier(file.getString("parent")));

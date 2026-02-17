@@ -252,6 +252,80 @@ TEST_CASE("CompileDefaultArgs_EndToEnd") {
   CHECK(variadicArgs[0].asInt() == 5);
 }
 
+TEST_CASE("CompileSelfExpression_CallMethodUsesSelf") {
+  auto selfExpr = makeUnique<ast::SelfExpression>(Token());
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(selfExpr), VellumIdentifier("foo"), Token());
+  auto callExpr = makeUnique<ast::CallExpression>(
+      std::move(propGet), Vec<Unique<ast::Expression>>{}, Token());
+  auto testBody = Vec<Unique<ast::Statement>>{};
+  testBody.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::literal(VellumLiteralType::Int),
+      Vec<Unique<ast::Statement>>{}, false));
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(testBody), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importResolver =
+      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  DeclarationCollector collector(errorHandler, resolver, "testscript");
+  collector.collect(ast);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file = Compiler(errorHandler).compile(
+      ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  REQUIRE(file.objects().size() == 1);
+  REQUIRE(file.objects()[0].getStates().size() == 1);
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  REQUIRE(funcs.size() >= 2);
+
+  const pex::PexFunction* testFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() &&
+        file.stringTable().valueByIndex(f.getName()->index()) == "test") {
+      testFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(testFunc != nullptr);
+  REQUIRE(testFunc->getInstructions().size() >= 1);
+
+  const auto& instr = testFunc->getInstructions().back();
+  CHECK(instr.getOpCode() == pex::PexOpCode::CallMethod);
+  REQUIRE(instr.getArgs().size() >= 2);
+  REQUIRE(instr.getArgs()[1].getType() == pex::PexValueType::Identifier);
+  CHECK(file.stringTable().valueByIndex(
+            static_cast<std::size_t>(
+                instr.getArgs()[1].asIdentifier().getValue().index())) ==
+        "self");
+}
+
 TEST_CASE("CompileNegativeDefaultArgs_EndToEnd") {
   Vec<ast::FunctionParameter> fooParams = {
       {"x", VellumType::unresolved("Int"), VellumLiteral(-5)}};

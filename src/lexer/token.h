@@ -62,7 +62,7 @@ enum class TokenType {
   STATE,
   STATIC,
   SUPER,
-  THIS,
+  SELF,
   TRUE,
   VAR,
   WHILE,

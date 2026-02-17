@@ -224,6 +224,9 @@ TokenType Lexer::identifierType() const {
       if (current - start > 1) {
         switch (start[1]) {
           case 'e':
+            if (current - start == 4 && compare(2, 2, "lf")) {
+              return TokenType::SELF;
+            }
             return checkKeyword(2, 1, "t", TokenType::SET);
           case 'c':
             return checkKeyword(2, 4, "ript", TokenType::SCRIPT);
@@ -240,13 +243,8 @@ TokenType Lexer::identifierType() const {
     case 'm':
       return checkKeyword(1, 4, "atch", TokenType::MATCH);
     case 't':
-      if (current - start > 1) {
-        switch (start[1]) {
-          case 'h':
-            return checkKeyword(2, 2, "is", TokenType::THIS);
-          case 'r':
-            return checkKeyword(2, 2, "ue", TokenType::TRUE);
-        }
+      if (current - start > 1 && start[1] == 'r') {
+        return checkKeyword(2, 2, "ue", TokenType::TRUE);
       }
       break;
     case 'v':

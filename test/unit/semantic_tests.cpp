@@ -1468,6 +1468,53 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticSelfExpression_HasScriptType") {
+  auto selfExpr = makeUnique<ast::SelfExpression>(Token());
+  auto propGet = makeUnique<ast::PropertyGetExpression>(
+      std::move(selfExpr), VellumIdentifier("foo"), Token());
+  auto callExpr = makeUnique<ast::CallExpression>(
+      std::move(propGet), Vec<Unique<ast::Expression>>{}, Token());
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::literal(VellumLiteralType::Int),
+      ast::FunctionBody{}, false));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto& scriptDecl =
+      dynamic_cast<ast::ScriptDeclaration&>(*result.declarations[0]);
+  REQUIRE(scriptDecl.getMemberDecls().size() == 2);
+  const auto& testFuncDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*scriptDecl.getMemberDecls()[1]);
+  const auto& stmt =
+      dynamic_cast<ast::ExpressionStatement&>(*testFuncDecl.getBody()[0]);
+  const auto& call = dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
+  REQUIRE(call.getCallee()->isPropertyGetExpression());
+  REQUIRE(call.getCallee()->asPropertyGet().getObject()->isSelfExpression());
+  CHECK(call.getCallee()->asPropertyGet().getObject()->getType() ==
+        VellumType::identifier("testscript"));
+  REQUIRE(call.getFunctionCall().has_value());
+  REQUIRE_FALSE(call.getFunctionCall()->isStatic());
+  REQUIRE_FALSE(call.getFunctionCall()->isParentCall());
+  CHECK(call.getFunctionCall()->getObject().toString() == "self");
+  CHECK(call.getType().isInt());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticInheritance_PropertyShadow_Error") {
   VellumObject parentObj(VellumType::identifier("ParentScript"));
   parentObj.addProperty(

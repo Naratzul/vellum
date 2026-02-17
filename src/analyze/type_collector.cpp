@@ -187,6 +187,8 @@ void TypeCollector::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   }
 }
 
+void TypeCollector::visitSelfExpression(ast::SelfExpression&) {}
+
 void TypeCollector::visitSuperExpression(ast::SuperExpression&) {}
 
 void TypeCollector::visitArrayIndexExpression(ast::ArrayIndexExpression& expr) {

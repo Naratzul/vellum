@@ -78,6 +78,49 @@ TEST_CASE("ParserSuperCallInFunction") {
   REQUIRE(call->getCallee()->asPropertyGet().getProperty().toString() == "foo");
 }
 
+TEST_CASE("ParserSelfCallInFunction") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::SELF, 1, "self"),
+                    makeToken(TokenType::DOT, 1, "."),
+                    makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() == 1);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody().size() == 1);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  const auto* call =
+      dynamic_cast<const ast::CallExpression*>(exprStmt->getExpression().get());
+  REQUIRE(call != nullptr);
+  REQUIRE(call->getCallee()->isPropertyGetExpression());
+  REQUIRE(call->getCallee()->asPropertyGet().getObject()->isSelfExpression());
+  REQUIRE(call->getCallee()->asPropertyGet().getProperty().toString() == "foo");
+}
+
 TEST_CASE("ParserGlobalVarDeclarationTest") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),

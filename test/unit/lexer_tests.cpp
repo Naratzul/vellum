@@ -23,6 +23,13 @@ TEST_CASE("LexerScriptTest") {
              Catch::Matchers::Equals(expected));
 }
 
+TEST_CASE("LexerSelfKeyword") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("self"));
+  REQUIRE(tokens.size() >= 1);
+  CHECK(tokens[0].type == TokenType::SELF);
+  CHECK(tokens[0].lexeme == "self");
+}
+
 TEST_CASE("LexerVarDeclarationTest") {
   Vec<Token> expected{
       makeToken(TokenType::VAR, 1, "var"),

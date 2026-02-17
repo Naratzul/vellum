@@ -25,6 +25,7 @@ class IdentifierExpression;
 class ArrayIndexExpression;
 class ArrayIndexSetExpression;
 class PropertyGetExpression;
+class SelfExpression;
 class SuperExpression;
 class UnaryExpression;
 
@@ -48,6 +49,7 @@ class Expression {
   virtual bool isIdentifierExpression() const { return false; }
   virtual bool isArrayIndexExpression() const { return false; }
   virtual bool isPropertyGetExpression() const { return false; }
+  virtual bool isSelfExpression() const { return false; }
   virtual bool isSuperExpression() const { return false; }
 
   LiteralExpression& asLiteral();
@@ -55,6 +57,7 @@ class Expression {
   IdentifierExpression& asIdentifier();
   ArrayIndexExpression& asArrayIndex();
   PropertyGetExpression& asPropertyGet();
+  SelfExpression& asSelfExpression();
   SuperExpression& asSuperExpression();
 
  protected:
@@ -105,6 +108,20 @@ class IdentifierExpression : public Expression {
  private:
   VellumIdentifier identifier;
   VellumValueType identifierType{VellumValueType::Identifier};
+};
+
+class SelfExpression : public Expression {
+ public:
+  explicit SelfExpression(Token location = Token{}) : Expression(location) {}
+
+  bool equals(const Expression& other) const override;
+
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  bool isSelfExpression() const override { return true; }
+
+ private:
 };
 
 class SuperExpression : public Expression {
