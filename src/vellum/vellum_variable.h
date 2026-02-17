@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/types.h"
+#include "lexer/token.h"
 #include "vellum_identifier.h"
 #include "vellum_literal.h"
 #include "vellum_type.h"
@@ -15,15 +16,21 @@ class VellumVariable {
   VellumVariable(VellumIdentifier name, VellumType type,
                  Opt<VellumLiteral> defaultValue)
       : name(name), type(type), defaultValue(std::move(defaultValue)) {}
+  VellumVariable(VellumIdentifier name, VellumType type,
+                 Opt<VellumLiteral> defaultValue, Token nameLocation = Token())
+      : name(name), type(type), defaultValue(std::move(defaultValue)),
+        nameLocation(nameLocation) {}
 
   VellumIdentifier getName() const { return name; }
   VellumType getType() const { return type; }
   const Opt<VellumLiteral>& getDefaultValue() const { return defaultValue; }
+  const Token& getNameLocation() const { return nameLocation; }
 
  private:
   VellumIdentifier name;
   VellumType type;
   Opt<VellumLiteral> defaultValue;
+  Token nameLocation;
 };
 
 bool operator==(const VellumVariable& lhs, const VellumVariable& rhs);

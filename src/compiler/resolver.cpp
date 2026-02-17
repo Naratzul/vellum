@@ -19,8 +19,7 @@ void Resolver::startFunction(const VellumFunction& func) {
   currentFunction = func;
   pushScope();
   for (const auto& param : func.getParameters()) {
-    // Function parameters don't have location info, use default token
-    pushLocalVar(param, Token());
+    pushLocalVar(param, param.getNameLocation());
   }
 }
 

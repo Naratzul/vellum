@@ -250,7 +250,7 @@ void DeclarationCollector::visitFunctionDeclaration(
     }
 
     parameters.emplace_back(VellumIdentifier(param.name), param.type,
-                            param.defaultValue);
+                            param.defaultValue, param.nameLocation);
   }
 
   if (!declaration.getReturnTypeName().isResolved()) {
