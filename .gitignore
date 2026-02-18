@@ -41,5 +41,6 @@ scripts/
 bin/
 .clangd
 .vs/
+out/
 
 papyrus scripts/

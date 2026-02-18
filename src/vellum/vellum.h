@@ -8,6 +8,8 @@ namespace fs = std::filesystem;
 namespace vellum {
 class Vellum {
  public:
-  void run(const fs::path& inputFile, const std::vector<std::string>& importPaths);
+  void run(const fs::path& inputFile,
+           const std::vector<std::string>& importPaths,
+           bool emitDebugInfo = true);
 };
 }  // namespace vellum

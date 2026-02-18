@@ -25,7 +25,8 @@ using common::makeUnique;
 using common::Unique;
 
 void Vellum::run(const fs::path& inputFile,
-                 const Vec<std::string>& importPaths) {
+                 const Vec<std::string>& importPaths,
+                 bool emitDebugInfo) {
   const std::string& sourceCode = common::readFileContent(inputFile);
   const auto filename = inputFile.stem().string();
 
@@ -70,6 +71,7 @@ void Vellum::run(const fs::path& inputFile,
   metadata.sourceFile = fs::canonical(inputFile).string();
   metadata.userName = common::getUserName();
   metadata.computerName = common::getComputerName();
+  metadata.emitDebugInfo = emitDebugInfo;
 
   Compiler compiler(errorHandler);
   pex::PexFile pexFile =

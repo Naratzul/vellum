@@ -31,6 +31,7 @@ struct ScriptMetadata {
   std::string sourceFile;
   std::string userName;
   std::string computerName;
+  bool emitDebugInfo = true;
 };
 
 class Compiler {

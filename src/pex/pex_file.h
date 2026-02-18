@@ -1,11 +1,13 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "common/binary_writer.h"
 #include "common/types.h"
 #include "game/game_id.h"
+#include "pex_debug_info.h"
 #include "pex_object.h"
 #include "pex_string.h"
 #include "pex_string_table.h"
@@ -53,7 +55,12 @@ class PexFile {
   Objects& objects() { return objects_; }
   const Objects& objects() const { return objects_; }
 
-  bool hasDebugInfo() const { return false; }
+  bool hasDebugInfo() const { return debugInfo_ != nullptr; }
+  PexDebugInfo* debugInfo() { return debugInfo_.get(); }
+  const PexDebugInfo* debugInfo() const { return debugInfo_.get(); }
+  void setDebugInfo(std::unique_ptr<PexDebugInfo> info) {
+    debugInfo_ = std::move(info);
+  }
 
   void writeToFile(std::string_view path) const;
 
@@ -66,6 +73,7 @@ class PexFile {
   PexStringTable stringTable_;
   PexUserFlagTable userFlags_;
   Objects objects_;
+  std::unique_ptr<PexDebugInfo> debugInfo_;
 
   common::Endianness getEndianness() const;
 };

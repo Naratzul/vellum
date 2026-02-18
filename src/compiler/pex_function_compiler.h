@@ -6,6 +6,8 @@
 #include "ast/expression/expression_visitor.h"
 #include "ast/statement/statement_visitor.h"
 #include "common/types.h"
+#include "lexer/token.h"
+#include "pex/pex_debug_function_info.h"
 #include "pex/pex_file.h"
 #include "pex/pex_function_parameter.h"
 #include "pex/pex_instruction.h"
@@ -35,7 +37,8 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   PexFunctionCompiler(Shared<CompilerErrorHandler> errorHandler,
                       pex::PexFile& file);
 
-  pex::PexFunction compile(const ast::FunctionDeclaration& func);
+  pex::PexFunction compile(const ast::FunctionDeclaration& func,
+                            pex::PexDebugFunctionInfo* debugInfo = nullptr);
 
   void visitExpressionStatement(ast::ExpressionStatement& statement) override;
   void visitReturnStatement(ast::ReturnStatement& statement) override;
@@ -60,8 +63,19 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::SuperExpression& expr) override;
 
  private:
+  void setCurrentLine(int line) { currentLine_ = line; }
+  void setCurrentLocation(const Token& token) {
+    currentLine_ = token.location.start.line;
+  }
+  void recordInstructionLine();
+  void emitInstruction(pex::PexOpCode opcode, Vec<pex::PexValue> args);
+  void emitInstruction(pex::PexOpCode opcode, Vec<pex::PexValue> args,
+                       Vec<pex::PexValue> variadicArgs);
+
   Shared<CompilerErrorHandler> errorHandler;
   pex::PexFile& file;
+  pex::PexDebugFunctionInfo* debugInfo_ = nullptr;
+  int currentLine_ = 1;
 
   Vec<pex::PexFunctionParameter> localVariables;
   Vec<pex::PexInstruction> instructions;

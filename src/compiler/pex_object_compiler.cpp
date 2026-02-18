@@ -6,6 +6,7 @@
 #include "common/string_set.h"
 #include "common/types.h"
 #include "compiler_error_handler.h"
+#include "pex/pex_debug_function_info.h"
 #include "pex/pex_file.h"
 #include "pex/pex_function.h"
 #include "pex/pex_object.h"
@@ -85,8 +86,24 @@ void PexObjectCompiler::visitVariableDeclaration(
 void PexObjectCompiler::visitFunctionDeclaration(
     ast::FunctionDeclaration& declaration) {
   PexFunctionCompiler compiler(errorHandler, file);
-  pex::PexFunction function = compiler.compile(declaration);
-
+  pex::PexDebugFunctionInfo* debugFuncInfo = nullptr;
+  pex::PexDebugFunctionInfo debugFuncInfoStorage;
+  if (file.hasDebugInfo()) {
+    debugFuncInfoStorage.objectName = object.getName();
+    debugFuncInfoStorage.stateName =
+        object.getStates()[currentStateIndex].getName();
+    debugFuncInfoStorage.functionName =
+        declaration.getName().has_value()
+            ? file.getString(declaration.getName().value())
+            : file.getString("");
+    debugFuncInfoStorage.functionType =
+        pex::PexDebugFunctionType::Normal;
+    debugFuncInfo = &debugFuncInfoStorage;
+  }
+  pex::PexFunction function = compiler.compile(declaration, debugFuncInfo);
+  if (file.hasDebugInfo()) {
+    file.debugInfo()->functions.push_back(std::move(debugFuncInfoStorage));
+  }
   object.getStates()[currentStateIndex].getFunctions().push_back(
       std::move(function));
 }
@@ -120,19 +137,54 @@ void PexObjectCompiler::visitPropertyDeclaration(
 
     ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
                                       std::move(body), false);
-    getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(funcDecl);
+    pex::PexDebugFunctionInfo* getterDebugInfo = nullptr;
+    pex::PexDebugFunctionInfo getterDebugInfoStorage;
+    if (file.hasDebugInfo()) {
+      getterDebugInfoStorage.objectName = object.getName();
+      getterDebugInfoStorage.stateName = object.getRootState().getName();
+      getterDebugInfoStorage.functionName = name;
+      getterDebugInfoStorage.functionType = pex::PexDebugFunctionType::Getter;
+      getterDebugInfo = &getterDebugInfoStorage;
+    }
+    getAccessorFunc =
+        PexFunctionCompiler(errorHandler, file).compile(funcDecl, getterDebugInfo);
+    if (file.hasDebugInfo()) {
+      file.debugInfo()->functions.push_back(std::move(getterDebugInfoStorage));
+    }
   } else {
+    pex::PexDebugFunctionInfo* getterDebugInfo = nullptr;
+    pex::PexDebugFunctionInfo getterDebugInfoStorage;
+    pex::PexDebugFunctionInfo* setterDebugInfo = nullptr;
+    pex::PexDebugFunctionInfo setterDebugInfoStorage;
+    if (file.hasDebugInfo()) {
+      getterDebugInfoStorage.objectName = object.getName();
+      getterDebugInfoStorage.stateName = object.getRootState().getName();
+      getterDebugInfoStorage.functionName = name;
+      getterDebugInfoStorage.functionType = pex::PexDebugFunctionType::Getter;
+      getterDebugInfo = &getterDebugInfoStorage;
+      setterDebugInfoStorage.objectName = object.getName();
+      setterDebugInfoStorage.stateName = object.getRootState().getName();
+      setterDebugInfoStorage.functionName = name;
+      setterDebugInfoStorage.functionType = pex::PexDebugFunctionType::Setter;
+      setterDebugInfo = &setterDebugInfoStorage;
+    }
     ast::FunctionDeclaration getFuncDecl(
         {}, {}, VellumType::none(), declaration.releaseGetAccessor().value(),
         false);
-    getAccessorFunc =
-        PexFunctionCompiler(errorHandler, file).compile(getFuncDecl);
+    getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(
+        getFuncDecl, getterDebugInfo);
+    if (file.hasDebugInfo()) {
+      file.debugInfo()->functions.push_back(std::move(getterDebugInfoStorage));
+    }
 
     ast::FunctionDeclaration setFuncDecl(
         {}, {}, VellumType::none(), declaration.releaseSetAccessor().value(),
         false);
-    setAccessorFunc =
-        PexFunctionCompiler(errorHandler, file).compile(setFuncDecl);
+    setAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(
+        setFuncDecl, setterDebugInfo);
+    if (file.hasDebugInfo()) {
+      file.debugInfo()->functions.push_back(std::move(setterDebugInfoStorage));
+    }
   }
 
   object.getProperties().emplace_back(name, typeName, documentationString,

@@ -6,46 +6,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 ## Planned Features
 
-### Compiler Quality (Priority: High)
-
-#### PEX Debug Info Support
-
-**Status**: `hasDebugInfo()` in `pex_file.h` returns `false`; `pex_file.cpp` writes a boolean flag and skips debug data when false.
-
-**Implementation needed**:
-
-- Enable debug info in PEX output (source file path, line numbers per instruction)
-- PEX format typically stores: debug info flag, then per-object/per-function line mapping
-- Populate debug metadata from AST `Token` locations during compilation
-- Wire `PexFile` / `PexObject` / `PexFunction` to store and emit debug info
-
-**Files to modify**:
-
-- `src/pex/pex_file.h` - Add debug info storage, change `hasDebugInfo()` to return true when populated
-- `src/pex/pex_file.cpp` - Write debug info block when enabled
-- `src/pex/pex_object.h` / `pex_function.h` - Add debug info structures (e.g., instruction-to-line mapping)
-- `src/compiler/pex_function_compiler.cpp` - Record source locations when emitting instructions
-
-#### Static Context Validation
-
-**Status**: No validation that instance members (properties, variables, non-static functions) are forbidden inside static functions. The semantic analyzer checks the opposite case (calling instance method via static call at call site) but does not track "we are inside a static function" when analyzing the function body.
-
-**Implementation needed**:
-
-- Track `inStaticContext` (or similar) when visiting a static function body
-- In `visitIdentifierExpression`: error if identifier resolves to instance variable/property and `inStaticContext`
-- In `visitPropertyGetExpression`: error if property get on `self` (implicit or explicit) and `inStaticContext`
-- In `visitAssignExpression`: error if assigning to instance variable/property and `inStaticContext`
-- In `visitCallExpression`: error if calling instance method without object (e.g., bare `foo()` where `foo` is instance method) and `inStaticContext`
-- Disallow `super` in static context (parent call requires instance)
-
-**Files to modify**:
-
-- `src/analyze/semantic_analyzer.h` - Add `bool inStaticContext` (or `Opt<bool>`) member
-- `src/analyze/semantic_analyzer.cpp` - Set flag in `visitFunctionDeclaration` when `declaration.isStatic()`, clear when exiting; add checks in `visitIdentifierExpression`, `visitPropertyGetExpression`, `visitAssignExpression`, `visitCallExpression`, `visitSuperExpression`
-- `src/compiler/compiler_error_handler.h` - Add `CompilerErrorKind` for "Instance member not allowed in static context" if needed
-- `test/unit/semantic_tests.cpp` - Add tests for static context violations
-
 ### Papyrus Core Features (Priority: High)
 
 #### Cast Semantic Validation
@@ -62,23 +22,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 - `src/analyze/type_checker.cpp` - Add cast validation logic
 - `src/analyze/semantic_analyzer.cpp` - Enhance `visitCastExpression`
-
-#### Self Keyword
-
-**Status**: `THIS` token exists in lexer, but may not be fully integrated.
-
-**Implementation needed**:
-
-- Parse `self` keyword in expressions
-- Resolve `self` to current script instance
-- Compile `self` to PEX self reference
-
-**Files to modify**:
-
-- `src/parser/parser.cpp` - Handle `THIS` token in `primaryExpression`
-- `src/ast/expression/expression.h` - Add `SelfExpression` class (or reuse existing)
-- `src/compiler/resolver.cpp` - Resolve `self` identifier
-- `src/compiler/pex_function_compiler.cpp` - Compile self reference
 
 #### Native Functions
 
@@ -228,6 +171,7 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - **Property access** - Property get and set operations
 - **Assignments** - Variable and property assignments
 - **Super expressions** - Parent class method calls (`super.method()`) with full semantic validation and `CallParent` PEX compilation
+- **Self expression** - `self` keyword resolving to current script instance, `SelfExpression` in AST, semantic and PEX compilation
 - **Array creation** - Array instantiation with type and length (`[Type; length]`)
 - **Array operations** - Array indexing (`array[index]`), length property (`array.length`), find methods (`array.find()`, `array.rfind()`)
 - **Literals** - Integer, float, boolean, string, and `none` literals
@@ -244,7 +188,9 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 ### Compilation
 
 - **PEX compilation** - Full compilation to PEX bytecode format
+- **PEX debug info support** - Optional debug info in PEX output (CLI `--debug-info`/`-g`, default on): modification time, per-function instruction-to-line mapping (object/state/function name, function type, line map); populated from AST token locations during compilation; Skyrim format (no property groups/struct orders)
 - **Semantic analysis** - Complete semantic analyzer with type checking
+- **Static context validation** - Instance members (variables, properties, non-static functions), `self`, and `super` forbidden inside static functions; `inStaticContext` flag, `Resolver::isInstanceMember`, `CompilerErrorKind::InstanceMemberInStaticContext`, and unit tests
 - **Error handling** - Comprehensive error reporting system
 
 ## Implementation Priority
@@ -252,12 +198,10 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 ### Phase 1: Papyrus Compatibility (Critical)
 
 1. Cast semantic validation
-2. Self keyword
 
 ### Phase 2: Compiler Quality
 
-1. PEX debug info support
-2. Static context validation
+- (PEX debug info support completed)
 
 ### Phase 3: Essential Control Flow
 

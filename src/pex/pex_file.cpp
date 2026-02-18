@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "common/fs.h"
+#include "pex_debug_info.h"
 #include "pex_writer.h"
 
 namespace vellum {
@@ -19,11 +20,9 @@ void PexFile::writeToFile(std::string_view path) const {
 
   writer << stringTable_;
 
+  writer << static_cast<uint8_t>(hasDebugInfo() ? 1 : 0);
   if (hasDebugInfo()) {
-    writer << true;
-    writer << header_.gameID;
-  } else {
-    writer << false;
+    write(*debugInfo_, writer);
   }
 
   writer << (uint16_t)userFlags_.size();

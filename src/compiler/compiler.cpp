@@ -1,10 +1,12 @@
 #include "compiler.h"
 
 #include <filesystem>
+#include <memory>
 
 #include "ast/decl/declaration.h"
 #include "common/types.h"
 #include "compiler_error_handler.h"
+#include "pex/pex_debug_info.h"
 #include "pex/pex_file.h"
 #include "pex_object_compiler.h"
 
@@ -21,6 +23,13 @@ pex::PexFile Compiler::compile(
     const Vec<Unique<ast::Declaration>>& declarations) {
   pex::PexFile file;
   fillHeader(file.header(), metadata);
+
+  if (metadata.emitDebugInfo) {
+    auto debugInfo = std::make_unique<pex::PexDebugInfo>();
+    debugInfo->modificationTime =
+        static_cast<std::time_t>(metadata.compilationTime);
+    file.setDebugInfo(std::move(debugInfo));
+  }
 
   PexObjectCompiler objectCompiler(errorHandler, file);
   pex::PexObject object = objectCompiler.compile(declarations);

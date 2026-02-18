@@ -1,4 +1,4 @@
-﻿include(FetchContent)
+include(FetchContent)
 FetchContent_Declare(
   cxxopts
   GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
@@ -31,6 +31,8 @@ add_library(vellum_compiler STATIC
     parser/parser.cpp
     parser/papyrus_lexer.cpp
     parser/papyrus_parser.cpp
+    pex/pex_debug_function_info.cpp
+    pex/pex_debug_info.cpp
     pex/pex_file.cpp
     pex/pex_function_parameter.cpp
     pex/pex_function.cpp

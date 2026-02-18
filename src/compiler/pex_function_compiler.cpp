@@ -1,6 +1,7 @@
 #include "pex_function_compiler.h"
 
 #include <array>
+#include <limits>
 
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
@@ -64,10 +65,37 @@ PexFunctionCompiler::PexFunctionCompiler(
       file(file),
       noneVar(file.getString("::nonevar")) {}
 
+void PexFunctionCompiler::recordInstructionLine() {
+  if (!debugInfo_) return;
+  int line = currentLine_;
+  if (line > static_cast<int>(std::numeric_limits<uint16_t>::max()))
+    line = static_cast<int>(std::numeric_limits<uint16_t>::max());
+  if (!debugInfo_->instructionLineMap.empty() &&
+      line < static_cast<int>(debugInfo_->instructionLineMap.back()))
+    line = static_cast<int>(debugInfo_->instructionLineMap.back());
+  debugInfo_->instructionLineMap.push_back(static_cast<uint16_t>(line));
+}
+
+void PexFunctionCompiler::emitInstruction(pex::PexOpCode opcode,
+                                          Vec<pex::PexValue> args) {
+  instructions.emplace_back(opcode, std::move(args));
+  recordInstructionLine();
+}
+
+void PexFunctionCompiler::emitInstruction(pex::PexOpCode opcode,
+                                          Vec<pex::PexValue> args,
+                                          Vec<pex::PexValue> variadicArgs) {
+  instructions.emplace_back(opcode, std::move(args), std::move(variadicArgs));
+  recordInstructionLine();
+}
+
 pex::PexFunction PexFunctionCompiler::compile(
-    const ast::FunctionDeclaration& func) {
+    const ast::FunctionDeclaration& func,
+    pex::PexDebugFunctionInfo* debugInfo) {
   localVariables.clear();
   instructions.clear();
+  debugInfo_ = debugInfo;
+  currentLine_ = 1;
 
   for (const auto& statement : func.getBody()) {
     statement->accept(*this);
@@ -98,30 +126,32 @@ pex::PexFunction PexFunctionCompiler::compile(
 
 void PexFunctionCompiler::visitExpressionStatement(
     ast::ExpressionStatement& statement) {
+  setCurrentLocation(statement.getExpression()->getLocation());
   statement.getExpression()->compile(*this);
 }
 
 void PexFunctionCompiler::visitReturnStatement(
     ast::ReturnStatement& statement) {
-  instructions.emplace_back(
-      pex::PexOpCode::Return,
-      Vec<pex::PexValue>{statement.getExpression()->compile(*this)});
+  setCurrentLocation(statement.getExpression()->getLocation());
+  emitInstruction(pex::PexOpCode::Return,
+                  Vec<pex::PexValue>{statement.getExpression()->compile(*this)});
 }
 
 void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
   assert(statement.getCondition()->getType().isBool());
+  setCurrentLocation(statement.getCondition()->getLocation());
   const auto condition = pex::PexIdentifier(
       makeTempVar(
           file.getString(statement.getCondition()->getType().toString()))
           .getName());
   Vec<pex::PexValue> assign_args = {condition,
                                     statement.getCondition()->compile(*this)};
-  instructions.emplace_back(pex::PexOpCode::Assign, std::move(assign_args));
+  emitInstruction(pex::PexOpCode::Assign, std::move(assign_args));
 
   pex::PexValue jmp_to_else_label(int32_t(0));
   Vec<pex::PexValue> jmp_to_else_args = {condition, jmp_to_else_label};
   size_t jmp_to_else_pos = instructions.size();
-  instructions.emplace_back(pex::PexOpCode::JmpF, std::move(jmp_to_else_args));
+  emitInstruction(pex::PexOpCode::JmpF, std::move(jmp_to_else_args));
 
   for (const auto& stmt : statement.getThenBlock()) {
     stmt->accept(*this);
@@ -130,9 +160,10 @@ void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
   size_t jmp_to_end_pos = instructions.size();
 
   if (statement.getElseBlock().has_value()) {
+    setCurrentLocation(statement.getCondition()->getLocation());
     pex::PexValue jmp_to_end_label(int32_t(0));
     Vec<pex::PexValue> endJmpArgs = {jmp_to_end_label};
-    instructions.emplace_back(pex::PexOpCode::Jmp, endJmpArgs);
+    emitInstruction(pex::PexOpCode::Jmp, endJmpArgs);
   }
 
   instructions[jmp_to_else_pos].setArg(
@@ -155,36 +186,39 @@ void PexFunctionCompiler::visitLocalVariableStatement(
       file.getString(statement.getType()->toString()));
 
   if (statement.getInitializer()) {
+    setCurrentLocation(statement.getInitializer()->getLocation());
     pex::PexFunctionParameter localVar = localVariables.back();
     Vec<pex::PexValue> args = {pex::PexIdentifier(localVar.getName()),
                                statement.getInitializer()->compile(*this)};
-    instructions.emplace_back(pex::PexOpCode::Assign, std::move(args));
+    emitInstruction(pex::PexOpCode::Assign, std::move(args));
   }
 }
 
 void PexFunctionCompiler::visitWhileStatement(ast::WhileStatement& statement) {
+  setCurrentLocation(statement.getCondition()->getLocation());
   const pex::PexValue condition = pex::PexIdentifier(
       makeTempVar(
           file.getString(statement.getCondition()->getType().toString()))
           .getName());
   size_t conditionOffset = instructions.size();
-  instructions.emplace_back(
+  emitInstruction(
       pex::PexOpCode::Assign,
       Vec<pex::PexValue>{condition, statement.getCondition()->compile(*this)});
 
   size_t jmpToEndOffset = instructions.size();
   pex::PexValue jmpToEnd(int32_t(0));
 
-  instructions.emplace_back(pex::PexOpCode::JmpF,
-                            Vec<pex::PexValue>{condition, jmpToEnd});
+  emitInstruction(pex::PexOpCode::JmpF,
+                  Vec<pex::PexValue>{condition, jmpToEnd});
 
   for (const auto& stmt : statement.getBody()) {
     stmt->accept(*this);
   }
 
-  instructions.emplace_back(pex::PexOpCode::Jmp,
-                            Vec<pex::PexValue>{pex::PexValue(int32_t(
-                                conditionOffset - instructions.size()))});
+  setCurrentLocation(statement.getCondition()->getLocation());
+  emitInstruction(pex::PexOpCode::Jmp,
+                  Vec<pex::PexValue>{pex::PexValue(int32_t(
+                      conditionOffset - instructions.size()))});
 
   instructions[jmpToEndOffset].setArg(
       1, pex::PexValue(int32_t(instructions.size() - jmpToEndOffset)));
@@ -233,10 +267,11 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
     auto opcode = funcName == "find" ? pex::PexOpCode::ArrayFindElement
                                      : pex::PexOpCode::ArrayRFindElement;
 
+    setCurrentLocation(expr.getLocation());
     Vec<pex::PexValue> args = {
         pex::PexIdentifier(arrayVal.asIdentifier().getValue()),
         pex::PexIdentifier(dest.asTempVar().getName()), elementVal, indexVal};
-    instructions.emplace_back(opcode, std::move(args));
+    emitInstruction(opcode, std::move(args));
     return pex::PexValue(pex::PexIdentifier(dest.asTempVar().getName()));
   }
 
@@ -282,7 +317,8 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
     variadicArgs.push_back(arg->compile(*this));
   }
 
-  instructions.emplace_back(opcode, std::move(args), std::move(variadicArgs));
+  setCurrentLocation(expr.getLocation());
+  emitInstruction(opcode, std::move(args), std::move(variadicArgs));
 
   return retVal;
 }
@@ -305,10 +341,11 @@ pex::PexValue PexFunctionCompiler::compile(
   if (objectType.isArray() && propertyName == "length") {
     const pex::PexValue arrayVal = expr.getObject()->compile(*this);
     const pex::PexValue dest = makeTempVar(file.getString("Int"));
+    setCurrentLocation(expr.getLocation());
     Vec<pex::PexValue> args = {
         pex::PexIdentifier(dest.asTempVar().getName()),
         pex::PexIdentifier(arrayVal.asIdentifier().getValue())};
-    instructions.emplace_back(pex::PexOpCode::ArrayLength, std::move(args));
+    emitInstruction(pex::PexOpCode::ArrayLength, std::move(args));
     return pex::PexIdentifier(dest.asTempVar().getName());
   }
 
@@ -316,11 +353,12 @@ pex::PexValue PexFunctionCompiler::compile(
       makeTempVar(file.getString(expr.getType().toString()));
 
   const pex::PexValue objectVal = expr.getObject()->compile(*this);
+  setCurrentLocation(expr.getLocation());
   Vec<pex::PexValue> args = {
       pex::PexIdentifier(file.getString(expr.getProperty().getValue())),
       objectVal, pex::PexIdentifier(retVal.asTempVar().getName())};
 
-  instructions.emplace_back(pex::PexOpCode::PropGet, std::move(args));
+  emitInstruction(pex::PexOpCode::PropGet, std::move(args));
 
   return pex::PexIdentifier(retVal.asTempVar().getName());
 }
@@ -329,9 +367,10 @@ pex::PexValue PexFunctionCompiler::compile(
     const ast::PropertySetExpression& expr) {
   const pex::PexValue object = expr.getObject()->compile(*this);
   const pex::PexValue value = expr.getValue()->compile(*this);
+  setCurrentLocation(expr.getLocation());
   Vec<pex::PexValue> args = {makePexValue(expr.getProperty(), file), object,
                              value};
-  instructions.emplace_back(pex::PexOpCode::PropSet, std::move(args));
+  emitInstruction(pex::PexOpCode::PropSet, std::move(args));
   return value;
 }
 
@@ -343,10 +382,11 @@ pex::PexValue PexFunctionCompiler::compile(
   const pex::PexValue arrayVal = expr.getArray()->compile(*this);
   const pex::PexValue indexVal = expr.getIndex()->compile(*this);
 
+  setCurrentLocation(expr.getLocation());
   Vec<pex::PexValue> args = {pex::PexIdentifier(retVal.asTempVar().getName()),
                              arrayVal, indexVal};
 
-  instructions.emplace_back(pex::PexOpCode::ArrayGetElement, std::move(args));
+  emitInstruction(pex::PexOpCode::ArrayGetElement, std::move(args));
 
   return pex::PexIdentifier(retVal.asTempVar().getName());
 }
@@ -357,16 +397,18 @@ pex::PexValue PexFunctionCompiler::compile(
   const pex::PexValue indexVal = expr.getIndex()->compile(*this);
   const pex::PexValue value = expr.getValue()->compile(*this);
 
+  setCurrentLocation(expr.getLocation());
   Vec<pex::PexValue> args = {arrayVal, indexVal, value};
-  instructions.emplace_back(pex::PexOpCode::ArraySetElement, std::move(args));
+  emitInstruction(pex::PexOpCode::ArraySetElement, std::move(args));
 
   return value;
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
   const pex::PexValue value = expr.getValue()->compile(*this);
+  setCurrentLocation(expr.getLocation());
   Vec<pex::PexValue> args = {makePexValue(expr.getName(), file), value};
-  instructions.emplace_back(pex::PexOpCode::Assign, std::move(args));
+  emitInstruction(pex::PexOpCode::Assign, std::move(args));
   return value;
 }
 
@@ -374,32 +416,33 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
   auto dest = pex::PexIdentifier(
       makeTempVar(file.getString(expr.getType().toString())).getName());
 
+  setCurrentLocation(expr.getLocation());
   if (expr.getOperator() == ast::BinaryExpression::Operator::And) {
     Vec<pex::PexValue> leftArgs = {dest, expr.getLeft()->compile(*this)};
-    instructions.emplace_back(pex::PexOpCode::Assign, std::move(leftArgs));
+    emitInstruction(pex::PexOpCode::Assign, std::move(leftArgs));
 
     pex::PexValue label(int32_t(0));
     Vec<pex::PexValue> jmpArgs = {dest, label};
     size_t offset = instructions.size();
-    instructions.emplace_back(pex::PexOpCode::JmpF, std::move(jmpArgs));
+    emitInstruction(pex::PexOpCode::JmpF, std::move(jmpArgs));
 
     Vec<pex::PexValue> rightArgs = {dest, expr.getRight()->compile(*this)};
-    instructions.emplace_back(pex::PexOpCode::Assign, std::move(rightArgs));
+    emitInstruction(pex::PexOpCode::Assign, std::move(rightArgs));
 
     pex::PexInstruction& jmpInstr = instructions[offset];
     jmpInstr.setArg(1, pex::PexValue(int32_t(instructions.size() - offset)));
 
   } else if (expr.getOperator() == ast::BinaryExpression::Operator::Or) {
     Vec<pex::PexValue> leftArgs = {dest, expr.getLeft()->compile(*this)};
-    instructions.emplace_back(pex::PexOpCode::Assign, std::move(leftArgs));
+    emitInstruction(pex::PexOpCode::Assign, std::move(leftArgs));
 
     pex::PexValue label(int32_t(0));
     Vec<pex::PexValue> jmpArgs = {dest, label};
     size_t offset = instructions.size();
-    instructions.emplace_back(pex::PexOpCode::JmpT, std::move(jmpArgs));
+    emitInstruction(pex::PexOpCode::JmpT, std::move(jmpArgs));
 
     Vec<pex::PexValue> rightArgs = {dest, expr.getRight()->compile(*this)};
-    instructions.emplace_back(pex::PexOpCode::Assign, std::move(rightArgs));
+    emitInstruction(pex::PexOpCode::Assign, std::move(rightArgs));
 
     pex::PexInstruction& jmpInstr = instructions[offset];
     jmpInstr.setArg(1, pex::PexValue(int32_t(instructions.size() - offset)));
@@ -414,12 +457,11 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
       return dest;
     }
 
-    instructions.emplace_back(code, std::move(args));
+    emitInstruction(code, std::move(args));
 
-    // Handle NotEqual by adding a Not operation after comparison
     if (expr.getOperator() == ast::BinaryExpression::Operator::NotEqual) {
       Vec<pex::PexValue> notArgs = {dest, dest};
-      instructions.emplace_back(pex::PexOpCode::Not, std::move(notArgs));
+      emitInstruction(pex::PexOpCode::Not, std::move(notArgs));
     }
   }
 
@@ -427,6 +469,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::UnaryExpression& expr) {
+  setCurrentLocation(expr.getLocation());
   auto dest = pex::PexIdentifier(
       makeTempVar(file.getString(expr.getType().toString())).getName());
 
@@ -434,11 +477,11 @@ pex::PexValue PexFunctionCompiler::compile(const ast::UnaryExpression& expr) {
     case ast::UnaryExpression::Operator::Negate:
       if (expr.getType().isInt()) {
         Vec<pex::PexValue> args = {dest, expr.getOperand()->compile(*this)};
-        instructions.emplace_back(pex::PexOpCode::INeg, std::move(args));
+        emitInstruction(pex::PexOpCode::INeg, std::move(args));
 
       } else if (expr.getType().isFloat()) {
         Vec<pex::PexValue> args = {dest, expr.getOperand()->compile(*this)};
-        instructions.emplace_back(pex::PexOpCode::FNeg, std::move(args));
+        emitInstruction(pex::PexOpCode::FNeg, std::move(args));
       } else {
         assert(false && "Invalid operand type");
       }
@@ -446,7 +489,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::UnaryExpression& expr) {
     case ast::UnaryExpression::Operator::Not:
       assert(expr.getType().isBool());
       Vec<pex::PexValue> args = {dest, expr.getOperand()->compile(*this)};
-      instructions.emplace_back(pex::PexOpCode::Not, std::move(args));
+      emitInstruction(pex::PexOpCode::Not, std::move(args));
       break;
   }
 
@@ -455,24 +498,26 @@ pex::PexValue PexFunctionCompiler::compile(const ast::UnaryExpression& expr) {
 
 pex::PexValue PexFunctionCompiler::compile(const ast::CastExpression& expr) {
   assert(expr.getTargetType().isResolved());
+  setCurrentLocation(expr.getLocation());
 
   pex::PexValue dest = pex::PexIdentifier(
       makeTempVar(file.getString(expr.getTargetType().toString())).getName());
   pex::PexValue value = expr.getExpression()->compile(*this);
 
   Vec<pex::PexValue> args = {dest, value};
-  instructions.emplace_back(pex::PexOpCode::Cast, std::move(args));
+  emitInstruction(pex::PexOpCode::Cast, std::move(args));
 
   return dest;
 }
 
 pex::PexValue PexFunctionCompiler::compile(
     const ast::NewArrayExpression& expr) {
+  setCurrentLocation(expr.getLocation());
   pex::PexValue dest = pex::PexIdentifier(
       makeTempVar(file.getString(expr.getType().toString())).getName());
 
   Vec<pex::PexValue> args = {dest, makePexValue(expr.getLength(), file)};
-  instructions.emplace_back(pex::PexOpCode::ArrayCreate, std::move(args));
+  emitInstruction(pex::PexOpCode::ArrayCreate, std::move(args));
 
   return dest;
 }

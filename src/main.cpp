@@ -12,7 +12,9 @@ int main(int argc, char *argv[]) {
   cxxopts::Options options("vellum", "Vellum Compiler");
   options.add_options()("h,help", "Print help")("v,version", "Print version")(
       "f,file", "Input file", cxxopts::value<std::string>())(
-      "i,import", "Import directory paths", cxxopts::value<Vec<std::string>>());
+      "i,import", "Import directory paths", cxxopts::value<Vec<std::string>>())(
+      "g,debug-info", "Emit PEX debug info (source line mapping)",
+      cxxopts::value<bool>()->default_value("true"));
 
   auto result = options.parse(argc, argv);
 
@@ -41,10 +43,11 @@ int main(int argc, char *argv[]) {
   }
 
   const auto inputFile = result["file"].as<std::string>();
+  const bool emitDebugInfo = result["debug-info"].as<bool>();
   std::cout << "Compiling " << inputFile << std::endl;
 
   try {
-    vellum::Vellum().run(inputFile, importPaths);
+    vellum::Vellum().run(inputFile, importPaths, emitDebugInfo);
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;

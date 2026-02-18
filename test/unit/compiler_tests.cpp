@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
+#include <fstream>
 #include <filesystem>
 
 #include "analyze/declaration_collector.h"
@@ -13,6 +14,7 @@
 #include "compiler/compiler_error_handler.h"
 #include "analyze/import_resolver.h"
 #include "compiler/resolver.h"
+#include "pex/pex_debug_info.h"
 #include "pex/pex_file.h"
 #include "pex/pex_function.h"
 #include "utils.h"
@@ -465,4 +467,194 @@ TEST_CASE("CompileAutoProperty_WithInitializer") {
   REQUIRE(vars.size() == 1);
   REQUIRE(vars[0].defaultValue().getType() == pex::PexValueType::Integer);
   CHECK(vars[0].defaultValue().asInt() == 42);
+}
+
+TEST_CASE("DebugInfo_WhenDisabled_FileHasNoDebugInfo") {
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "x", VellumType::literal(VellumLiteralType::Int),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+
+  ScriptMetadata metadata;
+  metadata.emitDebugInfo = false;
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(metadata, std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE_FALSE(file.hasDebugInfo());
+}
+
+TEST_CASE("DebugInfo_WhenEnabled_FileHasDebugInfoAndFunctionLineMap") {
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token())));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(body), false));
+
+  ScriptMetadata metadata;
+  metadata.emitDebugInfo = true;
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file = Compiler(errorHandler).compile(metadata, std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(file.hasDebugInfo());
+  REQUIRE(file.debugInfo() != nullptr);
+  REQUIRE(file.debugInfo()->functions.size() == 1);
+
+  const auto& debugFunc = file.debugInfo()->functions[0];
+  REQUIRE(file.objects().size() == 1);
+  REQUIRE(file.objects()[0].getStates().size() == 1);
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  REQUIRE(funcs.size() == 1);
+  REQUIRE(debugFunc.instructionLineMap.size() == funcs[0].getInstructions().size());
+
+  for (size_t i = 1; i < debugFunc.instructionLineMap.size(); ++i) {
+    REQUIRE(debugFunc.instructionLineMap[i] >= debugFunc.instructionLineMap[i - 1]);
+  }
+}
+
+TEST_CASE("DebugInfo_EmptyFunction_HasEmptyLineMap") {
+  Vec<Unique<ast::Statement>> body;
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "empty", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  ScriptMetadata metadata;
+  metadata.emitDebugInfo = true;
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file = Compiler(errorHandler).compile(metadata, std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(file.hasDebugInfo());
+  REQUIRE(file.debugInfo()->functions.size() == 1);
+  REQUIRE(file.debugInfo()->functions[0].instructionLineMap.empty());
+  REQUIRE(file.objects()[0].getStates()[0].getFunctions()[0].getInstructions().empty());
+}
+
+TEST_CASE("DebugInfo_Property_GetterSetterHaveDebugEntries") {
+  auto getBody = Vec<Unique<ast::Statement>>{};
+  getBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token())));
+  auto setBody = Vec<Unique<ast::Statement>>{};
+  setBody.emplace_back(makeUnique<ast::ExpressionStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token())));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "value", VellumType::literal(VellumLiteralType::Int), "",
+      std::move(getBody), std::move(setBody), std::nullopt));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importResolver =
+      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  DeclarationCollector collector(errorHandler, resolver, "testscript");
+  collector.collect(ast);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  ScriptMetadata metadata;
+  metadata.emitDebugInfo = true;
+  pex::PexFile file =
+      Compiler(errorHandler).compile(metadata, semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  REQUIRE(file.hasDebugInfo());
+  REQUIRE(file.debugInfo()->functions.size() >= 2);
+
+  bool hasGetter = false;
+  bool hasSetter = false;
+  for (const auto& f : file.debugInfo()->functions) {
+    if (f.functionType == pex::PexDebugFunctionType::Getter) hasGetter = true;
+    if (f.functionType == pex::PexDebugFunctionType::Setter) hasSetter = true;
+  }
+  REQUIRE(hasGetter);
+  REQUIRE(hasSetter);
+}
+
+TEST_CASE("DebugInfo_WriteToFile_OutputDiffersWithAndWithoutDebug") {
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1), Token())));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(body), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+
+  ScriptMetadata metaNoDebug;
+  metaNoDebug.emitDebugInfo = false;
+  pex::PexFile fileNoDebug =
+      Compiler(errorHandler).compile(metaNoDebug, ast);
+
+  ScriptMetadata metaWithDebug;
+  metaWithDebug.emitDebugInfo = true;
+  Vec<Unique<ast::Statement>> bodyCopy;
+  bodyCopy.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1), Token())));
+  Vec<Unique<ast::Declaration>> scriptMembersCopy;
+  scriptMembersCopy.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(bodyCopy), false));
+  Vec<Unique<ast::Declaration>> astCopy;
+  astCopy.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembersCopy)));
+  pex::PexFile fileWithDebug =
+      Compiler(errorHandler).compile(metaWithDebug, std::move(astCopy));
+
+  REQUIRE_FALSE(fileNoDebug.hasDebugInfo());
+  REQUIRE(fileWithDebug.hasDebugInfo());
+
+  auto pathNo = fs::temp_directory_path() / "vellum_test_no_debug.pex";
+  auto pathWith = fs::temp_directory_path() / "vellum_test_with_debug.pex";
+  fileNoDebug.writeToFile(pathNo.string());
+  fileWithDebug.writeToFile(pathWith.string());
+
+  std::ifstream inNo(pathNo.string(), std::ios::binary);
+  std::ifstream inWith(pathWith.string(), std::ios::binary);
+  std::string bytesNo((std::istreambuf_iterator<char>(inNo)),
+                      std::istreambuf_iterator<char>());
+  std::string bytesWith((std::istreambuf_iterator<char>(inWith)),
+                        std::istreambuf_iterator<char>());
+  inNo.close();
+  inWith.close();
+  fs::remove(pathNo);
+  fs::remove(pathWith);
+
+  REQUIRE(bytesWith.size() > bytesNo.size());
+  REQUIRE(bytesNo != bytesWith);
 }
