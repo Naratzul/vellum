@@ -742,6 +742,120 @@ TEST_CASE("ParserArrayIndexAssignment") {
   REQUIRE(setExpr != nullptr);
 }
 
+TEST_CASE("ParserComposedAssign_Identifier") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::PLUS_EQUAL, 1, "+="),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  const auto* assignExpr = dynamic_cast<const ast::AssignExpression*>(
+      exprStmt->getExpression().get());
+  REQUIRE(assignExpr != nullptr);
+  REQUIRE(assignExpr->getOperator() == ast::AssignOperator::Add);
+}
+
+TEST_CASE("ParserComposedAssign_Property") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::IDENTIFIER, 1, "obj"),
+                    makeToken(TokenType::DOT, 1, "."),
+                    makeToken(TokenType::IDENTIFIER, 1, "prop"),
+                    makeToken(TokenType::MINUS_EQUAL, 1, "-="),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  const auto* setExpr = dynamic_cast<const ast::PropertySetExpression*>(
+      exprStmt->getExpression().get());
+  REQUIRE(setExpr != nullptr);
+  REQUIRE(setExpr->getOperator() == ast::AssignOperator::Subtract);
+}
+
+TEST_CASE("ParserComposedAssign_ArrayIndex") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::IDENTIFIER, 1, "arr"),
+                    makeToken(TokenType::LEFT_BRACK, 1, "["),
+                    makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+                    makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+                    makeToken(TokenType::STAR_EQUAL, 1, "*="),
+                    makeToken(TokenType::INT, 1, "2", VellumLiteral(2)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  const auto* setExpr = dynamic_cast<const ast::ArrayIndexSetExpression*>(
+      exprStmt->getExpression().get());
+  REQUIRE(setExpr != nullptr);
+  REQUIRE(setExpr->getOperator() == ast::AssignOperator::Multiply);
+}
+
 TEST_CASE("ParserCall_NoArgs") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),

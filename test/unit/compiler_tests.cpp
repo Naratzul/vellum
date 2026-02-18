@@ -50,6 +50,45 @@ TEST_CASE("CompileGlobalVarTest") {
   CHECK(var == expected);
 }
 
+TEST_CASE("CompileComposedAssignTest") {
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "x", VellumType::literal(VellumLiteralType::Int),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+
+  auto assign_expr = makeUnique<ast::AssignExpression>(
+      VellumIdentifier("x"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(5)),
+      ast::AssignOperator::Add, Token{});
+  assign_expr->setType(VellumType::literal(VellumLiteralType::Int));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(file.objects().size() == 1);
+  REQUIRE(file.objects()[0].getStates()[0].getFunctions().size() == 1);
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  REQUIRE(instructions.size() >= 2);
+  bool hasIAdd = false;
+  bool hasAssign = false;
+  for (const auto& instr : instructions) {
+    if (instr.getOpCode() == pex::PexOpCode::IAdd) hasIAdd = true;
+    if (instr.getOpCode() == pex::PexOpCode::Assign) hasAssign = true;
+  }
+  CHECK(hasIAdd);
+  CHECK(hasAssign);
+}
+
 TEST_CASE("CompileFunctionCallTest") {
   auto call_expr = makeUnique<ast::CallExpression>(
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
@@ -150,7 +189,8 @@ TEST_CASE("CompileArrayIndexSetTest") {
   auto valueExpr =
       makeUnique<ast::LiteralExpression>(VellumLiteral(42), Token{});
   auto arraySetExpr = makeUnique<ast::ArrayIndexSetExpression>(
-      std::move(arrIdent), std::move(indexExpr), std::move(valueExpr), Token{});
+      std::move(arrIdent), std::move(indexExpr), std::move(valueExpr),
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(arraySetExpr)));

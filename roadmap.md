@@ -114,6 +114,26 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - `src/analyze/semantic_analyzer.cpp` - Validate format strings
 - `src/compiler/pex_function_compiler.cpp` - Compile format expressions
 
+#### Hidden and Conditional Modifier Keywords
+
+**Status**: Not implemented.
+
+**Implementation needed**:
+
+- Leading modifier keywords (same style as `static`): `hidden`, `conditional`
+- **hidden** – valid on script, property (hides from editor UI)
+- **conditional** – valid on script, variable (used by condition system)
+- Parse optional modifier list before declaration keyword; reject invalid combinations (e.g. `conditional` on property)
+- Add `hidden` / `conditional` flags to AST (ScriptDeclaration, VariableDeclaration, PropertyDeclaration)
+- Emit corresponding PEX user-flag bits when compiling so CK/engine behavior is correct
+
+**Files to modify**:
+
+- `src/lexer/lexer.cpp` or `src/lexer/token.h` - Add `HIDDEN`, `CONDITIONAL` tokens
+- `src/parser/parser.cpp` - Consume modifier keywords before `script` / `var` / `property` in declaration parsing
+- `src/ast/decl/declaration.h` - Add `hidden`, `conditional` (or flags enum) to script, variable, property declarations
+- `src/compiler/pex_object_compiler.cpp` - Set PEX user flags for Hidden/Conditional when emitting objects, variables, properties
+
 #### State Pattern Matching
 
 **Status**: Not implemented. `MATCH` token exists in lexer but unused.
@@ -213,6 +233,7 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 1. Foreach loop
 2. String format
 3. State pattern matching
+4. Hidden and conditional modifier keywords (PEX/editor compatibility)
 
 ### Phase 5: Low Priority Features
 
@@ -234,3 +255,4 @@ For each new feature:
 2. Add semantic tests (type checking, error cases)
 3. Add compilation tests (PEX output verification)
 4. Add integration tests (end-to-end compilation)
+

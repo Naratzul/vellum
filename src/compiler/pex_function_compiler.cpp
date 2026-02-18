@@ -57,6 +57,23 @@ pex::PexOpCode getBinaryOpCode(ast::BinaryExpression::Operator op,
   }
   return pex::PexOpCode::Invalid;
 }
+
+ast::BinaryExpression::Operator assignOpToBinaryOp(ast::AssignOperator op) {
+  switch (op) {
+    case ast::AssignOperator::Add:
+      return ast::BinaryExpression::Operator::Add;
+    case ast::AssignOperator::Subtract:
+      return ast::BinaryExpression::Operator::Subtract;
+    case ast::AssignOperator::Multiply:
+      return ast::BinaryExpression::Operator::Multiply;
+    case ast::AssignOperator::Divide:
+      return ast::BinaryExpression::Operator::Divide;
+    case ast::AssignOperator::Modulo:
+      return ast::BinaryExpression::Operator::Modulo;
+    default:
+      return ast::BinaryExpression::Operator::Add;
+  }
+}
 }  // namespace
 
 PexFunctionCompiler::PexFunctionCompiler(
@@ -366,12 +383,36 @@ pex::PexValue PexFunctionCompiler::compile(
 pex::PexValue PexFunctionCompiler::compile(
     const ast::PropertySetExpression& expr) {
   const pex::PexValue object = expr.getObject()->compile(*this);
-  const pex::PexValue value = expr.getValue()->compile(*this);
+  if (expr.getOperator() == ast::AssignOperator::Assign) {
+    const pex::PexValue value = expr.getValue()->compile(*this);
+    setCurrentLocation(expr.getLocation());
+    Vec<pex::PexValue> args = {makePexValue(expr.getProperty(), file), object,
+                               value};
+    emitInstruction(pex::PexOpCode::PropSet, std::move(args));
+    return value;
+  }
+  const pex::PexValue dest =
+      makeTempVar(file.getString(expr.getType().toString()));
   setCurrentLocation(expr.getLocation());
-  Vec<pex::PexValue> args = {makePexValue(expr.getProperty(), file), object,
-                             value};
-  emitInstruction(pex::PexOpCode::PropSet, std::move(args));
-  return value;
+  Vec<pex::PexValue> getArgs = {
+      makePexValue(expr.getProperty(), file), object,
+      pex::PexIdentifier(dest.asTempVar().getName())};
+  emitInstruction(pex::PexOpCode::PropGet, std::move(getArgs));
+  const pex::PexValue rhsVal = expr.getValue()->compile(*this);
+  pex::PexOpCode code =
+      getBinaryOpCode(assignOpToBinaryOp(expr.getOperator()), expr.getType());
+  if (code == pex::PexOpCode::Invalid) {
+    errorHandler->errorAt(expr.getLocation(), "Unsupported binary operator");
+    return dest;
+  }
+  Vec<pex::PexValue> opArgs = {pex::PexIdentifier(dest.asTempVar().getName()),
+                               pex::PexIdentifier(dest.asTempVar().getName()),
+                               rhsVal};
+  emitInstruction(code, std::move(opArgs));
+  Vec<pex::PexValue> setArgs = {makePexValue(expr.getProperty(), file), object,
+                                pex::PexIdentifier(dest.asTempVar().getName())};
+  emitInstruction(pex::PexOpCode::PropSet, std::move(setArgs));
+  return pex::PexIdentifier(dest.asTempVar().getName());
 }
 
 pex::PexValue PexFunctionCompiler::compile(
@@ -395,21 +436,62 @@ pex::PexValue PexFunctionCompiler::compile(
     const ast::ArrayIndexSetExpression& expr) {
   const pex::PexValue arrayVal = expr.getArray()->compile(*this);
   const pex::PexValue indexVal = expr.getIndex()->compile(*this);
-  const pex::PexValue value = expr.getValue()->compile(*this);
-
+  if (expr.getOperator() == ast::AssignOperator::Assign) {
+    const pex::PexValue value = expr.getValue()->compile(*this);
+    setCurrentLocation(expr.getLocation());
+    Vec<pex::PexValue> args = {arrayVal, indexVal, value};
+    emitInstruction(pex::PexOpCode::ArraySetElement, std::move(args));
+    return value;
+  }
+  const pex::PexValue dest =
+      makeTempVar(file.getString(expr.getType().toString()));
   setCurrentLocation(expr.getLocation());
-  Vec<pex::PexValue> args = {arrayVal, indexVal, value};
-  emitInstruction(pex::PexOpCode::ArraySetElement, std::move(args));
-
-  return value;
+  Vec<pex::PexValue> getArgs = {pex::PexIdentifier(dest.asTempVar().getName()),
+                                arrayVal, indexVal};
+  emitInstruction(pex::PexOpCode::ArrayGetElement, std::move(getArgs));
+  const pex::PexValue rhsVal = expr.getValue()->compile(*this);
+  pex::PexOpCode code =
+      getBinaryOpCode(assignOpToBinaryOp(expr.getOperator()), expr.getType());
+  if (code == pex::PexOpCode::Invalid) {
+    errorHandler->errorAt(expr.getLocation(), "Unsupported binary operator");
+    return dest;
+  }
+  Vec<pex::PexValue> opArgs = {pex::PexIdentifier(dest.asTempVar().getName()),
+                               pex::PexIdentifier(dest.asTempVar().getName()),
+                               rhsVal};
+  emitInstruction(code, std::move(opArgs));
+  Vec<pex::PexValue> setArgs = {arrayVal, indexVal,
+                                 pex::PexIdentifier(dest.asTempVar().getName())};
+  emitInstruction(pex::PexOpCode::ArraySetElement, std::move(setArgs));
+  return pex::PexIdentifier(dest.asTempVar().getName());
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
-  const pex::PexValue value = expr.getValue()->compile(*this);
+  if (expr.getOperator() == ast::AssignOperator::Assign) {
+    const pex::PexValue value = expr.getValue()->compile(*this);
+    setCurrentLocation(expr.getLocation());
+    Vec<pex::PexValue> args = {makePexValue(expr.getName(), file), value};
+    emitInstruction(pex::PexOpCode::Assign, std::move(args));
+    return value;
+  }
+  const pex::PexValue lhsVal = makePexValue(expr.getName(), file);
+  const pex::PexValue rhsVal = expr.getValue()->compile(*this);
+  const pex::PexValue dest =
+      makeTempVar(file.getString(expr.getType().toString()));
   setCurrentLocation(expr.getLocation());
-  Vec<pex::PexValue> args = {makePexValue(expr.getName(), file), value};
-  emitInstruction(pex::PexOpCode::Assign, std::move(args));
-  return value;
+  pex::PexOpCode code =
+      getBinaryOpCode(assignOpToBinaryOp(expr.getOperator()), expr.getType());
+  if (code == pex::PexOpCode::Invalid) {
+    errorHandler->errorAt(expr.getLocation(), "Unsupported binary operator");
+    return dest;
+  }
+  Vec<pex::PexValue> opArgs = {pex::PexIdentifier(dest.asTempVar().getName()),
+                               lhsVal, rhsVal};
+  emitInstruction(code, std::move(opArgs));
+  Vec<pex::PexValue> assignArgs = {makePexValue(expr.getName(), file),
+                                   pex::PexIdentifier(dest.asTempVar().getName())};
+  emitInstruction(pex::PexOpCode::Assign, std::move(assignArgs));
+  return pex::PexIdentifier(dest.asTempVar().getName());
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {

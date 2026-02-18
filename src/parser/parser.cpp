@@ -520,20 +520,43 @@ Unique<ast::Expression> Parser::expression() { return assignExpression(); }
 Unique<ast::Expression> Parser::assignExpression() {
   auto expr = logicalOrExpression();
 
-  if (match(TokenType::EQUAL)) {
+  if (match({TokenType::EQUAL, TokenType::PLUS_EQUAL, TokenType::MINUS_EQUAL,
+             TokenType::STAR_EQUAL, TokenType::SLASH_EQUAL,
+             TokenType::PERCENT_EQUAL})) {
+    ast::AssignOperator op = ast::AssignOperator::Assign;
+    switch (previous.type) {
+      case TokenType::PLUS_EQUAL:
+        op = ast::AssignOperator::Add;
+        break;
+      case TokenType::MINUS_EQUAL:
+        op = ast::AssignOperator::Subtract;
+        break;
+      case TokenType::STAR_EQUAL:
+        op = ast::AssignOperator::Multiply;
+        break;
+      case TokenType::SLASH_EQUAL:
+        op = ast::AssignOperator::Divide;
+        break;
+      case TokenType::PERCENT_EQUAL:
+        op = ast::AssignOperator::Modulo;
+        break;
+      default:
+        break;
+    }
     if (expr->isIdentifierExpression()) {
       return makeUnique<ast::AssignExpression>(
-          expr->asIdentifier().getIdentifier(), assignExpression(), previous);
+          expr->asIdentifier().getIdentifier(), assignExpression(), op,
+          previous);
     } else if (expr->isPropertyGetExpression()) {
       ast::PropertyGetExpression& getExpr = expr->asPropertyGet();
       return makeUnique<ast::PropertySetExpression>(
           getExpr.releaseObject(), getExpr.getProperty(), assignExpression(),
-          previous);
+          op, previous);
     } else if (expr->isArrayIndexExpression()) {
       ast::ArrayIndexExpression& indexExpr = expr->asArrayIndex();
       return makeUnique<ast::ArrayIndexSetExpression>(
           indexExpr.releaseArray(), indexExpr.releaseIndex(),
-          assignExpression(), previous);
+          assignExpression(), op, previous);
     } else {
       errorHandler->errorAt(previous, "Invalid assignment target.");
     }

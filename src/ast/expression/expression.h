@@ -166,11 +166,21 @@ class CallExpression : public Expression {
   Opt<VellumFunctionCall> function;
 };
 
+enum class AssignOperator {
+  Assign,
+  Add,
+  Subtract,
+  Multiply,
+  Divide,
+  Modulo
+};
+
 class AssignExpression : public Expression {
  public:
   AssignExpression(VellumIdentifier name, Unique<Expression> value,
+                   AssignOperator op = AssignOperator::Assign,
                    Token location = Token{})
-      : Expression(location), name(name), value(std::move(value)) {}
+      : Expression(location), name(name), value(std::move(value)), op(op) {}
 
   bool equals(const Expression& other) const override;
 
@@ -179,10 +189,12 @@ class AssignExpression : public Expression {
 
   VellumIdentifier getName() const { return name; }
   const Unique<Expression>& getValue() const { return value; }
+  AssignOperator getOperator() const { return op; }
 
  private:
   VellumIdentifier name;
   Unique<Expression> value;
+  AssignOperator op;
 };
 
 class PropertyGetExpression : public Expression {
@@ -215,15 +227,19 @@ class PropertyGetExpression : public Expression {
 class PropertySetExpression : public Expression {
  public:
   PropertySetExpression(Unique<Expression> object, VellumIdentifier property,
-                        Unique<Expression> value, Token location = Token{})
+                        Unique<Expression> value,
+                        AssignOperator op = AssignOperator::Assign,
+                        Token location = Token{})
       : Expression(location),
         object(std::move(object)),
         property(property),
-        value(std::move(value)) {}
+        value(std::move(value)),
+        op(op) {}
 
   const Unique<Expression>& getObject() const { return object; }
   VellumIdentifier getProperty() const { return property; }
   const Unique<Expression>& getValue() const { return value; }
+  AssignOperator getOperator() const { return op; }
 
   bool equals(const Expression& other) const override;
 
@@ -236,6 +252,7 @@ class PropertySetExpression : public Expression {
   Unique<Expression> object;
   VellumIdentifier property;
   Unique<Expression> value;
+  AssignOperator op;
 };
 
 class ArrayIndexExpression : public Expression {
@@ -267,15 +284,19 @@ class ArrayIndexExpression : public Expression {
 class ArrayIndexSetExpression : public Expression {
  public:
   ArrayIndexSetExpression(Unique<Expression> array, Unique<Expression> index,
-                          Unique<Expression> value, Token location = Token{})
+                          Unique<Expression> value,
+                          AssignOperator op = AssignOperator::Assign,
+                          Token location = Token{})
       : Expression(location),
         array(std::move(array)),
         index(std::move(index)),
-        value(std::move(value)) {}
+        value(std::move(value)),
+        op(op) {}
 
   const Unique<Expression>& getArray() const { return array; }
   const Unique<Expression>& getIndex() const { return index; }
   const Unique<Expression>& getValue() const { return value; }
+  AssignOperator getOperator() const { return op; }
 
   bool equals(const Expression& other) const override;
 
@@ -286,6 +307,7 @@ class ArrayIndexSetExpression : public Expression {
   Unique<Expression> array;
   Unique<Expression> index;
   Unique<Expression> value;
+  AssignOperator op;
 };
 
 class BinaryExpression : public Expression {

@@ -4,9 +4,11 @@
 #include <vector>
 
 #include "ast/decl/declaration_visitor.h"
+#include "ast/expression/expression.h"
 #include "ast/expression/expression_visitor.h"
 #include "ast/statement/statement_visitor.h"
 #include "common/types.h"
+#include "lexer/token.h"
 #include "type_checker.h"
 #include "vellum/vellum_state.h"
 #include "vellum/vellum_type.h"
@@ -80,5 +82,10 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
 
   Opt<VellumState> state;
   Map<VellumIdentifier, VellumFunction> stateFunc;
+
+  bool validateComposedAssignTypes(ast::AssignOperator op,
+                                   const VellumType& lhsType,
+                                   const VellumType& rhsType,
+                                   const Token& location);
 };
 }  // namespace vellum

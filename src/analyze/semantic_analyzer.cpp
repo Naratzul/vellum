@@ -8,6 +8,7 @@
 #include "common/types.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
+#include "lexer/token.h"
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_identifier.h"
 #include "vellum/vellum_property.h"
@@ -581,6 +582,14 @@ void SemanticAnalyzer::visitPropertySetExpression(
 
   expr.getValue()->accept(*this);
 
+  if (expr.getOperator() != ast::AssignOperator::Assign) {
+    if (!validateComposedAssignTypes(
+            expr.getOperator(), expr.getType(),
+            expr.getValue()->getType(), expr.getLocation())) {
+      return;
+    }
+  }
+
   std::string contextInfo =
       "property," + std::string(expr.getProperty().toString());
   auto result = checker.check(expr.getValue(), expr.getType(),
@@ -632,6 +641,14 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
   }
 
   expr.getValue()->accept(*this);
+
+  if (expr.getOperator() != ast::AssignOperator::Assign) {
+    if (!validateComposedAssignTypes(
+            expr.getOperator(), expr.getType(),
+            expr.getValue()->getType(), expr.getLocation())) {
+      return;
+    }
+  }
 
   std::string contextInfo =
       "variable," + std::string(expr.getName().toString());
@@ -884,6 +901,14 @@ void SemanticAnalyzer::visitArrayIndexSetExpression(
 
   expr.getValue()->accept(*this);
 
+  if (expr.getOperator() != ast::AssignOperator::Assign) {
+    if (!validateComposedAssignTypes(
+            expr.getOperator(), *elementType,
+            expr.getValue()->getType(), expr.getLocation())) {
+      return;
+    }
+  }
+
   auto result = checker.check(expr.getValue(), *elementType,
                               TypeChecker::Context::Assignment, "array-index");
   if (!result.compatible) {
@@ -893,5 +918,42 @@ void SemanticAnalyzer::visitArrayIndexSetExpression(
   }
 
   expr.setType(*elementType);
+}
+
+bool SemanticAnalyzer::validateComposedAssignTypes(
+  ast::AssignOperator op, const VellumType& lhsType,
+  const VellumType& rhsType, const Token& location) {
+switch (op) {
+  case ast::AssignOperator::Add:
+    if (!lhsType.isInt() && !lhsType.isFloat() && !lhsType.isString()) {
+      errorHandler->errorAt(
+          location, CompilerErrorKind::UnsupportedBinaryOperator,
+          "Add assignment requires Int, Float, or String type.");
+      return false;
+    }
+    return true;
+  case ast::AssignOperator::Subtract:
+  case ast::AssignOperator::Multiply:
+  case ast::AssignOperator::Divide:
+    if (lhsType != rhsType ||
+        !(lhsType.isInt() || lhsType.isFloat())) {
+      errorHandler->errorAt(
+          location, CompilerErrorKind::ArithmeticOperationTypeMismatch,
+          "Cannot perform arithmetic assignment on types: '{}' and '{}'",
+          lhsType.toString(), rhsType.toString());
+      return false;
+    }
+    return true;
+  case ast::AssignOperator::Modulo:
+    if (!lhsType.isInt() || lhsType != rhsType) {
+      errorHandler->errorAt(
+          location, CompilerErrorKind::ArithmeticOperationTypeMismatch,
+          "Modulo assignment requires Int type.");
+      return false;
+    }
+    return true;
+  default:
+    return true;
+}
 }
 }  // namespace vellum

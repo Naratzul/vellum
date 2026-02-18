@@ -80,8 +80,8 @@ bool operator!=(const Expression& lhs, const Expression& rhs) {
 
 bool AssignExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const AssignExpression&>(other_);
-  return getName() == other.getName() && getType() == other.getType() &&
-         getValue() == other.getValue();
+  return getName() == other.getName() && getOperator() == other.getOperator() &&
+         getType() == other.getType() && getValue()->equals(*other.getValue());
 }
 
 void AssignExpression::accept(ExpressionVisitor& visitor) {
@@ -148,6 +148,7 @@ bool PropertySetExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const PropertySetExpression&>(other_);
   return getObject()->equals(*other.getObject()) &&
          getProperty() == other.getProperty() &&
+         getOperator() == other.getOperator() &&
          getValue()->equals(*other.getValue());
 }
 
@@ -233,6 +234,7 @@ bool ArrayIndexSetExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const ArrayIndexSetExpression&>(other_);
   return getArray()->equals(*other.getArray()) &&
          getIndex()->equals(*other.getIndex()) &&
+         getOperator() == other.getOperator() &&
          getValue()->equals(*other.getValue());
 }
 

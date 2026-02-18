@@ -520,7 +520,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToVariable_Success") {
   // test() { number = 100; }
   auto assign_expr = makeUnique<ast::AssignExpression>(
       VellumIdentifier("number"),
-      makeUnique<ast::LiteralExpression>(VellumLiteral(100)), Token{});
+      makeUnique<ast::LiteralExpression>(VellumLiteral(100)),
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -549,7 +550,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToProperty_Success") {
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
   auto assign_expr = makeUnique<ast::PropertySetExpression>(
       std::move(obj_expr), VellumIdentifier("myProp"),
-      makeUnique<ast::LiteralExpression>(VellumLiteral(42)), Token{});
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)),
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -562,6 +564,82 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToProperty_Success") {
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticComposedAssign_ToVariable_Success") {
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "x", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+
+  auto assign_expr = makeUnique<ast::AssignExpression>(
+      VellumIdentifier("x"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(10)),
+      ast::AssignOperator::Add, Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticComposedAssign_TypeMismatch_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "n", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+
+  auto assign_expr = makeUnique<ast::AssignExpression>(
+      VellumIdentifier("n"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("s"))),
+      ast::AssignOperator::Add, Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticComposedAssign_ReadonlyProperty_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(
+      VellumProperty(VellumIdentifier("readonlyProp"),
+                     VellumType::literal(VellumLiteralType::Int), true));
+  addTestObject(testObject);
+
+  auto obj_expr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto assign_expr = makeUnique<ast::PropertySetExpression>(
+      std::move(obj_expr), VellumIdentifier("readonlyProp"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      ast::AssignOperator::Add, Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::NotAssignable));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToFunction_Error") {
@@ -578,7 +656,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToFunction_Error") {
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
   auto assign_expr = makeUnique<ast::PropertySetExpression>(
       std::move(obj_expr), VellumIdentifier("myFunc"),
-      makeUnique<ast::LiteralExpression>(VellumLiteral(42)), Token{});
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)),
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -610,7 +689,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToMethod_Error") {
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
   auto assign_expr = makeUnique<ast::PropertySetExpression>(
       std::move(obj_expr), VellumIdentifier("myMethod"),
-      makeUnique<ast::LiteralExpression>(VellumLiteral(42)), Token{});
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)),
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -630,7 +710,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToTypeName_Error") {
   // test() { Int = 42; }  // Error: cannot assign to type name
   auto assign_expr = makeUnique<ast::AssignExpression>(
       VellumIdentifier("Int"),
-      makeUnique<ast::LiteralExpression>(VellumLiteral(42)), Token{});
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)),
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -651,7 +732,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   // test() { undefinedVar = 42; }  // Error: undefined variable
   auto assign_expr = makeUnique<ast::AssignExpression>(
       VellumIdentifier("undefinedVar"),
-      makeUnique<ast::LiteralExpression>(VellumLiteral(42)), Token{});
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)),
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -678,7 +760,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
   auto assign_expr = makeUnique<ast::PropertySetExpression>(
       std::move(obj_expr), VellumIdentifier("nonExistent"),
-      makeUnique<ast::LiteralExpression>(VellumLiteral(42)), Token{});
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)),
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -705,7 +788,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_TypeMismatch_Error") {
       VellumIdentifier("number"),
       makeUnique<ast::LiteralExpression>(
           VellumLiteral(std::string_view("not an int"))),
-      Token{});
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -737,7 +820,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       std::move(obj_expr), VellumIdentifier("myProp"),
       makeUnique<ast::LiteralExpression>(
           VellumLiteral(std::string_view("not an int"))),
-      Token{});
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -878,7 +961,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   auto bar_expr =
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar"));
   auto assign_expr = makeUnique<ast::AssignExpression>(
-      VellumIdentifier("myVar"), std::move(bar_expr), Token{});
+      VellumIdentifier("myVar"), std::move(bar_expr),
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -922,7 +1006,7 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar"));
   auto assign_expr = makeUnique<ast::PropertySetExpression>(
       std::move(obj_expr), VellumIdentifier("myProperty"), std::move(bar_expr),
-      Token{});
+      ast::AssignOperator::Assign, Token{});
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
@@ -1345,7 +1429,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   auto valueExpr =
       makeUnique<ast::LiteralExpression>(VellumLiteral(42), Token{});
   auto arraySet = makeUnique<ast::ArrayIndexSetExpression>(
-      std::move(propGet), std::move(indexExpr), std::move(valueExpr), Token{});
+      std::move(propGet), std::move(indexExpr), std::move(valueExpr),
+      ast::AssignOperator::Assign, Token{});
 
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(arraySet)));
@@ -1379,7 +1464,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   auto valueExpr = makeUnique<ast::LiteralExpression>(
       VellumLiteral(std::string_view("not-int")), Token{});
   auto arraySet = makeUnique<ast::ArrayIndexSetExpression>(
-      std::move(propGet), std::move(indexExpr), std::move(valueExpr), Token{});
+      std::move(propGet), std::move(indexExpr), std::move(valueExpr),
+      ast::AssignOperator::Assign, Token{});
 
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(arraySet)));
@@ -2120,7 +2206,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLength_Readonly_Error") {
       makeUnique<ast::LiteralExpression>(VellumLiteral(5), Token{});
   auto lengthSet = makeUnique<ast::PropertySetExpression>(
       std::move(propGet), VellumIdentifier("length"), std::move(valueExpr),
-      Token{});
+      ast::AssignOperator::Assign, Token{});
 
   auto body = Vec<Unique<ast::Statement>>{};
   body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(lengthSet)));
@@ -2328,7 +2414,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
   auto assignExpr = makeUnique<ast::AssignExpression>(
       VellumIdentifier("x"),
-      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), Token{});
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      ast::AssignOperator::Assign, Token{});
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::ExpressionStatement>(std::move(assignExpr)));
   members.push_back(makeUnique<ast::FunctionDeclaration>(
@@ -2382,7 +2469,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       std::nullopt));
   auto assignExpr = makeUnique<ast::AssignExpression>(
       VellumIdentifier("P"),
-      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), Token{});
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      ast::AssignOperator::Assign, Token{});
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::ExpressionStatement>(std::move(assignExpr)));
   members.push_back(makeUnique<ast::FunctionDeclaration>(

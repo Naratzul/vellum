@@ -151,3 +151,22 @@ TEST_CASE("LexerCall_WithArgs") {
   CHECK_THAT(scanTokens(makeUnique<Lexer>(source)),
              Catch::Matchers::Equals(expected));
 }
+
+TEST_CASE("LexerComposedAssignmentTokens") {
+  Vec<Token> expected{
+      makeToken(TokenType::IDENTIFIER, 1, "x"),
+      makeToken(TokenType::PLUS_EQUAL, 1, "+="),
+      makeToken(TokenType::IDENTIFIER, 1, "a"),
+      makeToken(TokenType::MINUS_EQUAL, 1, "-="),
+      makeToken(TokenType::IDENTIFIER, 1, "b"),
+      makeToken(TokenType::STAR_EQUAL, 1, "*="),
+      makeToken(TokenType::IDENTIFIER, 1, "c"),
+      makeToken(TokenType::SLASH_EQUAL, 1, "/="),
+      makeToken(TokenType::IDENTIFIER, 1, "d"),
+      makeToken(TokenType::PERCENT_EQUAL, 1, "%="),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+  };
+  std::string_view source = "x += a -= b *= c /= d %= 1";
+  CHECK_THAT(scanTokens(makeUnique<Lexer>(source)),
+             Catch::Matchers::Equals(expected));
+}

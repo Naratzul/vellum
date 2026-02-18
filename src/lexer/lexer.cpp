@@ -53,15 +53,17 @@ Token Lexer::scanToken() {
     case '.':
       return makeToken(TokenType::DOT);
     case '-':
-      return makeToken(match('>') ? TokenType::ARROW : TokenType::MINUS);
+      return makeToken(match('=') ? TokenType::MINUS_EQUAL
+                    : match('>') ? TokenType::ARROW
+                                : TokenType::MINUS);
     case '+':
-      return makeToken(TokenType::PLUS);
+      return makeToken(match('=') ? TokenType::PLUS_EQUAL : TokenType::PLUS);
     case '/':
-      return makeToken(TokenType::SLASH);
+      return makeToken(match('=') ? TokenType::SLASH_EQUAL : TokenType::SLASH);
     case '*':
-      return makeToken(TokenType::STAR);
+      return makeToken(match('=') ? TokenType::STAR_EQUAL : TokenType::STAR);
     case '%':
-      return makeToken(TokenType::PERCENT);
+      return makeToken(match('=') ? TokenType::PERCENT_EQUAL : TokenType::PERCENT);
     case '!':
       return makeToken(match('=') ? TokenType::BANG_EQUAL : TokenType::BANG);
     case '=':
