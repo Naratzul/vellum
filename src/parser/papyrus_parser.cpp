@@ -2,6 +2,7 @@
 
 #include "ast/decl/declaration.h"
 #include "common/types.h"
+#include "vellum/vellum_literal.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -274,17 +275,39 @@ Vec<ast::FunctionParameter> PapyrusParser::parseParameters() {
     std::string_view paramName = previous.lexeme;
     Token paramNameLocation = previous;
 
-    if (match(TokenType::EQUAL)) {
-      while (!check(TokenType::COMMA) && !check(TokenType::RIGHT_PAREN)) {
-        advance();
-      }
-    }
+    Opt<VellumLiteral> defaultValue = parseDefaultArgument();
 
-    parameters.emplace_back(paramName, paramType, paramNameLocation,
-                            paramTypeLocation);
+    parameters.emplace_back(paramName, paramType, std::move(defaultValue),
+                            paramNameLocation, paramTypeLocation);
   } while (match(TokenType::COMMA));
 
   return parameters;
+}
+
+Opt<VellumLiteral> PapyrusParser::parseDefaultArgument() {
+  if (!match(TokenType::EQUAL)) return std::nullopt;
+  bool negative = match(TokenType::MINUS);
+  if (check(TokenType::INT)) {
+    advance();
+    if (!previous.value) throw ParseException(previous, "Expect a literal value for default argument.");
+    int32_t v = previous.value->asInt();
+    return VellumLiteral(negative ? -v : v);
+  }
+  if (check(TokenType::FLOAT)) {
+    advance();
+    if (!previous.value) throw ParseException(previous, "Expect a literal value for default argument.");
+    float v = previous.value->asFloat();
+    return VellumLiteral(negative ? -v : v);
+  }
+  if (negative) throw ParseException(current, "Expect a literal value for default argument.");
+  if (match(TokenType::STRING)) {
+    if (!previous.value) throw ParseException(previous, "Expect a literal value for default argument.");
+    return *previous.value;
+  }
+  if (match(TokenType::TRUE)) return VellumLiteral(true);
+  if (match(TokenType::FALSE)) return VellumLiteral(false);
+  if (match(TokenType::NONE)) return VellumLiteral();
+  throw ParseException(current, "Expect a literal value for default argument.");
 }
 
 VellumType PapyrusParser::parseType() {

@@ -53,6 +53,7 @@ class PapyrusParser {
   Unique<ast::Declaration> propertyDeclarationWithType(VellumType type);
 
   Vec<ast::FunctionParameter> parseParameters();
+  Opt<VellumLiteral> parseDefaultArgument();
   VellumType parseType();
   void skipUntilEndFunction();
   void skipUntilEndEvent();
