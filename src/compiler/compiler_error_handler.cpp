@@ -23,12 +23,17 @@ void CompilerErrorHandler::errorAt(const Token& token,
                                      .errorKind = errorKind,
                                      .token = token,
                                      .message = std::string(message)});
-  printError(token, message);
 }
 
 bool CompilerErrorHandler::hasError(CompilerErrorKind kind) {
   return std::ranges::any_of(
       errors, [kind](const auto& error) { return error.errorKind == kind; });
+}
+
+void CompilerErrorHandler::printErrors() {
+  for (const auto& error: errors) {
+    printError(error.token, error.message);
+  }
 }
 
 void CompilerErrorHandler::printError(const Token& token,

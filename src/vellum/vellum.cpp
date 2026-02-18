@@ -43,6 +43,7 @@ void Vellum::run(const fs::path& inputFile,
   ParserResult parseResult = parser.parse();
 
   if (errorHandler->hadError()) {
+    errorHandler->printErrors();
     return;
   }
 
@@ -55,6 +56,7 @@ void Vellum::run(const fs::path& inputFile,
   collector.collect(parseResult.declarations);
 
   if (errorHandler->hadError()) {
+    errorHandler->printErrors();
     return;
   }
 
@@ -62,6 +64,7 @@ void Vellum::run(const fs::path& inputFile,
   const SemanticAnalyzeResult semanticResult =
       semantic.analyze(std::move(parseResult.declarations));
   if (errorHandler->hadError()) {
+    errorHandler->printErrors();
     return;
   }
 
@@ -78,6 +81,7 @@ void Vellum::run(const fs::path& inputFile,
       compiler.compile(metadata, semanticResult.declarations);
 
   if (errorHandler->hadError()) {
+    errorHandler->printErrors();
     return;
   }
 

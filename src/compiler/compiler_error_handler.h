@@ -126,6 +126,8 @@ class CompilerErrorHandler {
 
   const Vec<DiagnosticMessage>& getErrors() const { return errors; }
 
+  void printErrors();
+
  private:
   bool hadError_ = false;
   bool panicMode_ = false;
