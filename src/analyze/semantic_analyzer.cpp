@@ -117,11 +117,13 @@ void SemanticAnalyzer::visitFunctionDeclaration(
     }
   }
 
+  inStaticContext = declaration.isStatic();
   resolver->startFunction(func.value());
   for (auto& statement : declaration.getBody()) {
     statement->accept(*this);
   }
   resolver->endFunction();
+  inStaticContext = false;
 }
 
 void SemanticAnalyzer::visitPropertyDeclaration(
@@ -234,6 +236,15 @@ void SemanticAnalyzer::visitIdentifierExpression(
     return;
   }
 
+  if (inStaticContext && resolver->isInstanceMember(expr.getIdentifier())) {
+    errorHandler->errorAt(expr.getLocation(),
+                          CompilerErrorKind::InstanceMemberInStaticContext,
+                          "Instance member '{}' is not allowed in a static "
+                          "function.",
+                          expr.getIdentifier().toString());
+    return;
+  }
+
   switch (value->getType()) {
     case VellumValueType::Property:
       expr.setType(value->asProperty().getType());
@@ -328,6 +339,15 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     return;
   }
 
+  if (inStaticContext && callee->isIdentifierExpression() && !func->isStatic()) {
+    errorHandler->errorAt(expr.getCallee()->getLocation(),
+                          CompilerErrorKind::InstanceMemberInStaticContext,
+                          "Instance member '{}' is not allowed in a static "
+                          "function.",
+                          func->getName().toString());
+    return;
+  }
+
   if (!expr.getFunctionCall()->isParentCall() &&
       expr.getFunctionCall()->isStatic() && !func->isStatic()) {
     errorHandler->errorAt(expr.getCallee()->getLocation(),
@@ -410,6 +430,23 @@ void SemanticAnalyzer::visitPropertyGetExpression(
     ast::PropertyGetExpression& expr) {
   expr.getObject()->accept(*this);
 
+  if (inStaticContext) {
+    if (expr.getObject()->isSuperExpression()) {
+      errorHandler->errorAt(expr.getLocation(),
+                            CompilerErrorKind::InstanceMemberInStaticContext,
+                            "super is not allowed in a static function.");
+      return;
+    }
+    if (expr.getObject()->isSelfExpression()) {
+      errorHandler->errorAt(expr.getLocation(),
+                            CompilerErrorKind::InstanceMemberInStaticContext,
+                            "Instance member '{}' is not allowed in a static "
+                            "function.",
+                            expr.getProperty().toString());
+      return;
+    }
+  }
+
   Opt<VellumValue> property;
   if (expr.getObject()->isSuperExpression()) {
     if (!resolver->getParentType()) {
@@ -473,6 +510,23 @@ void SemanticAnalyzer::visitPropertyGetExpression(
 void SemanticAnalyzer::visitPropertySetExpression(
     ast::PropertySetExpression& expr) {
   expr.getObject()->accept(*this);
+
+  if (inStaticContext) {
+    if (expr.getObject()->isSuperExpression()) {
+      errorHandler->errorAt(expr.getLocation(),
+                            CompilerErrorKind::InstanceMemberInStaticContext,
+                            "super is not allowed in a static function.");
+      return;
+    }
+    if (expr.getObject()->isSelfExpression()) {
+      errorHandler->errorAt(expr.getLocation(),
+                            CompilerErrorKind::InstanceMemberInStaticContext,
+                            "Instance member '{}' is not allowed in a static "
+                            "function.",
+                            expr.getProperty().toString());
+      return;
+    }
+  }
 
   Opt<VellumValue> property;
   if (expr.getObject()->isSuperExpression()) {
@@ -544,6 +598,15 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
     errorHandler->errorAt(
         expr.getLocation(), CompilerErrorKind::UndefinedIdentifier,
         "Undefined identifier '{}'.", expr.getName().toString());
+    return;
+  }
+
+  if (inStaticContext && resolver->isInstanceMember(expr.getName())) {
+    errorHandler->errorAt(expr.getLocation(),
+                          CompilerErrorKind::InstanceMemberInStaticContext,
+                          "Instance member '{}' is not allowed in a static "
+                          "function.",
+                          expr.getName().toString());
     return;
   }
 
@@ -747,10 +810,23 @@ void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
 }
 
 void SemanticAnalyzer::visitSelfExpression(ast::SelfExpression& expr) {
+  if (inStaticContext) {
+    errorHandler->errorAt(expr.getLocation(),
+                          CompilerErrorKind::InstanceMemberInStaticContext,
+                          "self is not allowed in a static function.");
+    return;
+  }
   expr.setType(resolver->getObject().getType());
 }
 
-void SemanticAnalyzer::visitSuperExpression(ast::SuperExpression&) {}
+void SemanticAnalyzer::visitSuperExpression(ast::SuperExpression& expr) {
+  if (inStaticContext) {
+    errorHandler->errorAt(expr.getLocation(),
+                          CompilerErrorKind::InstanceMemberInStaticContext,
+                          "super is not allowed in a static function.");
+    return;
+  }
+}
 
 void SemanticAnalyzer::visitArrayIndexExpression(
     ast::ArrayIndexExpression& expr) {

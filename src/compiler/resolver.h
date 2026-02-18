@@ -20,10 +20,6 @@ class BuiltinFunctions;
 
 class Resolver {
  public:
-  static void addBultinObject(VellumObject object) {
-    builtinObjects.push_back(std::move(object));
-  }
-
   Resolver(VellumObject object,
            const Shared<CompilerErrorHandler>& errorHandler,
            const Shared<ImportLibrary>& importLibrary,
@@ -83,6 +79,8 @@ class Resolver {
 
   Opt<VellumValue> resolveIdentifier(VellumIdentifier identifier) const;
 
+  bool isInstanceMember(VellumIdentifier identifier) const;
+
   Opt<VellumValue> resolveProperty(VellumType type,
                                    VellumIdentifier member) const;
 
@@ -106,7 +104,6 @@ class Resolver {
   Shared<BuiltinFunctions> builtinFunctions;
   Opt<VellumType> parentType;
 
-  static Vec<VellumObject> builtinObjects;
   Vec<VellumIdentifier> importedObjects;
   Vec<Scope> scopes;
   Opt<VellumFunction> currentFunction;

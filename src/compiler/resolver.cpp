@@ -13,8 +13,6 @@ namespace vellum {
 using common::Opt;
 using common::Vec;
 
-Vec<VellumObject> Resolver::builtinObjects;
-
 void Resolver::startFunction(const VellumFunction& func) {
   currentFunction = func;
   pushScope();
@@ -74,6 +72,27 @@ Opt<VellumValue> Resolver::resolveIdentifier(
   return resolveScriptType(identifier);
 }
 
+bool Resolver::isInstanceMember(VellumIdentifier identifier) const {
+  for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+    if (it->getVariable(identifier))
+      return false;
+  }
+
+  if (auto id = object.findIdentifier(identifier)) {
+    switch (id->getType()) {
+      case VellumValueType::Variable:
+      case VellumValueType::Property:
+        return true;
+      case VellumValueType::Function:
+        return !id->asFunction().isStatic();
+      default:
+        return false;
+    }
+  }
+
+  return false;
+}
+
 Opt<VellumValue> Resolver::resolveProperty(VellumType type,
                                            VellumIdentifier member) const {
   if (type.isArray()) {
@@ -99,12 +118,6 @@ Opt<VellumValue> Resolver::resolveProperty(VellumType type,
       }
     }
     return std::nullopt;
-  }
-
-  for (const auto& object : builtinObjects) {
-    if (object.getType() == type) {
-      return object.findProperty(member);
-    }
   }
 
   for (const auto& importedObject : importedObjects) {

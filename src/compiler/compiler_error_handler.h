@@ -79,7 +79,9 @@ enum class CompilerErrorKind {
 
   MultipleAutoStates,
   StateFunctionNotInEmptyState,
-  StateFunctionSignatureMismatch
+  StateFunctionSignatureMismatch,
+
+  InstanceMemberInStaticContext
 };
 
 enum class CompilerWarningKind {};

@@ -2293,3 +2293,255 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayRFind_Valid") {
   const auto& call = dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
   CHECK(call.getType().isInt());
 }
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "StaticContext_InstanceVariableRead_Error") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "x", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+  auto readExpr = makeUnique<ast::IdentifierExpression>(VellumIdentifier("x"));
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(readExpr)));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticTest", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), true));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::InstanceMemberInStaticContext));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "StaticContext_InstanceVariableWrite_Error") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "x", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+  auto assignExpr = makeUnique<ast::AssignExpression>(
+      VellumIdentifier("x"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), Token{});
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(assignExpr)));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticTest", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), true));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::InstanceMemberInStaticContext));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "StaticContext_InstancePropertyRead_Error") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "P", VellumType::unresolved("Int"), "", std::nullopt, std::nullopt,
+      std::nullopt));
+  auto readExpr = makeUnique<ast::IdentifierExpression>(VellumIdentifier("P"));
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(readExpr)));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticTest", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), true));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::InstanceMemberInStaticContext));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "StaticContext_InstancePropertyWrite_Error") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "P", VellumType::unresolved("Int"), "", std::nullopt, std::nullopt,
+      std::nullopt));
+  auto assignExpr = makeUnique<ast::AssignExpression>(
+      VellumIdentifier("P"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), Token{});
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(assignExpr)));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticTest", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), true));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::InstanceMemberInStaticContext));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "StaticContext_InstanceMethodCall_Error") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "instanceFunc", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      Vec<Unique<ast::Statement>>{}, false));
+  auto callExpr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("instanceFunc")),
+      Vec<Unique<ast::Expression>>{}, Token{});
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticTest", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), true));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::InstanceMemberInStaticContext));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "StaticContext_Super_Error") {
+  VellumObject parentObj(VellumType::identifier("ParentScript"));
+  parentObj.addFunction(VellumFunction(
+      VellumIdentifier("parentMethod"), VellumType::none(), {}, false));
+  addTestObject(parentObj);
+
+  Vec<Unique<ast::Declaration>> members;
+  auto superGet = makeUnique<ast::PropertyGetExpression>(
+      makeUnique<ast::SuperExpression>(Token()),
+      VellumIdentifier("parentMethod"), Token());
+  auto callExpr = makeUnique<ast::CallExpression>(
+      std::move(superGet), Vec<Unique<ast::Expression>>{}, Token{});
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticTest", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), true));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"),
+      VellumType::identifier("ParentScript"),
+      makeToken(TokenType::IDENTIFIER, 1, "ParentScript"), std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::InstanceMemberInStaticContext));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "StaticContext_SelfProperty_Error") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "P", VellumType::unresolved("Int"), "", std::nullopt, std::nullopt,
+      std::nullopt));
+  auto selfProp = makeUnique<ast::PropertyGetExpression>(
+      makeUnique<ast::SelfExpression>(Token()), VellumIdentifier("P"),
+      Token{});
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(selfProp)));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticTest", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), true));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::InstanceMemberInStaticContext));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "StaticContext_BareSelf_Error") {
+  Vec<Unique<ast::Declaration>> members;
+  auto selfExpr = makeUnique<ast::SelfExpression>(Token());
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(selfExpr)));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticTest", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), true));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::InstanceMemberInStaticContext));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "StaticContext_LocalsAndStaticCall_NoError") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticHelper", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      Vec<Unique<ast::Statement>>{}, true));
+  auto localInit = makeUnique<ast::LiteralExpression>(VellumLiteral(42));
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("x"), std::nullopt, std::move(localInit), Token{},
+      std::nullopt));
+  auto callExpr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::PropertyGetExpression>(
+          makeUnique<ast::IdentifierExpression>(
+              VellumIdentifier("testscript")),
+          VellumIdentifier("StaticHelper"), Token()),
+      Vec<Unique<ast::Expression>>{}, Token{});
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "StaticTest", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), true));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+}

@@ -76,6 +76,8 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   std::string_view scriptFilename;
   TypeChecker checker;
 
+  bool inStaticContext{false};
+
   Opt<VellumState> state;
   Map<VellumIdentifier, VellumFunction> stateFunc;
 };
