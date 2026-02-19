@@ -137,6 +137,24 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - `src/analyze/semantic_analyzer.cpp` - Validate pattern matches
 - `src/compiler/pex_function_compiler.cpp` - Compile matches
 
+#### Break and Continue
+
+**Status**: Not implemented.
+
+**Implementation needed**:
+
+- `break` and `continue` statements inside loops (while, for when added)
+- Semantic validation: only allowed inside loop bodies; `break` exits the innermost loop, `continue` jumps to loop condition/next iteration
+- Compilation to PEX (jump instructions to loop end or loop head)
+
+**Files to modify**:
+
+- `src/lexer/lexer.cpp` or `src/lexer/token.h` - Add `BREAK`, `CONTINUE` tokens if not present
+- `src/parser/parser.cpp` - Parse `break` and `continue` as statements
+- `src/ast/statement/statement.h` - Add `BreakStatement`, `ContinueStatement` classes
+- `src/analyze/semantic_analyzer.cpp` - Validate inside loop scope, track break/continue targets
+- `src/compiler/pex_function_compiler.cpp` - Emit jumps for break/continue
+
 ## Completed Features
 
 ### Core Language Structure
@@ -197,31 +215,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - **Semantic analysis** - Complete semantic analyzer with type checking
 - **Static context validation** - Instance members (variables, properties, non-static functions), `self`, and `super` forbidden inside static functions; `inStaticContext` flag, `Resolver::isInstanceMember`, `CompilerErrorKind::InstanceMemberInStaticContext`, and unit tests
 - **Error handling** - Comprehensive error reporting system
-
-## Implementation Priority
-
-### Phase 1: Papyrus Compatibility (Critical)
-
-1. Cast semantic validation
-
-### Phase 2: Compiler Quality
-
-- (PEX debug info support completed)
-
-### Phase 3: Essential Control Flow
-
-1. For loop
-2. Ternary operator
-
-### Phase 4: Enhanced Features
-
-1. Foreach loop
-2. String format
-3. State pattern matching
-
-### Phase 5: Low Priority Features
-
-1. Native functions (completion) - `NATIVE` token and parser support exist, but may need completion for full PEX compilation
 
 ## Notes
 

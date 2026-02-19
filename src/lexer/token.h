@@ -59,7 +59,6 @@ enum class TokenType {
   IF,
   IMPORT,
   NONE,
-  NOT,
   OR,
   RETURN,
   SET,

@@ -73,6 +73,16 @@ Token Lexer::scanToken() {
     case '>':
       return makeToken(match('=') ? TokenType::GREATER_EQUAL
                                   : TokenType::GREATER);
+    case '&':
+      if (match('&')) {
+        return makeToken(TokenType::AND);
+      }
+      break;
+    case '|':
+      if (match('|')) {
+        return makeToken(TokenType::OR);
+      }
+      break;
     case '"':
       return string();
   }
@@ -166,8 +176,6 @@ TokenType Lexer::identifierType() const {
   switch (start[0]) {
     case 'a':
       switch (start[1]) {
-        case 'n':
-          return checkKeyword(2, 1, "d", TokenType::AND);
         case 's':
           return checkKeyword(2, 0, "", TokenType::AS);
         case 'u':
@@ -209,17 +217,7 @@ TokenType Lexer::identifierType() const {
       }
       break;
     case 'n':
-      if (current - start > 2 && start[1] == 'o') {
-        switch (start[2]) {
-          case 'n':
-            return checkKeyword(3, 1, "e", TokenType::NONE);
-          case 't':
-            return checkKeyword(3, 0, "", TokenType::NOT);
-        }
-      }
-      break;
-    case 'o':
-      return checkKeyword(1, 1, "r", TokenType::OR);
+      return checkKeyword(1, 3, "one", TokenType::NONE);
     case 'r':
       return checkKeyword(1, 5, "eturn", TokenType::RETURN);
     case 's':

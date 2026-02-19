@@ -666,7 +666,7 @@ Unique<ast::Expression> Parser::factorExpression() {
 }
 
 Unique<ast::Expression> Parser::unaryExpression() {
-  if (match({TokenType::MINUS, TokenType::NOT})) {
+  if (match({TokenType::MINUS, TokenType::BANG})) {
     const Token op = previous;
     return makeUnique<ast::UnaryExpression>(
         op.type == TokenType::MINUS ? ast::UnaryExpression::Operator::Negate

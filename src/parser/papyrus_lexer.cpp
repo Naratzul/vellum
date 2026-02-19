@@ -210,7 +210,8 @@ TokenType PapyrusLexer::identifierType() const {
                 TokenType::ENDEVENT) {
               return TokenType::ENDEVENT;
             }
-            if (checkKeyword(2, 9, "dfunction", TokenType::ENDFUNCTION) == TokenType::ENDFUNCTION) {
+            if (checkKeyword(2, 9, "dfunction", TokenType::ENDFUNCTION) ==
+                TokenType::ENDFUNCTION) {
               return TokenType::ENDFUNCTION;
             }
             return checkKeyword(2, 9, "dproperty", TokenType::ENDPROPERTY);
@@ -247,15 +248,7 @@ TokenType PapyrusLexer::identifierType() const {
           case 'a':
             return checkKeyword(2, 4, "tive", TokenType::NATIVE);
           case 'o':
-            if (current - start > 2) {
-              switch (std::tolower(start[2])) {
-                case 't':
-                  return checkKeyword(3, 0, "", TokenType::NOT);
-                case 'n':
-                  return checkKeyword(3, 1, "e", TokenType::NONE);
-              }
-            }
-            break;
+           return checkKeyword(2, 2, "ne", TokenType::NONE);
         }
       }
       break;
