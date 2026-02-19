@@ -83,7 +83,8 @@ enum class CompilerErrorKind {
 
   InstanceMemberInStaticContext,
 
-  InvalidCast
+  InvalidCast,
+  NoneNotValidType
 };
 
 enum class CompilerWarningKind {};

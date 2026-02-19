@@ -111,22 +111,16 @@ TypeChecker::Result TypeChecker::checkValidValueExpression(
 }
 
 bool TypeChecker::areTypesCompatible(VellumType actual, VellumType expected) {
-  // For now, simple equality check
-  // This can be extended later for implicit conversions:
-  // - Int -> Float (widening in assignment/argument contexts)
-  // - Int <-> Float (in arithmetic operations)
-  // - etc.
   if (actual == expected) return true;
 
-  // Implicit widening conversion.
   if (actual.isInt() && expected.isFloat()) return true;
 
-  return false;
-}
+  if (actual.isNone() && (expected.getState() == VellumTypeState::Identifier ||
+                          expected.isArray())) {
+    return true;
+  }
 
-static bool isNoneType(const VellumType& type) {
-  return type.getState() == VellumTypeState::Literal &&
-         type.asLiteralType() == VellumLiteralType::None;
+  return false;
 }
 
 bool TypeChecker::canExplicitlyCast(VellumType src, VellumType dest) const {
@@ -137,7 +131,7 @@ bool TypeChecker::canExplicitlyCast(VellumType src, VellumType dest) const {
   if (dest.isArray()) return false;
 
   // Casting to None doesn't make sense (None is a literal).
-  if (isNoneType(dest)) return false;
+  if (dest.isNone()) return false;
 
   if (src == dest) return true;
 
@@ -169,7 +163,7 @@ bool TypeChecker::canExplicitlyCast(VellumType src, VellumType dest) const {
   // Allow casting None to object/bool/string/number? Keep conservative: allow
   // None to Bool/String (Papyrus runtime handles it), and None to Identifier
   // (common \"None\" object). Disallow None to numeric by default.
-  if (isNoneType(src) && dest.getState() == VellumTypeState::Identifier) {
+  if (src.isNone() && dest.getState() == VellumTypeState::Identifier) {
     return true;
   }
 

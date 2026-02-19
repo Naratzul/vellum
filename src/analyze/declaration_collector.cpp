@@ -10,6 +10,7 @@
 #include "common/string_utils.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
+#include "type_checker.h"
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_identifier.h"
 #include "vellum/vellum_literal.h"
@@ -151,6 +152,11 @@ void DeclarationCollector::visitVariableDeclaration(
     Token typeLocation = declaration.getTypeLocation().value_or(Token());
     annotatedType = resolver->resolveType(type.value(), typeLocation);
     declaration.typeName() = annotatedType;
+    if (annotatedType && annotatedType->isNone()) {
+      errorHandler->errorAt(typeLocation, CompilerErrorKind::NoneNotValidType,
+                            "None is not a valid type for a variable.");
+      return;
+    }
   }
 
   Opt<VellumType> deducedType;
@@ -210,6 +216,11 @@ void DeclarationCollector::visitFunctionDeclaration(
   for (auto& param : declaration.getParameters()) {
     if (!param.type.isResolved()) {
       param.type = resolver->resolveType(param.type, param.typeLocation);
+    }
+    if (param.type.isNone()) {
+      errorHandler->errorAt(param.typeLocation,
+                            CompilerErrorKind::NoneNotValidType,
+                            "None is not a valid type for a parameter.");
     }
 
     if (param.defaultValue.has_value()) {
@@ -302,12 +313,11 @@ void DeclarationCollector::visitFunctionDeclaration(
       }
       if (parentFunc->getParameters()[i].getDefaultValue() !=
           declaration.getParameters()[i].defaultValue) {
-        errorHandler->errorAt(funcLocation,
-                              CompilerErrorKind::OverrideSignatureMismatch,
-                              "Override of '{}' must match parent default value "
-                              "for parameter '{}'.",
-                              declaration.getName().value(),
-                              declaration.getParameters()[i].name);
+        errorHandler->errorAt(
+            funcLocation, CompilerErrorKind::OverrideSignatureMismatch,
+            "Override of '{}' must match parent default value "
+            "for parameter '{}'.",
+            declaration.getName().value(), declaration.getParameters()[i].name);
         return;
       }
     }
@@ -340,6 +350,12 @@ void DeclarationCollector::visitPropertyDeclaration(
   if (!declaration.getTypeName().isResolved()) {
     declaration.getTypeName() = resolver->resolveType(
         declaration.getTypeName(), declaration.getTypeLocation());
+  }
+  if (declaration.getTypeName().isNone()) {
+    errorHandler->errorAt(declaration.getTypeLocation(),
+                          CompilerErrorKind::NoneNotValidType,
+                          "None is not a valid type for a property.");
+    return;
   }
 
   auto propName = VellumIdentifier(declaration.getName());

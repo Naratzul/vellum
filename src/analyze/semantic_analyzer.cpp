@@ -202,6 +202,11 @@ void SemanticAnalyzer::visitLocalVariableStatement(
     Token typeLocation = statement.getTypeLocation().value_or(Token());
     annotatedType = resolver->resolveType(type.value(), typeLocation);
     statement.setType(annotatedType.value());
+    if (annotatedType && annotatedType->isNone()) {
+      errorHandler->errorAt(typeLocation, CompilerErrorKind::NoneNotValidType,
+                            "None is not a valid type for a variable.");
+      return;
+    }
   }
 
   Opt<VellumType> deducedType;

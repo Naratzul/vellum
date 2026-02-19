@@ -36,6 +36,7 @@ class VellumType {
   bool isString() const;
   bool isBool() const;
   bool isArray() const;
+  bool isNone() const;
 
   std::string_view toString() const;
 

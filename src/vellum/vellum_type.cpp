@@ -118,6 +118,11 @@ bool VellumType::isArray() const {
   return getState() == VellumTypeState::Array;
 }
 
+bool VellumType::isNone() const {
+  return getState() == VellumTypeState::Literal &&
+         asLiteralType() == VellumLiteralType::None;
+}
+
 VellumType::VellumType(std::string_view type)
     : state(VellumTypeState::Unresolved), type(type) {}
 
