@@ -19,6 +19,12 @@ void CompilerErrorHandler::errorAt(const Token& token,
   enablePanicMode();
   hadError_ = true;
 
+  if (common::isDebuggerPresent()) {
+    printError(token, message);
+    common::debugBreak();
+    return;
+  }
+
   errors.push_back(DiagnosticMessage{.type = DiagnosticMessageType::Error,
                                      .errorKind = errorKind,
                                      .token = token,
@@ -51,10 +57,6 @@ void CompilerErrorHandler::printError(const Token& token,
 
   stream << std::format(": {}", message);
   std::cerr << stream.str() << std::endl;
-
-  if (common::isDebuggerPresent()) {
-    common::debugBreak();
-  }
 }
 
 }  // namespace vellum

@@ -698,3 +698,56 @@ TEST_CASE("DebugInfo_WriteToFile_OutputDiffersWithAndWithoutDebug") {
   REQUIRE(bytesWith.size() > bytesNo.size());
   REQUIRE(bytesNo != bytesWith);
 }
+
+TEST_CASE("CompileCastAndIntFloatArithmetic") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
+                                                    "testscript");
+  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
+                                               "testscript");
+
+  auto divExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Divide,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(9.0f)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(10.0f)));
+  auto castExpr = makeUnique<ast::CastExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("b")),
+      VellumType::unresolved("Int"), Token{});
+  auto mulExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Multiply, std::move(divExpr),
+      std::move(castExpr));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("b"), VellumType::unresolved("Bool"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true))));
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("f"), VellumType::unresolved("Float"),
+      std::move(mulExpr)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(file.objects().size() == 1);
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  bool hasCast = false;
+  for (const auto& instr : instructions) {
+    if (instr.getOpCode() == pex::PexOpCode::Cast) hasCast = true;
+  }
+  CHECK(hasCast);
+}

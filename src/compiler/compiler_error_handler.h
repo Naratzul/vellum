@@ -81,7 +81,9 @@ enum class CompilerErrorKind {
   StateFunctionNotInEmptyState,
   StateFunctionSignatureMismatch,
 
-  InstanceMemberInStaticContext
+  InstanceMemberInStaticContext,
+
+  InvalidCast
 };
 
 enum class CompilerWarningKind {};

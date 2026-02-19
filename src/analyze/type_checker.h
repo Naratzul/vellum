@@ -53,6 +53,10 @@ class TypeChecker {
   Result checkValidValue(const Unique<ast::Expression>& expr, Context context,
                          const std::string& contextInfo = "");
 
+  // Explicit cast compatibility check (expr AS Type).
+  // Skyrim-first: casting *to* an Array type is not allowed.
+  bool canExplicitlyCast(VellumType src, VellumType dest) const;
+
  private:
   // Check if expression is a valid value (not function/script type identifier)
   Result checkValidValueExpression(const Unique<ast::Expression>& expr,

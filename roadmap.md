@@ -8,21 +8,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 ### Papyrus Core Features (Priority: High)
 
-#### Cast Semantic Validation
-
-**Status**: Cast syntax exists (`expr AS Type`) but semantic validation may be incomplete.
-
-**Implementation needed**:
-
-- Validate cast compatibility (e.g., can't cast unrelated types)
-- Check for valid cast targets (no casting to function types, etc.)
-- Runtime cast safety checks
-
-**Files to modify**:
-
-- `src/analyze/type_checker.cpp` - Add cast validation logic
-- `src/analyze/semantic_analyzer.cpp` - Enhance `visitCastExpression`
-
 #### Native Functions
 
 **Status**: `NATIVE` token and parser support exist, but may need completion.
@@ -38,6 +23,26 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - `src/ast/decl/declaration.h` - Ensure `FunctionDeclaration` tracks native flag
 - `src/compiler/pex_object_compiler.cpp` - Set native flag in PEX output
 - `src/analyze/semantic_analyzer.cpp` - Validate native functions have no body
+
+#### Hidden and Conditional Modifier Keywords
+
+**Status**: Not implemented.
+
+**Implementation needed**:
+
+- Leading modifier keywords (same style as `static`): `hidden`, `conditional`
+- **hidden** – valid on script, property (hides from editor UI)
+- **conditional** – valid on script, variable (used by condition system)
+- Parse optional modifier list before declaration keyword; reject invalid combinations (e.g. `conditional` on property)
+- Add `hidden` / `conditional` flags to AST (ScriptDeclaration, VariableDeclaration, PropertyDeclaration)
+- Emit corresponding PEX user-flag bits when compiling so CK/engine behavior is correct
+
+**Files to modify**:
+
+- `src/lexer/lexer.cpp` or `src/lexer/token.h` - Add `HIDDEN`, `CONDITIONAL` tokens
+- `src/parser/parser.cpp` - Consume modifier keywords before `script` / `var` / `property` in declaration parsing
+- `src/ast/decl/declaration.h` - Add `hidden`, `conditional` (or flags enum) to script, variable, property declarations
+- `src/compiler/pex_object_compiler.cpp` - Set PEX user flags for Hidden/Conditional when emitting objects, variables, properties
 
 ### Vellum New Features (Priority: Medium)
 
@@ -114,26 +119,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - `src/analyze/semantic_analyzer.cpp` - Validate format strings
 - `src/compiler/pex_function_compiler.cpp` - Compile format expressions
 
-#### Hidden and Conditional Modifier Keywords
-
-**Status**: Not implemented.
-
-**Implementation needed**:
-
-- Leading modifier keywords (same style as `static`): `hidden`, `conditional`
-- **hidden** – valid on script, property (hides from editor UI)
-- **conditional** – valid on script, variable (used by condition system)
-- Parse optional modifier list before declaration keyword; reject invalid combinations (e.g. `conditional` on property)
-- Add `hidden` / `conditional` flags to AST (ScriptDeclaration, VariableDeclaration, PropertyDeclaration)
-- Emit corresponding PEX user-flag bits when compiling so CK/engine behavior is correct
-
-**Files to modify**:
-
-- `src/lexer/lexer.cpp` or `src/lexer/token.h` - Add `HIDDEN`, `CONDITIONAL` tokens
-- `src/parser/parser.cpp` - Consume modifier keywords before `script` / `var` / `property` in declaration parsing
-- `src/ast/decl/declaration.h` - Add `hidden`, `conditional` (or flags enum) to script, variable, property declarations
-- `src/compiler/pex_object_compiler.cpp` - Set PEX user flags for Hidden/Conditional when emitting objects, variables, properties
-
 #### State Pattern Matching
 
 **Status**: Not implemented. `MATCH` token exists in lexer but unused.
@@ -186,7 +171,7 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - **Binary operations** - All arithmetic (`+`, `-`, `*`, `/`, `%`) and comparison (`==`, `!=`, `<`, `<=`, `>`, `>=`) operators
 - **Logical operations** - Logical AND (`&&`) and OR (`||`)
 - **Unary operations** - Negation (`-`) and logical NOT (`!`)
-- **Cast expressions** - Type casting with `AS` keyword
+- **Cast expressions** - Type casting with `AS` keyword; cast semantic validation (Skyrim: compatible cast matrix, no cast to array), implicit Int→Float in arithmetic and assignment
 - **Function calls** - Method and function invocation
 - **Property access** - Property get and set operations
 - **Assignments** - Variable and property assignments
@@ -233,7 +218,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 1. Foreach loop
 2. String format
 3. State pattern matching
-4. Hidden and conditional modifier keywords (PEX/editor compatibility)
 
 ### Phase 5: Low Priority Features
 

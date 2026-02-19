@@ -116,7 +116,64 @@ bool TypeChecker::areTypesCompatible(VellumType actual, VellumType expected) {
   // - Int -> Float (widening in assignment/argument contexts)
   // - Int <-> Float (in arithmetic operations)
   // - etc.
-  return actual == expected;
+  if (actual == expected) return true;
+
+  // Implicit widening conversion.
+  if (actual.isInt() && expected.isFloat()) return true;
+
+  return false;
+}
+
+static bool isNoneType(const VellumType& type) {
+  return type.getState() == VellumTypeState::Literal &&
+         type.asLiteralType() == VellumLiteralType::None;
+}
+
+bool TypeChecker::canExplicitlyCast(VellumType src, VellumType dest) const {
+  // If types aren't resolved yet, defer validation to later passes.
+  if (!src.isResolved() || !dest.isResolved()) return true;
+
+  // Skyrim: nothing can be cast to an array, including other arrays.
+  if (dest.isArray()) return false;
+
+  // Casting to None doesn't make sense (None is a literal).
+  if (isNoneType(dest)) return false;
+
+  if (src == dest) return true;
+
+  // Papyrus-style explicit casts for literal types.
+  if (dest.isBool()) {
+    return true;
+  }
+
+  if (dest.isString()) {
+    // In Papyrus, values can be cast to String.
+    return true;
+  }
+
+  if (dest.isInt()) {
+    return src.isBool() || src.isFloat() || src.isString() || src.isInt();
+  }
+
+  if (dest.isFloat()) {
+    return src.isBool() || src.isInt() || src.isString() || src.isFloat();
+  }
+
+  // Object-to-object casts require resolver knowledge (inheritance). Allow
+  // here and validate precisely in semantic analysis.
+  if (dest.getState() == VellumTypeState::Identifier &&
+      src.getState() == VellumTypeState::Identifier) {
+    return true;
+  }
+
+  // Allow casting None to object/bool/string/number? Keep conservative: allow
+  // None to Bool/String (Papyrus runtime handles it), and None to Identifier
+  // (common \"None\" object). Disallow None to numeric by default.
+  if (isNoneType(src) && dest.getState() == VellumTypeState::Identifier) {
+    return true;
+  }
+
+  return false;
 }
 
 std::string TypeChecker::getInvalidIdentifierErrorMessage(

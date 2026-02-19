@@ -2633,3 +2633,129 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 1);
 }
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Cast_ValidBoolToInt") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto castExpr = makeUnique<ast::CastExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      VellumType::unresolved("Int"), Token{});
+  auto varStmt = makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("x"), std::nullopt, std::move(castExpr));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(std::move(varStmt));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  const auto& localStmt =
+      dynamic_cast<ast::LocalVariableStatement&>(*funcDecl.getBody()[0]);
+  REQUIRE(localStmt.getInitializer()->getType().isInt());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Cast_ToArray_Invalid_Skyrim") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto targetArrayType =
+      VellumType::array(VellumType::unresolved("Int"));
+  auto castExpr = makeUnique<ast::CastExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)),
+      std::move(targetArrayType), Token{});
+  auto varStmt = makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("x"), std::nullopt, std::move(castExpr));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(std::move(varStmt));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidCast));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "ImplicitIntToFloat_Assignment") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto varStmt = makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("f"), VellumType::unresolved("Float"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(std::move(varStmt));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Arithmetic_BoolNotPromoted_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto divExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Divide,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(9.0f)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(10.0f)));
+  auto bIdent = makeUnique<ast::IdentifierExpression>(VellumIdentifier("b"));
+  auto mulExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Multiply, std::move(divExpr),
+      std::move(bIdent));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("b"), VellumType::unresolved("Bool"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true))));
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("f"), std::nullopt, std::move(mulExpr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::ArithmeticOperationTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Arithmetic_IntFloatPromotesToFloat") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto divExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Divide,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(9.0f)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(10.0f)));
+  auto castExpr = makeUnique<ast::CastExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("b")),
+      VellumType::unresolved("Int"), Token{});
+  auto mulExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Multiply, std::move(divExpr),
+      std::move(castExpr));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("b"), VellumType::unresolved("Bool"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true))));
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("f"), VellumType::unresolved("Float"),
+      std::move(mulExpr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  const auto& localStmt =
+      dynamic_cast<ast::LocalVariableStatement&>(*funcDecl.getBody()[1]);
+  REQUIRE(localStmt.getInitializer()->getType().isFloat());
+}

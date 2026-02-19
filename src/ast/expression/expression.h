@@ -156,6 +156,11 @@ class CallExpression : public Expression {
   void setFunctionCall(VellumFunctionCall function_) { function = function_; }
   Opt<VellumFunctionCall> getFunctionCall() const { return function; }
 
+  void setArgumentTypes(Vec<VellumType> types) {
+    argumentTypes = std::move(types);
+  }
+  const Vec<VellumType>& getArgumentTypes() const { return argumentTypes; }
+
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
   bool equals(const Expression& other) const override;
@@ -164,6 +169,7 @@ class CallExpression : public Expression {
   Unique<Expression> callee;
   Vec<Unique<Expression>> arguments;
   Opt<VellumFunctionCall> function;
+  Vec<VellumType> argumentTypes;
 };
 
 enum class AssignOperator {

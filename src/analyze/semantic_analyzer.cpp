@@ -169,7 +169,16 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
 }
 
 void SemanticAnalyzer::visitIfStatement(ast::IfStatement& statement) {
-  statement.getCondition()->accept(*this);
+  auto& condition = statement.getCondition();
+  condition->accept(*this);
+
+  if (!condition->getType().isBool()) {
+    errorHandler->errorAt(
+        statement.getCondition()->getLocation(),
+        "Condition expression must have 'Bool' type. Given type is '{}'.",
+        condition->getType().toString());
+    return;
+  }
 
   resolver->pushScope();
   for (const auto& stmt : statement.getThenBlock()) {
@@ -293,7 +302,9 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
         expr.setFunctionCall(VellumFunctionCall::methodCall(
             VellumIdentifier("self"), resolver->getObject().getType(),
             callee->asPropertyGet().getProperty()));
-      } else if (callee->asPropertyGet().getObject()->isIdentifierExpression()) {
+      } else if (callee->asPropertyGet()
+                     .getObject()
+                     ->isIdentifierExpression()) {
         const auto& calleeIdentifier =
             callee->asPropertyGet().getObject()->asIdentifier();
 
@@ -340,7 +351,8 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     return;
   }
 
-  if (inStaticContext && callee->isIdentifierExpression() && !func->isStatic()) {
+  if (inStaticContext && callee->isIdentifierExpression() &&
+      !func->isStatic()) {
     errorHandler->errorAt(expr.getCallee()->getLocation(),
                           CompilerErrorKind::InstanceMemberInStaticContext,
                           "Instance member '{}' is not allowed in a static "
@@ -422,6 +434,13 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
       errorHandler->errorAt(arg->getLocation(), result.errorKind,
                             result.errorMessage);
     }
+  }
+
+  if (!isArrayIntrinsic && argsCount > 0) {
+    Vec<VellumType> paramTypes;
+    for (size_t i = 0; i < argsCount; i++)
+      paramTypes.push_back(func->getParameters()[i].getType());
+    expr.setArgumentTypes(std::move(paramTypes));
   }
 
   expr.setType(func->getReturnType());
@@ -583,9 +602,9 @@ void SemanticAnalyzer::visitPropertySetExpression(
   expr.getValue()->accept(*this);
 
   if (expr.getOperator() != ast::AssignOperator::Assign) {
-    if (!validateComposedAssignTypes(
-            expr.getOperator(), expr.getType(),
-            expr.getValue()->getType(), expr.getLocation())) {
+    if (!validateComposedAssignTypes(expr.getOperator(), expr.getType(),
+                                     expr.getValue()->getType(),
+                                     expr.getLocation())) {
       return;
     }
   }
@@ -643,9 +662,9 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
   expr.getValue()->accept(*this);
 
   if (expr.getOperator() != ast::AssignOperator::Assign) {
-    if (!validateComposedAssignTypes(
-            expr.getOperator(), expr.getType(),
-            expr.getValue()->getType(), expr.getLocation())) {
+    if (!validateComposedAssignTypes(expr.getOperator(), expr.getType(),
+                                     expr.getValue()->getType(),
+                                     expr.getLocation())) {
       return;
     }
   }
@@ -719,22 +738,29 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
     return;
   }
 
-  // For arithmetic operators, both operands must be numeric
+  // For arithmetic operators, operands must be numeric (Int or Float). Bool is
+  // not implicitly converted; use (b as Int) for numeric use. Int + Float
+  // promotes to Float.
   if (expr.getOperator() == ast::BinaryExpression::Operator::Add ||
       expr.getOperator() == ast::BinaryExpression::Operator::Subtract ||
       expr.getOperator() == ast::BinaryExpression::Operator::Multiply ||
       expr.getOperator() == ast::BinaryExpression::Operator::Divide ||
       expr.getOperator() == ast::BinaryExpression::Operator::Modulo) {
-    if (leftType != rightType || !(leftType.isInt() || leftType.isFloat())) {
+    const bool leftNumeric = leftType.isInt() || leftType.isFloat();
+    const bool rightNumeric = rightType.isInt() || rightType.isFloat();
+    if (!leftNumeric || !rightNumeric) {
       errorHandler->errorAt(
           expr.getLocation(),
           CompilerErrorKind::ArithmeticOperationTypeMismatch,
-          "Cannot perform arithmetic operation on types: '{}' and '{}'",
+          "Cannot perform arithmetic operation on types: '{}' and '{}'.",
           leftType.toString(), rightType.toString());
       return;
     }
-    // Result type is the same as the left operand
-    expr.setType(leftType);
+    if (leftType.isFloat() || rightType.isFloat()) {
+      expr.setType(VellumType::literal(VellumLiteralType::Float));
+    } else {
+      expr.setType(leftType);
+    }
     return;
   }
 
@@ -792,9 +818,29 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
 void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
   expr.getExpression()->accept(*this);
 
-  assert(!expr.getTargetType().isResolved());
-  expr.setTargetType(
-      resolver->resolveType(expr.getTargetType(), expr.getLocation()));
+  if (!expr.getTargetType().isResolved()) {
+    expr.setTargetType(
+        resolver->resolveType(expr.getTargetType(), expr.getLocation()));
+  }
+
+  const VellumType innerType = expr.getExpression()->getType();
+  const VellumType targetType = expr.getTargetType();
+
+  if (!checker.canExplicitlyCast(innerType, targetType)) {
+    if (targetType.isArray()) {
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::InvalidCast,
+          "Cannot cast to array type. (Skyrim: nothing can be "
+          "cast to an array, including other arrays.)");
+    } else {
+      errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::InvalidCast,
+                            "Cannot cast from '{}' to '{}'.",
+                            innerType.toString(), targetType.toString());
+    }
+    return;
+  }
+
+  expr.setType(targetType);
 }
 
 void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
@@ -902,9 +948,9 @@ void SemanticAnalyzer::visitArrayIndexSetExpression(
   expr.getValue()->accept(*this);
 
   if (expr.getOperator() != ast::AssignOperator::Assign) {
-    if (!validateComposedAssignTypes(
-            expr.getOperator(), *elementType,
-            expr.getValue()->getType(), expr.getLocation())) {
+    if (!validateComposedAssignTypes(expr.getOperator(), *elementType,
+                                     expr.getValue()->getType(),
+                                     expr.getLocation())) {
       return;
     }
   }
@@ -920,40 +966,40 @@ void SemanticAnalyzer::visitArrayIndexSetExpression(
   expr.setType(*elementType);
 }
 
-bool SemanticAnalyzer::validateComposedAssignTypes(
-  ast::AssignOperator op, const VellumType& lhsType,
-  const VellumType& rhsType, const Token& location) {
-switch (op) {
-  case ast::AssignOperator::Add:
-    if (!lhsType.isInt() && !lhsType.isFloat() && !lhsType.isString()) {
-      errorHandler->errorAt(
-          location, CompilerErrorKind::UnsupportedBinaryOperator,
-          "Add assignment requires Int, Float, or String type.");
-      return false;
-    }
-    return true;
-  case ast::AssignOperator::Subtract:
-  case ast::AssignOperator::Multiply:
-  case ast::AssignOperator::Divide:
-    if (lhsType != rhsType ||
-        !(lhsType.isInt() || lhsType.isFloat())) {
-      errorHandler->errorAt(
-          location, CompilerErrorKind::ArithmeticOperationTypeMismatch,
-          "Cannot perform arithmetic assignment on types: '{}' and '{}'",
-          lhsType.toString(), rhsType.toString());
-      return false;
-    }
-    return true;
-  case ast::AssignOperator::Modulo:
-    if (!lhsType.isInt() || lhsType != rhsType) {
-      errorHandler->errorAt(
-          location, CompilerErrorKind::ArithmeticOperationTypeMismatch,
-          "Modulo assignment requires Int type.");
-      return false;
-    }
-    return true;
-  default:
-    return true;
-}
+bool SemanticAnalyzer::validateComposedAssignTypes(ast::AssignOperator op,
+                                                   const VellumType& lhsType,
+                                                   const VellumType& rhsType,
+                                                   const Token& location) {
+  switch (op) {
+    case ast::AssignOperator::Add:
+      if (!lhsType.isInt() && !lhsType.isFloat() && !lhsType.isString()) {
+        errorHandler->errorAt(
+            location, CompilerErrorKind::UnsupportedBinaryOperator,
+            "Add assignment requires Int, Float, or String type.");
+        return false;
+      }
+      return true;
+    case ast::AssignOperator::Subtract:
+    case ast::AssignOperator::Multiply:
+    case ast::AssignOperator::Divide:
+      if (lhsType != rhsType || !(lhsType.isInt() || lhsType.isFloat())) {
+        errorHandler->errorAt(
+            location, CompilerErrorKind::ArithmeticOperationTypeMismatch,
+            "Cannot perform arithmetic assignment on types: '{}' and '{}'",
+            lhsType.toString(), rhsType.toString());
+        return false;
+      }
+      return true;
+    case ast::AssignOperator::Modulo:
+      if (!lhsType.isInt() || lhsType != rhsType) {
+        errorHandler->errorAt(
+            location, CompilerErrorKind::ArithmeticOperationTypeMismatch,
+            "Modulo assignment requires Int type.");
+        return false;
+      }
+      return true;
+    default:
+      return true;
+  }
 }
 }  // namespace vellum
