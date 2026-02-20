@@ -40,6 +40,7 @@ class TypeCollector : public ast::DeclarationVisitor,
       ast::LocalVariableStatement& statement) override;
   void visitWhileStatement(ast::WhileStatement& statement) override;
   void visitBreakStatement(ast::BreakStatement& statement) override {}
+  void visitContinueStatement(ast::ContinueStatement& statement) override {}
 
   void visitIdentifierExpression(ast::IdentifierExpression& expr) override;
   void visitCallExpression(ast::CallExpression& expr) override;

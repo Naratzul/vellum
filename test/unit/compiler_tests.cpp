@@ -246,6 +246,34 @@ TEST_CASE("CompileBreakInWhile") {
   CHECK(hasJmp);
 }
 
+TEST_CASE("CompileContinueInWhile") {
+  auto cond = makeUnique<ast::LiteralExpression>(VellumLiteral(true));
+  cond->setType(VellumType::literal(VellumLiteralType::Bool));
+  Vec<Unique<ast::Statement>> loopBody;
+  loopBody.push_back(makeUnique<ast::ContinueStatement>(Token()));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.push_back(makeUnique<ast::WhileStatement>(std::move(cond),
+                                                 std::move(loopBody)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(file.objects().size() == 1);
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  bool hasJmp = false;
+  for (const auto& instr : instructions) {
+    if (instr.getOpCode() == pex::PexOpCode::Jmp) hasJmp = true;
+  }
+  CHECK(hasJmp);
+}
+
 TEST_CASE("CompileDefaultArgs_EndToEnd") {
   Vec<ast::FunctionParameter> fooParams = {
       {"x", VellumType::unresolved("Int"), VellumLiteral(5)}};

@@ -10,6 +10,7 @@ class IfStatement;
 class LocalVariableStatement;
 class WhileStatement;
 class BreakStatement;
+class ContinueStatement;
 
 class StatementVisitor {
  public:
@@ -21,6 +22,7 @@ class StatementVisitor {
       LocalVariableStatement& statement) = 0;
   virtual void visitWhileStatement(WhileStatement& statement) = 0;
   virtual void visitBreakStatement(BreakStatement& statement) = 0;
+  virtual void visitContinueStatement(ContinueStatement& statement) = 0;
 };
 
 }  // namespace ast

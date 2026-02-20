@@ -2648,6 +2648,55 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Break_InsideWhile_NoError") {
   REQUIRE(result.declarations.size() == 1);
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture, "Continue_OutsideLoop_Error") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ContinueStatement>(
+      makeToken(TokenType::CONTINUE, 1, "continue")));
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ContinueOutsideLoop));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Continue_InsideWhile_NoError") {
+  ast::FunctionBody body;
+  auto cond = makeUnique<ast::LiteralExpression>(VellumLiteral(true));
+  cond->setType(VellumType::literal(VellumLiteralType::Bool));
+  Vec<Unique<ast::Statement>> loopBody;
+  loopBody.push_back(makeUnique<ast::ContinueStatement>(
+      makeToken(TokenType::CONTINUE, 1, "continue")));
+  body.push_back(makeUnique<ast::WhileStatement>(std::move(cond),
+                                                  std::move(loopBody)));
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+}
+
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "StaticContext_LocalsAndStaticCall_NoError") {
   Vec<Unique<ast::Declaration>> members;

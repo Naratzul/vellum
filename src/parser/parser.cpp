@@ -406,6 +406,8 @@ Unique<ast::Statement> Parser::statement() {
     stmt = whileStatement();
   } else if (match(TokenType::BREAK)) {
     stmt = breakStatement();
+  } else if (match(TokenType::CONTINUE)) {
+    stmt = continueStatement();
   } else {
     stmt = expressionStatement();
   }
@@ -515,6 +517,10 @@ Unique<ast::Statement> Parser::whileStatement() {
 
 Unique<ast::Statement> Parser::breakStatement() {
   return makeUnique<ast::BreakStatement>(previous);
+}
+
+Unique<ast::Statement> Parser::continueStatement() {
+  return makeUnique<ast::ContinueStatement>(previous);
 }
 
 Unique<ast::Statement> Parser::expressionStatement() {

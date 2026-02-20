@@ -37,6 +37,13 @@ TEST_CASE("LexerBreakKeyword") {
   CHECK(tokens[0].lexeme == "break");
 }
 
+TEST_CASE("LexerContinueKeyword") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("continue"));
+  REQUIRE(tokens.size() >= 1);
+  CHECK(tokens[0].type == TokenType::CONTINUE);
+  CHECK(tokens[0].lexeme == "continue");
+}
+
 TEST_CASE("LexerVarDeclarationTest") {
   Vec<Token> expected{
       makeToken(TokenType::VAR, 1, "var"),

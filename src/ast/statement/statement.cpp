@@ -117,5 +117,14 @@ bool BreakStatement::equals(const Statement& other_) const {
   (void)other_;
   return typeid(other_) == typeid(BreakStatement);
 }
+
+void ContinueStatement::accept(StatementVisitor& visitor) {
+  visitor.visitContinueStatement(*this);
+}
+
+bool ContinueStatement::equals(const Statement& other_) const {
+  (void)other_;
+  return typeid(other_) == typeid(ContinueStatement);
+}
 }  // namespace ast
 }  // namespace vellum

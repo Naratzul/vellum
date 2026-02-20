@@ -51,6 +51,7 @@ enum class TokenType {
   AND,
   AS,
   BREAK,
+  CONTINUE,
   ELSE,
   EVENT,
   FALSE,

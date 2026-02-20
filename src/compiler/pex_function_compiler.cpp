@@ -115,6 +115,7 @@ pex::PexFunction PexFunctionCompiler::compile(
   localVariables.clear();
   instructions.clear();
   breakInstructions.clear();
+  continueInstructions.clear();
   debugInfo_ = debugInfo;
   currentLine_ = 1;
 
@@ -215,6 +216,7 @@ void PexFunctionCompiler::visitLocalVariableStatement(
 
 void PexFunctionCompiler::visitWhileStatement(ast::WhileStatement& statement) {
   breakInstructions.push_back(loopSentinel);
+  continueInstructions.push_back(loopSentinel);
 
   setCurrentLocation(statement.getCondition()->getLocation());
   const pex::PexValue condition =
@@ -248,6 +250,15 @@ void PexFunctionCompiler::visitWhileStatement(ast::WhileStatement& statement) {
     instructions[breakIndex].setArg(
         0, pex::PexValue(int32_t(instructions.size() - breakIndex)));
   }
+
+  while (continueInstructions.back() != loopSentinel) {
+    size_t continueIndex = continueInstructions.back();
+    continueInstructions.pop_back();
+    instructions[continueIndex].setArg(
+        0, pex::PexValue(int32_t(conditionOffset - continueIndex)));
+  }
+
+  continueInstructions.pop_back();
   breakInstructions.pop_back();
 }
 
@@ -256,6 +267,14 @@ void PexFunctionCompiler::visitBreakStatement(ast::BreakStatement& statement) {
   setCurrentLocation(statement.getLocation());
   emitInstruction(pex::PexOpCode::Jmp, Vec<pex::PexValue>{jmpToEnd});
   breakInstructions.push_back(instructions.size() - 1);
+}
+
+void PexFunctionCompiler::visitContinueStatement(
+    ast::ContinueStatement& statement) {
+  pex::PexValue jmpToCond(int32_t(0));
+  setCurrentLocation(statement.getLocation());
+  emitInstruction(pex::PexOpCode::Jmp, Vec<pex::PexValue>{jmpToCond});
+  continueInstructions.push_back(instructions.size() - 1);
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::LiteralExpression& expr) {

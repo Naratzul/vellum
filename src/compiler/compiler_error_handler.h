@@ -84,6 +84,7 @@ enum class CompilerErrorKind {
   InstanceMemberInStaticContext,
 
   BreakOutsideLoop,
+  ContinueOutsideLoop,
 
   InvalidCast,
   NoneNotValidType

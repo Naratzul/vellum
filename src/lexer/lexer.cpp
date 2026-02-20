@@ -174,8 +174,6 @@ Token Lexer::identifier() {
 
 TokenType Lexer::identifierType() const {
   switch (start[0]) {
-    case 'b':
-      return checkKeyword(1, 4, "reak", TokenType::BREAK);
     case 'a':
       switch (start[1]) {
         case 's':
@@ -184,6 +182,10 @@ TokenType Lexer::identifierType() const {
           return checkKeyword(2, 2, "to", TokenType::AUTO);
       }
       break;
+    case 'b':
+      return checkKeyword(1, 4, "reak", TokenType::BREAK);
+    case 'c':
+      return checkKeyword(1, 7, "ontinue", TokenType::CONTINUE);
     case 'e':
       if (current - start > 1) {
         switch (start[1]) {

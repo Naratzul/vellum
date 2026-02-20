@@ -140,5 +140,19 @@ class BreakStatement : public Statement {
   Token breakToken;
 };
 
+class ContinueStatement : public Statement {
+ public:
+  explicit ContinueStatement(Token continueToken)
+      : continueToken(continueToken) {}
+
+  const Token& getLocation() const { return continueToken; }
+
+  void accept(StatementVisitor& visitor) override;
+  bool equals(const Statement& other) const override;
+
+ private:
+  Token continueToken;
+};
+
 }  // namespace ast
 }  // namespace vellum

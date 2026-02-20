@@ -251,6 +251,15 @@ void SemanticAnalyzer::visitBreakStatement(ast::BreakStatement& statement) {
   }
 }
 
+void SemanticAnalyzer::visitContinueStatement(
+    ast::ContinueStatement& statement) {
+  if (loopDepth == 0) {
+    errorHandler->errorAt(
+        statement.getLocation(), CompilerErrorKind::ContinueOutsideLoop,
+        "'continue' is only allowed inside a loop.");
+  }
+}
+
 void SemanticAnalyzer::visitIdentifierExpression(
     ast::IdentifierExpression& expr) {
   const auto value = resolver->resolveIdentifier(expr.getIdentifier());
