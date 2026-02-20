@@ -127,5 +127,18 @@ class WhileStatement : public Statement {
   Body body;
 };
 
+class BreakStatement : public Statement {
+ public:
+  explicit BreakStatement(Token breakToken) : breakToken(breakToken) {}
+
+  const Token& getLocation() const { return breakToken; }
+
+  void accept(StatementVisitor& visitor) override;
+  bool equals(const Statement& other) const override;
+
+ private:
+  Token breakToken;
+};
+
 }  // namespace ast
 }  // namespace vellum

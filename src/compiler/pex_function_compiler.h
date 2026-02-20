@@ -46,6 +46,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   void visitLocalVariableStatement(
       ast::LocalVariableStatement& statement) override;
   void visitWhileStatement(ast::WhileStatement& statement) override;
+  void visitBreakStatement(ast::BreakStatement& statement) override;
 
   pex::PexValue compile(const ast::LiteralExpression& expr) override;
   pex::PexValue compile(const ast::IdentifierExpression& expr) override;
@@ -83,8 +84,12 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   bool isNoneVarAdded = false;
   pex::PexIdentifier noneVar;
 
+  Vec<size_t> breakInstructions;
+
   pex::PexValue makeValueFromToken(VellumValue value);
 
+  pex::PexIdentifier makeTempVarId(const VellumType& type);
+  pex::PexTemporaryVariable makeTempVar(const VellumType& type);
   pex::PexTemporaryVariable makeTempVar(const pex::PexString& typeName);
   pex::PexIdentifier getNoneVar();
 };

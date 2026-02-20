@@ -236,8 +236,18 @@ void SemanticAnalyzer::visitLocalVariableStatement(
 
 void SemanticAnalyzer::visitWhileStatement(ast::WhileStatement& statement) {
   statement.getCondition()->accept(*this);
+  loopDepth++;
   for (auto& stmt : statement.getBody()) {
     stmt->accept(*this);
+  }
+  loopDepth--;
+}
+
+void SemanticAnalyzer::visitBreakStatement(ast::BreakStatement& statement) {
+  if (loopDepth == 0) {
+    errorHandler->errorAt(
+        statement.getLocation(), CompilerErrorKind::BreakOutsideLoop,
+        "'break' is only allowed inside a loop.");
   }
 }
 

@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
 
+#include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
 #include "common/types.h"
 #include "lexer/token.h"
@@ -216,6 +217,45 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
                                   std::move(members));
 
   CHECK(expected == *result.declarations[0]);
+}
+
+TEST_CASE("ParserBreakInsideWhile") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::WHILE, 1, "while"),
+                    makeToken(TokenType::TRUE, 1, "true", VellumLiteral(true)),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::BREAK, 1, "break"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody().size() == 1);
+  const auto* whileStmt = dynamic_cast<const ast::WhileStatement*>(
+      funcDecl->getBody()[0].get());
+  REQUIRE(whileStmt != nullptr);
+  REQUIRE(whileStmt->getBody().size() == 1);
+  REQUIRE(dynamic_cast<const ast::BreakStatement*>(whileStmt->getBody()[0].get()) !=
+          nullptr);
 }
 
 TEST_CASE("ParserPropertyDeclaration_NoInitializer") {

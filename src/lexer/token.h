@@ -50,6 +50,7 @@ enum class TokenType {
   // Keywords.
   AND,
   AS,
+  BREAK,
   ELSE,
   EVENT,
   FALSE,

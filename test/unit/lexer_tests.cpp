@@ -30,6 +30,13 @@ TEST_CASE("LexerSelfKeyword") {
   CHECK(tokens[0].lexeme == "self");
 }
 
+TEST_CASE("LexerBreakKeyword") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("break"));
+  REQUIRE(tokens.size() >= 1);
+  CHECK(tokens[0].type == TokenType::BREAK);
+  CHECK(tokens[0].lexeme == "break");
+}
+
 TEST_CASE("LexerVarDeclarationTest") {
   Vec<Token> expected{
       makeToken(TokenType::VAR, 1, "var"),

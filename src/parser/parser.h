@@ -83,6 +83,7 @@ class Parser {
   Unique<ast::Statement> returnStatement();
   Unique<ast::Statement> varStatement();
   Unique<ast::Statement> whileStatement();
+  Unique<ast::Statement> breakStatement();
 
   Unique<ast::Expression> expression();
   Unique<ast::Expression> assignExpression();

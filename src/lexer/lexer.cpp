@@ -174,6 +174,8 @@ Token Lexer::identifier() {
 
 TokenType Lexer::identifierType() const {
   switch (start[0]) {
+    case 'b':
+      return checkKeyword(1, 4, "reak", TokenType::BREAK);
     case 'a':
       switch (start[1]) {
         case 's':

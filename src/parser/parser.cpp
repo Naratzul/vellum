@@ -404,6 +404,8 @@ Unique<ast::Statement> Parser::statement() {
     stmt = varStatement();
   } else if (match(TokenType::WHILE)) {
     stmt = whileStatement();
+  } else if (match(TokenType::BREAK)) {
+    stmt = breakStatement();
   } else {
     stmt = expressionStatement();
   }
@@ -509,6 +511,10 @@ Unique<ast::Statement> Parser::whileStatement() {
           "Expect '}}' after while loop.");
 
   return makeUnique<ast::WhileStatement>(std::move(condition), std::move(body));
+}
+
+Unique<ast::Statement> Parser::breakStatement() {
+  return makeUnique<ast::BreakStatement>(previous);
 }
 
 Unique<ast::Statement> Parser::expressionStatement() {

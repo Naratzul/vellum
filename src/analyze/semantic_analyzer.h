@@ -56,6 +56,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   void visitLocalVariableStatement(
       ast::LocalVariableStatement& statement) override;
   void visitWhileStatement(ast::WhileStatement& statement) override;
+  void visitBreakStatement(ast::BreakStatement& statement) override;
 
   void visitIdentifierExpression(ast::IdentifierExpression& expr) override;
   void visitCallExpression(ast::CallExpression& expr) override;
@@ -79,6 +80,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   TypeChecker checker;
 
   bool inStaticContext{false};
+  int loopDepth{0};
 
   Opt<VellumState> state;
   Map<VellumIdentifier, VellumFunction> stateFunc;

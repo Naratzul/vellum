@@ -108,5 +108,14 @@ bool WhileStatement::equals(const Statement& other_) const {
   }
   return true;
 }
+
+void BreakStatement::accept(StatementVisitor& visitor) {
+  visitor.visitBreakStatement(*this);
+}
+
+bool BreakStatement::equals(const Statement& other_) const {
+  (void)other_;
+  return typeid(other_) == typeid(BreakStatement);
+}
 }  // namespace ast
 }  // namespace vellum
