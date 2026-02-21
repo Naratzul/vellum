@@ -137,24 +137,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - `src/analyze/semantic_analyzer.cpp` - Validate pattern matches
 - `src/compiler/pex_function_compiler.cpp` - Compile matches
 
-#### Break and Continue
-
-**Status**: Not implemented.
-
-**Implementation needed**:
-
-- `break` and `continue` statements inside loops (while, for when added)
-- Semantic validation: only allowed inside loop bodies; `break` exits the innermost loop, `continue` jumps to loop condition/next iteration
-- Compilation to PEX (jump instructions to loop end or loop head)
-
-**Files to modify**:
-
-- `src/lexer/lexer.cpp` or `src/lexer/token.h` - Add `BREAK`, `CONTINUE` tokens if not present
-- `src/parser/parser.cpp` - Parse `break` and `continue` as statements
-- `src/ast/statement/statement.h` - Add `BreakStatement`, `ContinueStatement` classes
-- `src/analyze/semantic_analyzer.cpp` - Validate inside loop scope, track break/continue targets
-- `src/compiler/pex_function_compiler.cpp` - Emit jumps for break/continue
-
 ## Completed Features
 
 ### Core Language Structure
@@ -180,6 +162,7 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 - **If/else** - Conditional statements with else branches
 - **While loops** - While loop statements
+- **Break and continue** - `break` and `continue` statements inside loops (while, for when added); semantic validation (only allowed inside loop bodies); PEX compilation with Jmp to loop end or loop head; nested loop support
 - **Return statements** - Function return with expressions
 - **Expression statements** - Standalone expressions
 - **Variable statements** - Local variable declarations
