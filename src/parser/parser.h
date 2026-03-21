@@ -59,9 +59,10 @@ class Parser {
   Unique<ast::Declaration> scriptMemberDeclaration();
 
   bool match(TokenType type);
-  bool match(std::initializer_list<TokenType> types);
+  bool matchAny(std::initializer_list<TokenType> types);
 
   bool check(TokenType type) const;
+  bool checkAny(std::initializer_list<TokenType> types) const;
 
   template <typename... Args>
   void consume(TokenType type, CompilerErrorKind error,
@@ -104,6 +105,8 @@ class Parser {
   Unique<ast::Expression> arrayExpression();
 
   Unique<ast::Expression> unaryNumericToLiteral(Unique<ast::Expression> expr);
+
+  bool canStartExpression(const Token& token);
 
   void synchronizeTopDeclaration();
   void synchronizeDeclaration();

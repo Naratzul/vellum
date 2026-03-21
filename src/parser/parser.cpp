@@ -91,7 +91,7 @@ bool Parser::match(TokenType type) {
   return true;
 }
 
-bool Parser::match(std::initializer_list<TokenType> types) {
+bool Parser::matchAny(std::initializer_list<TokenType> types) {
   for (auto type : types) {
     if (check(type)) {
       advance();
@@ -102,6 +102,15 @@ bool Parser::match(std::initializer_list<TokenType> types) {
 }
 
 bool Parser::check(TokenType type) const { return current.type == type; }
+
+bool Parser::checkAny(std::initializer_list<TokenType> types) const {
+  for (TokenType type : types) {
+    if (check(type)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 Unique<ast::Declaration> Parser::scriptDeclaration() {
   if (!match(TokenType::IDENTIFIER)) {
@@ -465,7 +474,10 @@ Unique<ast::Statement> Parser::ifStatement() {
 }
 
 Unique<ast::Statement> Parser::returnStatement() {
-  return makeUnique<ast::ReturnStatement>(expression());
+  if (canStartExpression(current)) {
+    return makeUnique<ast::ReturnStatement>(expression());
+  }
+  return makeUnique<ast::ReturnStatement>(nullptr);
 }
 
 Unique<ast::Statement> Parser::varStatement() {
@@ -576,9 +588,9 @@ Unique<ast::Expression> Parser::expression() { return assignExpression(); }
 Unique<ast::Expression> Parser::assignExpression() {
   auto expr = logicalOrExpression();
 
-  if (match({TokenType::EQUAL, TokenType::PLUS_EQUAL, TokenType::MINUS_EQUAL,
-             TokenType::STAR_EQUAL, TokenType::SLASH_EQUAL,
-             TokenType::PERCENT_EQUAL})) {
+  if (matchAny({TokenType::EQUAL, TokenType::PLUS_EQUAL, TokenType::MINUS_EQUAL,
+                TokenType::STAR_EQUAL, TokenType::SLASH_EQUAL,
+                TokenType::PERCENT_EQUAL})) {
     ast::AssignOperator op = ast::AssignOperator::Assign;
     switch (previous.type) {
       case TokenType::PLUS_EQUAL:
@@ -648,7 +660,7 @@ Unique<ast::Expression> Parser::logicalAndExpression() {
 Unique<ast::Expression> Parser::equalityExpression() {
   auto expr = compareExpression();
 
-  while (match({TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL})) {
+  while (matchAny({TokenType::EQUAL_EQUAL, TokenType::BANG_EQUAL})) {
     const Token op = previous;
     expr = makeUnique<ast::BinaryExpression>(
         op.type == TokenType::EQUAL_EQUAL
@@ -663,8 +675,8 @@ Unique<ast::Expression> Parser::equalityExpression() {
 Unique<ast::Expression> Parser::compareExpression() {
   auto expr = termExpression();
 
-  while (match({TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER,
-                TokenType::GREATER_EQUAL})) {
+  while (matchAny({TokenType::LESS, TokenType::LESS_EQUAL, TokenType::GREATER,
+                   TokenType::GREATER_EQUAL})) {
     const Token op = previous;
     auto binOp = ast::BinaryExpression::Operator::LessThan;
     if (op.type == TokenType::LESS_EQUAL) {
@@ -684,7 +696,7 @@ Unique<ast::Expression> Parser::compareExpression() {
 Unique<ast::Expression> Parser::termExpression() {
   auto expr = factorExpression();
 
-  while (match({TokenType::MINUS, TokenType::PLUS})) {
+  while (matchAny({TokenType::MINUS, TokenType::PLUS})) {
     const Token op = previous;
     expr = makeUnique<ast::BinaryExpression>(
         op.type == TokenType::MINUS ? ast::BinaryExpression::Operator::Subtract
@@ -698,7 +710,7 @@ Unique<ast::Expression> Parser::termExpression() {
 Unique<ast::Expression> Parser::factorExpression() {
   auto expr = unaryExpression();
 
-  while (match({TokenType::STAR, TokenType::SLASH, TokenType::PERCENT})) {
+  while (matchAny({TokenType::STAR, TokenType::SLASH, TokenType::PERCENT})) {
     const Token op = previous;
     ast::BinaryExpression::Operator binOp;
     switch (op.type) {
@@ -722,7 +734,7 @@ Unique<ast::Expression> Parser::factorExpression() {
 }
 
 Unique<ast::Expression> Parser::unaryExpression() {
-  if (match({TokenType::MINUS, TokenType::BANG})) {
+  if (matchAny({TokenType::MINUS, TokenType::BANG})) {
     const Token op = previous;
     return makeUnique<ast::UnaryExpression>(
         op.type == TokenType::MINUS ? ast::UnaryExpression::Operator::Negate
@@ -791,8 +803,8 @@ Unique<ast::Expression> Parser::callExpression(Unique<ast::Expression> callee,
 }
 
 Unique<ast::Expression> Parser::primaryExpression() {
-  if (match({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
-             TokenType::TRUE, TokenType::STRING, TokenType::NONE})) {
+  if (matchAny({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
+                TokenType::TRUE, TokenType::STRING, TokenType::NONE})) {
     return makeUnique<ast::LiteralExpression>(*previous.value, previous);
   }
 
@@ -875,6 +887,14 @@ Unique<ast::Expression> Parser::unaryNumericToLiteral(
   }
 
   return expr;
+}
+
+bool Parser::canStartExpression(const Token& token) {
+  return checkAny({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
+                   TokenType::TRUE, TokenType::STRING, TokenType::NONE,
+                   TokenType::MINUS, TokenType::BANG, TokenType::IDENTIFIER,
+                   TokenType::SUPER, TokenType::SELF, TokenType::LEFT_PAREN,
+                   TokenType::LEFT_BRACK});
 }
 
 void Parser::synchronizeTopDeclaration() {
