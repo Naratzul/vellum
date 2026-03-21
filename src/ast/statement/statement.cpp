@@ -19,7 +19,11 @@ void ReturnStatement::accept(StatementVisitor& visitor) {
 
 bool ReturnStatement::equals(const Statement& other_) const {
   auto& other = static_cast<const ReturnStatement&>(other_);
-  return getExpression()->equals(*other.getExpression());
+  const auto& expr = getExpression();
+  const auto& otherExpr = other.getExpression();
+  if (!expr && !otherExpr) return true;
+  if (!expr || !otherExpr) return false;
+  return expr->equals(*otherExpr);
 }
 
 bool operator==(const Statement& lhs, const Statement& rhs) {

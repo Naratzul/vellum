@@ -103,7 +103,9 @@ void TypeCollector::visitExpressionStatement(
 }
 
 void TypeCollector::visitReturnStatement(ast::ReturnStatement& statement) {
-  statement.getExpression()->accept(*this);
+  if (statement.getExpression()) {
+    statement.getExpression()->accept(*this);
+  }
 }
 
 void TypeCollector::visitIfStatement(ast::IfStatement& statement) {

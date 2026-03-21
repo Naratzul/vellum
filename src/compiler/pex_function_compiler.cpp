@@ -154,10 +154,15 @@ void PexFunctionCompiler::visitExpressionStatement(
 
 void PexFunctionCompiler::visitReturnStatement(
     ast::ReturnStatement& statement) {
-  setCurrentLocation(statement.getExpression()->getLocation());
-  emitInstruction(
-      pex::PexOpCode::Return,
-      Vec<pex::PexValue>{statement.getExpression()->compile(*this)});
+  setCurrentLocation(statement.getLocation());
+  pex::PexValue returnValue;
+  if (statement.getExpression()) {
+    returnValue = statement.getExpression()->compile(*this);
+  } else {
+    returnValue = pex::PexValue(getNoneVar());
+  }
+  emitInstruction(pex::PexOpCode::Return,
+                 Vec<pex::PexValue>{std::move(returnValue)});
 }
 
 void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {

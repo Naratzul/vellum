@@ -510,6 +510,89 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(errorHandler->hasError(CompilerErrorKind::ReturnTypeMismatch));
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticReturn_BareReturn_InNoneFunction_Success") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ReturnStatement>(nullptr));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticReturn_BareReturn_InIntFunction_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ReturnStatement>(nullptr));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(body), false));
+
+  collector->collect(ast);
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ReturnTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticReturn_ExplicitNone_InNoneFunction_Success") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral())));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticReturn_WithValue_InNoneFunction_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  collector->collect(ast);
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ReturnTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticReturn_WithValue_MatchingType_Success") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(body), false));
+
+  collector->collect(ast);
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
 // Assignment target validation tests
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToVariable_Success") {
   Vec<Unique<ast::Declaration>> ast;

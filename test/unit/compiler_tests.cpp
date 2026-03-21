@@ -354,6 +354,145 @@ TEST_CASE("CompileDefaultArgs_EndToEnd") {
   CHECK(variadicArgs[0].asInt() == 5);
 }
 
+TEST_CASE("CompileReturn_BareReturn_EmitsReturnWithNoneVar") {
+  auto fooBody = Vec<Unique<ast::Statement>>{};
+  fooBody.emplace_back(makeUnique<ast::ReturnStatement>(nullptr));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(fooBody), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importResolver =
+      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  DeclarationCollector collector(errorHandler, resolver, "testscript");
+  collector.collect(ast);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  REQUIRE(file.objects().size() == 1);
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  REQUIRE(funcs.size() >= 1);
+
+  const pex::PexFunction* fooFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() &&
+        file.stringTable().valueByIndex(f.getName()->index()) == "foo") {
+      fooFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(fooFunc != nullptr);
+  const auto& instructions = fooFunc->getInstructions();
+  REQUIRE(instructions.size() >= 1);
+
+  bool hasReturn = false;
+  for (const auto& instr : instructions) {
+    if (instr.getOpCode() == pex::PexOpCode::Return) {
+      hasReturn = true;
+      const auto& args = instr.getArgs();
+      REQUIRE(args.size() == 1);
+      REQUIRE(args[0].getType() == pex::PexValueType::Identifier);
+      CHECK(file.stringTable().valueByIndex(
+                static_cast<size_t>(args[0].asIdentifier().getValue().index())) ==
+            "::nonevar");
+      break;
+    }
+  }
+  CHECK(hasReturn);
+}
+
+TEST_CASE("CompileReturn_WithValue_EmitsReturnWithValue") {
+  auto fooBody = Vec<Unique<ast::Statement>>{};
+  fooBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(fooBody), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importResolver =
+      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  DeclarationCollector collector(errorHandler, resolver, "testscript");
+  collector.collect(ast);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  REQUIRE(file.objects().size() == 1);
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  REQUIRE(funcs.size() >= 1);
+
+  const pex::PexFunction* fooFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() &&
+        file.stringTable().valueByIndex(f.getName()->index()) == "foo") {
+      fooFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(fooFunc != nullptr);
+  const auto& instructions = fooFunc->getInstructions();
+  REQUIRE(instructions.size() >= 1);
+
+  bool hasReturn = false;
+  for (const auto& instr : instructions) {
+    if (instr.getOpCode() == pex::PexOpCode::Return) {
+      hasReturn = true;
+      const auto& args = instr.getArgs();
+      REQUIRE(args.size() == 1);
+      break;
+    }
+  }
+  CHECK(hasReturn);
+}
+
 TEST_CASE("CompileSelfExpression_CallMethodUsesSelf") {
   auto selfExpr = makeUnique<ast::SelfExpression>(Token());
   auto propGet = makeUnique<ast::PropertyGetExpression>(

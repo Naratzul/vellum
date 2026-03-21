@@ -474,10 +474,11 @@ Unique<ast::Statement> Parser::ifStatement() {
 }
 
 Unique<ast::Statement> Parser::returnStatement() {
+  const Token returnToken = previous;
   if (canStartExpression(current)) {
-    return makeUnique<ast::ReturnStatement>(expression());
+    return makeUnique<ast::ReturnStatement>(expression(), returnToken);
   }
-  return makeUnique<ast::ReturnStatement>(nullptr);
+  return makeUnique<ast::ReturnStatement>(nullptr, returnToken);
 }
 
 Unique<ast::Statement> Parser::varStatement() {

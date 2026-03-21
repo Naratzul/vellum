@@ -158,10 +158,21 @@ void SemanticAnalyzer::visitExpressionStatement(
 }
 
 void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
-  statement.getExpression()->accept(*this);
   const auto& func = resolver->getCurrentFunction();
   assert(func.has_value());
 
+  if (!statement.getExpression()) {
+    if (!func->getReturnType().isNone()) {
+      errorHandler->errorAt(
+          statement.getLocation(),
+          CompilerErrorKind::ReturnTypeMismatch,
+          "Function expects return type '{}' but no value was returned.",
+          func->getReturnType().toString());
+    }
+    return;
+  }
+
+  statement.getExpression()->accept(*this);
   auto result = checker.check(statement.getExpression(), func->getReturnType(),
                               TypeChecker::Context::Return);
   if (!result.compatible) {

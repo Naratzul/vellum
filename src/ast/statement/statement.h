@@ -43,16 +43,21 @@ class ExpressionStatement : public Statement {
 
 class ReturnStatement : public Statement {
  public:
-  explicit ReturnStatement(Unique<Expression> expression)
-      : expression(std::move(expression)) {}
+  ReturnStatement(Unique<Expression> expression, Token returnToken = Token())
+      : expression(std::move(expression)), returnToken(returnToken) {}
 
   const Unique<Expression>& getExpression() const { return expression; }
+
+  Token getLocation() const {
+    return expression ? expression->getLocation() : returnToken;
+  }
 
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
 
  private:
   Unique<Expression> expression;
+  Token returnToken;
 };
 
 class IfStatement : public Statement {
