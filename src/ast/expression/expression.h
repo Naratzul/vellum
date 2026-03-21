@@ -105,9 +105,14 @@ class IdentifierExpression : public Expression {
 
   bool isIdentifierExpression() const override { return true; }
 
+  void setMangledIdentifier(VellumIdentifier id) { mangledIdentifier = id; }
+
+  Opt<VellumIdentifier> getMangledIdentifier() const { return mangledIdentifier; }
+
  private:
   VellumIdentifier identifier;
   VellumValueType identifierType{VellumValueType::Identifier};
+  Opt<VellumIdentifier> mangledIdentifier;
 };
 
 class SelfExpression : public Expression {
@@ -172,14 +177,7 @@ class CallExpression : public Expression {
   Vec<VellumType> argumentTypes;
 };
 
-enum class AssignOperator {
-  Assign,
-  Add,
-  Subtract,
-  Multiply,
-  Divide,
-  Modulo
-};
+enum class AssignOperator { Assign, Add, Subtract, Multiply, Divide, Modulo };
 
 class AssignExpression : public Expression {
  public:

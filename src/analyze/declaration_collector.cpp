@@ -329,6 +329,8 @@ void DeclarationCollector::visitFunctionDeclaration(
   VellumFunction func(funcName, declaration.getReturnTypeName(),
                       std::move(parameters), declaration.isStatic());
 
+  assert(func.getReturnType().isResolved());
+
   if (state.has_value()) {
     state->addFunction(func);
   } else {

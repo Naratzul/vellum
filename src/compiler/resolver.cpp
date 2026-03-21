@@ -305,12 +305,15 @@ Opt<VellumType> Resolver::resolveScriptType(VellumIdentifier identifier) const {
 
 VellumType Resolver::resolveType(VellumType unresolvedType,
                                  Token location) const {
+  if (unresolvedType.isResolved()) {
+    return unresolvedType;
+  }
+
   if (unresolvedType.isArray()) {
     return VellumType::array(
         resolveType(*unresolvedType.asArraySubtype(), location));
   }
 
-  assert(!unresolvedType.isResolved());
   const std::string_view rawType = unresolvedType.asRawType();
   assert(!rawType.empty());
 

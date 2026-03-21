@@ -58,6 +58,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   void visitWhileStatement(ast::WhileStatement& statement) override;
   void visitBreakStatement(ast::BreakStatement& statement) override;
   void visitContinueStatement(ast::ContinueStatement& statement) override;
+  void visitForStatement(ast::ForStatement& statement) override;
 
   void visitIdentifierExpression(ast::IdentifierExpression& expr) override;
   void visitCallExpression(ast::CallExpression& expr) override;
@@ -82,6 +83,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
 
   bool inStaticContext{false};
   int loopDepth{0};
+  int loopCount{0};
 
   Opt<VellumState> state;
   Map<VellumIdentifier, VellumFunction> stateFunc;
@@ -90,5 +92,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
                                    const VellumType& lhsType,
                                    const VellumType& rhsType,
                                    const Token& location);
+
+  std::string_view mangleLoopVariable(std::string_view name);
 };
 }  // namespace vellum

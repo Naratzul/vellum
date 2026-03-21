@@ -61,7 +61,11 @@ VellumType VellumType::array(VellumType subtype) {
 }
 
 std::string_view VellumType::asRawType() const {
-  assert(state == VellumTypeState::Unresolved);
+  assert(!isResolved());
+  if (state == VellumTypeState::Array) {
+    return common::StringSet::insert(std::string(asArraySubtype()->toString()) +
+                                     "[]");
+  }
   return std::get<std::string_view>(type);
 }
 

@@ -304,10 +304,18 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
   Opt<Token> returnTypeLocation = std::nullopt;
   auto returnTypeName = VellumType::none();
   if (functionType == FunctionType::Function && match(TokenType::ARROW)) {
+    bool isArray = match(TokenType::LEFT_BRACK);
+
     consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectReturnType,
             "Expect a function return type name after '->'.");
-    returnTypeName = VellumType::unresolved(previous.lexeme);
+    VellumType subtype(VellumType::unresolved(previous.lexeme));
+    returnTypeName = isArray ? VellumType::array(subtype) : subtype;
     returnTypeLocation = previous;
+
+    if (isArray) {
+      consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
+              "']' expected.");
+    }
   }
 
   return makeUnique<ast::FunctionDeclaration>(
@@ -408,6 +416,8 @@ Unique<ast::Statement> Parser::statement() {
     stmt = breakStatement();
   } else if (match(TokenType::CONTINUE)) {
     stmt = continueStatement();
+  } else if (match(TokenType::FOR)) {
+    stmt = forStatement();
   } else {
     stmt = expressionStatement();
   }
@@ -521,6 +531,40 @@ Unique<ast::Statement> Parser::breakStatement() {
 
 Unique<ast::Statement> Parser::continueStatement() {
   return makeUnique<ast::ContinueStatement>(previous);
+}
+
+Unique<ast::Statement> Parser::forStatement() {
+  auto nameExpr = primaryExpression();
+  if (!nameExpr->isIdentifierExpression()) {
+    throw ParseException(previous, "for loop variable must be an identifier");
+  }
+  Token nameLocation = previous;
+
+  consume(TokenType::IN, CompilerErrorKind::ExpectIn,
+          "Expect 'in' keyword after for loop variable.");
+
+  auto arrayExpr = expression();
+  Token arrayLocation = previous;
+
+  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
+          "Expect '{{' after array expression.");
+
+  ast::ForStatement::Body body;
+  while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
+    try {
+      body.push_back(statement());
+    } catch (const ParseException& e) {
+      errorHandler->errorAt(e.getToken(), e.getMessage());
+      synchronizeStatement();
+    }
+  }
+
+  consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+          "Expect '}}' after for loop.");
+
+  return makeUnique<ast::ForStatement>(std::move(nameExpr),
+                                       std::move(arrayExpr), std::move(body),
+                                       nameLocation, arrayLocation);
 }
 
 Unique<ast::Statement> Parser::expressionStatement() {

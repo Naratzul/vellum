@@ -46,42 +46,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 ### Vellum New Features (Priority: Medium)
 
-#### For Loop
-
-**Status**: `FOR` token exists in lexer, but no `ForStatement` in AST.
-
-**Implementation needed**:
-
-- Standard C-style for loop: `for (init; condition; increment) { body }`
-- Parse for loop syntax
-- Semantic analysis (scope handling for loop variables)
-- Compilation to PEX (likely desugars to while loop)
-
-**Files to create/modify**:
-
-- `src/parser/parser.cpp` - Add `forStatement()` method
-- `src/ast/statement/statement.h` - Add `ForStatement` class
-- `src/analyze/semantic_analyzer.cpp` - Add `visitForStatement`
-- `src/compiler/pex_function_compiler.cpp` - Compile for loops
-
-#### Foreach Loop
-
-**Status**: Not implemented.
-
-**Implementation needed**:
-
-- Foreach syntax: `foreach (var item : collection) { body }`
-- Support iteration over arrays
-- Iterator variable scoping
-- Compilation to PEX (likely uses array indexing)
-
-**Files to create/modify**:
-
-- `src/parser/parser.cpp` - Add `foreachStatement()` method
-- `src/ast/statement/statement.h` - Add `ForeachStatement` class
-- `src/analyze/semantic_analyzer.cpp` - Add `visitForeachStatement`
-- `src/compiler/pex_function_compiler.cpp` - Compile foreach loops
-
 #### Ternary Operator
 
 **Status**: Not implemented.
@@ -162,7 +126,8 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 - **If/else** - Conditional statements with else branches
 - **While loops** - While loop statements
-- **Break and continue** - `break` and `continue` statements inside loops (while, for when added); semantic validation (only allowed inside loop bodies); PEX compilation with Jmp to loop end or loop head; nested loop support
+- **For-in loops** - `for item in arrayExpr { body }` (requires array-typed collection); `IN` keyword; iterator PEX names via `pexName` / `loopCount` mangling and hidden index local; per-loop `pushScope` so nested loops can reuse the same iterator name; lowered to `ArrayLength`, counter, `CmpLt`/`JmpF`, `ArrayGetElement`, index bump, back-edge `Jmp`; tests in `test/unit/` (parser, semantic, compiler, lexer)
+- **Break and continue** - `break` and `continue` inside `while` and for-in loops; semantic validation (only inside loop bodies); PEX `Jmp` patching to loop end or condition; nested loop support
 - **Return statements** - Function return with expressions
 - **Expression statements** - Standalone expressions
 - **Variable statements** - Local variable declarations

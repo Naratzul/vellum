@@ -8,6 +8,8 @@
 #include "analyze/semantic_analyzer.h"
 #include "analyze/type_collector.h"
 #include "ast/decl/declaration.h"
+#include "ast/expression/expression.h"
+#include "ast/statement/statement.h"
 #include "common/types.h"
 #include "compiler/builtin_functions.h"
 #include "compiler/compiler.h"
@@ -17,6 +19,8 @@
 #include "pex/pex_debug_info.h"
 #include "pex/pex_file.h"
 #include "pex/pex_function.h"
+#include "pex/pex_instruction.h"
+#include "pex/pex_value.h"
 #include "utils.h"
 #include "vellum/vellum_object.h"
 
@@ -806,4 +810,178 @@ TEST_CASE("CompileCastAndIntFloatArithmetic") {
     if (instr.getOpCode() == pex::PexOpCode::Cast) hasCast = true;
   }
   CHECK(hasCast);
+}
+
+TEST_CASE("CompileForIn_OpcodePatternAndMangledLocals") {
+  Token tokA = makeToken(TokenType::IDENTIFIER, 1, "a");
+  Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
+  auto newArr = makeUnique<ast::NewArrayExpression>(
+      VellumType::literal(VellumLiteralType::Int), VellumLiteral(1), Token{});
+
+  Vec<Unique<ast::Statement>> forBody;
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      std::move(newArr), Token{}, std::nullopt));
+  body.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("a"), tokA),
+      std::move(forBody), tokI, tokA));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(body), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  DeclarationCollector collector(errorHandler, resolver, "testscript");
+  collector.collect(ast);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file = Compiler(errorHandler).compile(
+      ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  const pex::PexFunction* testFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() &&
+        file.stringTable().valueByIndex(
+            static_cast<size_t>(f.getName()->index())) == "test") {
+      testFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(testFunc != nullptr);
+
+  const auto& instr = testFunc->getInstructions();
+  auto hasOp = [&](pex::PexOpCode op) {
+    for (const auto& i : instr)
+      if (i.getOpCode() == op) return true;
+    return false;
+  };
+  CHECK(hasOp(pex::PexOpCode::ArrayLength));
+  CHECK(hasOp(pex::PexOpCode::Assign));
+  CHECK(hasOp(pex::PexOpCode::CmpLt));
+  CHECK(hasOp(pex::PexOpCode::JmpF));
+  CHECK(hasOp(pex::PexOpCode::ArrayGetElement));
+  CHECK(hasOp(pex::PexOpCode::IAdd));
+  CHECK(hasOp(pex::PexOpCode::Jmp));
+
+  const auto& st = file.stringTable();
+  bool hasIter = false;
+  bool hasIdx = false;
+  for (const auto& lv : testFunc->getLocalVariables()) {
+    std::string_view n =
+        st.valueByIndex(static_cast<size_t>(lv.getName().index()));
+    if (n == "i_1") hasIter = true;
+    if (n == "i_index_1") hasIdx = true;
+  }
+  CHECK(hasIter);
+  CHECK(hasIdx);
+}
+
+TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
+  auto makeArrBody = Vec<Unique<ast::Statement>>{};
+  makeArrBody.push_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::NewArrayExpression>(
+          VellumType::literal(VellumLiteralType::Int), VellumLiteral(1),
+          Token{})));
+
+  Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
+  auto callMake = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("makeArr"),
+                                            Token{}),
+      Vec<Unique<ast::Expression>>{}, Token{});
+
+  Vec<Unique<ast::Statement>> forBody;
+  ast::FunctionBody testBody;
+  testBody.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      std::move(callMake), std::move(forBody), tokI, Token{}));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "makeArr", Vec<ast::FunctionParameter>{},
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      std::move(makeArrBody), false));
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      std::move(testBody), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  DeclarationCollector collector(errorHandler, resolver, "testscript");
+  collector.collect(ast);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file = Compiler(errorHandler).compile(
+      ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  const pex::PexFunction* testFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() &&
+        file.stringTable().valueByIndex(
+            static_cast<size_t>(f.getName()->index())) == "test") {
+      testFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(testFunc != nullptr);
+
+  const auto& st = file.stringTable();
+  size_t makeArrCalls = 0;
+  for (const auto& i : testFunc->getInstructions()) {
+    if (i.getOpCode() != pex::PexOpCode::CallMethod) continue;
+    const auto& args = i.getArgs();
+    REQUIRE(args.size() >= 1);
+    REQUIRE(args[0].getType() == pex::PexValueType::Identifier);
+    std::string_view name =
+        st.valueByIndex(static_cast<size_t>(
+            args[0].asIdentifier().getValue().index()));
+    if (name == "makeArr") ++makeArrCalls;
+  }
+  CHECK(makeArrCalls == 1);
 }

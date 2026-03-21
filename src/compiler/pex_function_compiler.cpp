@@ -277,6 +277,83 @@ void PexFunctionCompiler::visitContinueStatement(
   continueInstructions.push_back(instructions.size() - 1);
 }
 
+void PexFunctionCompiler::visitForStatement(ast::ForStatement& statement) {
+  breakInstructions.push_back(loopSentinel);
+  continueInstructions.push_back(loopSentinel);
+
+  setCurrentLocation(statement.getArrayLocation());
+  const pex::PexValue arrayVal = statement.getArray()->compile(*this);
+  const pex::PexIdentifier arrayLength =
+      makeTempVarId(VellumType::literal(VellumLiteralType::Int));
+  Vec<pex::PexValue> args = {arrayLength, arrayVal};
+  emitInstruction(pex::PexOpCode::ArrayLength, std::move(args));
+
+  localVariables.emplace_back(file.getString(statement.getCounterMangledName()),
+                              file.getString("Int"));
+  const pex::PexValue counter =
+      pex::PexIdentifier{file.getString(statement.getCounterMangledName())};
+  args = {counter, pex::PexValue(0)};
+  emitInstruction(pex::PexOpCode::Assign, std::move(args));
+
+  const pex::PexIdentifier condition =
+      makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
+  args = {condition, counter, arrayLength};
+  size_t conditionOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::CmpLt, std::move(args));
+
+  size_t jmpToEndOffset = instructions.size();
+  pex::PexValue jmpToEnd(int32_t(0));
+
+  emitInstruction(pex::PexOpCode::JmpF,
+                  Vec<pex::PexValue>{condition, jmpToEnd});
+
+  setCurrentLocation(statement.getVariableNameLocation());
+  localVariables.emplace_back(
+      file.getString(statement.getVariableName()
+                         ->asIdentifier()
+                         .getMangledIdentifier()
+                         ->toString()),
+      file.getString(
+          statement.getArray()->getType().asArraySubtype()->toString()));
+  const pex::PexValue loopVariable =
+      statement.getVariableName()->compile(*this);
+
+  args = {loopVariable, arrayVal, counter};
+  emitInstruction(pex::PexOpCode::ArrayGetElement, std::move(args));
+
+  args = {counter, counter, pex::PexValue(1)};
+  emitInstruction(pex::PexOpCode::IAdd, std::move(args));
+
+  for (const auto& stmt : statement.getBody()) {
+    stmt->accept(*this);
+  }
+
+  setCurrentLocation(statement.getArrayLocation());
+  emitInstruction(pex::PexOpCode::Jmp,
+                  Vec<pex::PexValue>{pex::PexValue(
+                      int32_t(conditionOffset - instructions.size()))});
+
+  auto loopBodyLength = int32_t(instructions.size() - jmpToEndOffset);
+  instructions[jmpToEndOffset].setArg(1, pex::PexValue(loopBodyLength));
+
+  while (breakInstructions.back() != loopSentinel) {
+    size_t breakIndex = breakInstructions.back();
+    breakInstructions.pop_back();
+    instructions[breakIndex].setArg(
+        0, pex::PexValue(int32_t(instructions.size() - breakIndex)));
+  }
+
+  while (continueInstructions.back() != loopSentinel) {
+    size_t continueIndex = continueInstructions.back();
+    continueInstructions.pop_back();
+    instructions[continueIndex].setArg(
+        0, pex::PexValue(int32_t(conditionOffset - continueIndex)));
+  }
+
+  continueInstructions.pop_back();
+  breakInstructions.pop_back();
+}
+
 pex::PexValue PexFunctionCompiler::compile(const ast::LiteralExpression& expr) {
   return makePexValue(expr.getLiteral(), file);
 }
@@ -290,6 +367,10 @@ pex::PexValue PexFunctionCompiler::compile(
         expr.getIdentifier(), expr.getLocation());
     getExpr.setType(expr.getType());
     return compile(getExpr);
+  }
+
+  if (auto mangledId = expr.getMangledIdentifier()) {
+    return makePexValue(*mangledId, file);
   }
 
   return makePexValue(expr.getIdentifier(), file);
@@ -698,8 +779,7 @@ pex::PexTemporaryVariable PexFunctionCompiler::makeTempVar(
   return makeTempVar(file.getString(type.toString()));
 }
 
-pex::PexTemporaryVariable PexFunctionCompiler::makeTempVar(
-    const pex::PexString& typeName) {
+std::string_view PexFunctionCompiler::makeTempVarName() {
   constexpr size_t PrefixLength = 6;
   std::array<char, PrefixLength + std::numeric_limits<uint16_t>::digits10 + 2>
       buf = {
@@ -723,11 +803,17 @@ pex::PexTemporaryVariable PexFunctionCompiler::makeTempVar(
 
   tempVarCount++;
 
+  const std::size_t len = static_cast<std::size_t>(result.ptr - buf.data());
   const std::string_view tempVarName =
-      common::StringSet::insert(std::string(std::begin(buf), std::end(buf)));
+      common::StringSet::insert(std::string(buf.data(), len));
 
+  return tempVarName;
+}
+
+pex::PexTemporaryVariable PexFunctionCompiler::makeTempVar(
+    const pex::PexString& typeName) {
   auto tempVar =
-      pex::PexTemporaryVariable(file.getString(tempVarName), typeName);
+      pex::PexTemporaryVariable(file.getString(makeTempVarName()), typeName);
   localVariables.push_back(tempVar);
 
   return tempVar;

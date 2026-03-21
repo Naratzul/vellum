@@ -18,7 +18,9 @@ class VellumVariable {
       : name(name), type(type), defaultValue(std::move(defaultValue)) {}
   VellumVariable(VellumIdentifier name, VellumType type,
                  Opt<VellumLiteral> defaultValue, Token nameLocation = Token())
-      : name(name), type(type), defaultValue(std::move(defaultValue)),
+      : name(name),
+        type(type),
+        defaultValue(std::move(defaultValue)),
         nameLocation(nameLocation) {}
 
   VellumIdentifier getName() const { return name; }
@@ -26,11 +28,15 @@ class VellumVariable {
   const Opt<VellumLiteral>& getDefaultValue() const { return defaultValue; }
   const Token& getNameLocation() const { return nameLocation; }
 
+  void setPexName(VellumIdentifier name) { pexName = name; }
+  Opt<VellumIdentifier> getPexName() const { return pexName; }
+
  private:
   VellumIdentifier name;
   VellumType type;
   Opt<VellumLiteral> defaultValue;
   Token nameLocation;
+  Opt<VellumIdentifier> pexName;
 };
 
 bool operator==(const VellumVariable& lhs, const VellumVariable& rhs);

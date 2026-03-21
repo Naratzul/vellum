@@ -3,6 +3,7 @@
 #include <charconv>
 
 #include "common/string_set.h"
+#include "token.h"
 
 #ifdef __APPLE__
 #include <cstdlib>
@@ -217,6 +218,8 @@ TokenType Lexer::identifierType() const {
             return checkKeyword(2, 0, "", TokenType::IF);
           case 'm':
             return checkKeyword(2, 4, "port", TokenType::IMPORT);
+          case 'n':
+            return checkKeyword(2, 0, "", TokenType::IN);
         }
       }
       break;

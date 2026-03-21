@@ -110,12 +110,12 @@ class LocalVariableStatement : public Statement {
 
 class WhileStatement : public Statement {
  public:
-  using Body = Vec<Unique<ast::Statement>>;
+  using Body = Vec<Unique<Statement>>;
 
-  WhileStatement(Unique<ast::Expression> condition, Body body)
+  WhileStatement(Unique<Expression> condition, Body body)
       : condition(std::move(condition)), body(std::move(body)) {}
 
-  const Unique<ast::Expression>& getCondition() const { return condition; }
+  const Unique<Expression>& getCondition() const { return condition; }
 
   const Body& getBody() const { return body; }
 
@@ -123,7 +123,7 @@ class WhileStatement : public Statement {
   bool equals(const Statement& other) const override;
 
  private:
-  Unique<ast::Expression> condition;
+  Unique<Expression> condition;
   Body body;
 };
 
@@ -152,6 +152,53 @@ class ContinueStatement : public Statement {
 
  private:
   Token continueToken;
+};
+
+class ForStatement : public Statement {
+ public:
+  using Body = Vec<Unique<Statement>>;
+
+  ForStatement(Unique<Expression> variableName, Unique<Expression> array,
+               Body body, Token variableNameLocation = {},
+               Token arrayLocation = {})
+      : variableName(std::move(variableName)),
+        array(std::move(array)),
+        body(std::move(body)),
+        variableNameLocation(variableNameLocation),
+        arrayLocation(arrayLocation) {}
+
+  void accept(StatementVisitor& visitor) override;
+  bool equals(const Statement& other) const override;
+
+  const Unique<Expression>& getVariableName() const { return variableName; }
+
+  Unique<Expression>& getVariableName() { return variableName; }
+
+  const Unique<Expression>& getArray() const { return array; }
+
+  const Body& getBody() const { return body; }
+
+  Body& getBody() { return body; }
+
+  Token getVariableNameLocation() const { return variableNameLocation; }
+
+  Token getArrayLocation() const { return arrayLocation; }
+
+  void setCounterMangledName(std::string_view name) {
+    counterMangledName = name;
+  }
+
+  const std::string& getCounterMangledName() const {
+    return counterMangledName;
+  }
+
+ private:
+  Unique<Expression> variableName;
+  Unique<Expression> array;
+  Body body;
+  Token variableNameLocation;
+  Token arrayLocation;
+  std::string counterMangledName;
 };
 
 }  // namespace ast

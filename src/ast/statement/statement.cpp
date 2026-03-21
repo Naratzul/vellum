@@ -114,7 +114,6 @@ void BreakStatement::accept(StatementVisitor& visitor) {
 }
 
 bool BreakStatement::equals(const Statement& other_) const {
-  (void)other_;
   return typeid(other_) == typeid(BreakStatement);
 }
 
@@ -123,8 +122,28 @@ void ContinueStatement::accept(StatementVisitor& visitor) {
 }
 
 bool ContinueStatement::equals(const Statement& other_) const {
-  (void)other_;
   return typeid(other_) == typeid(ContinueStatement);
+}
+
+void ForStatement::accept(StatementVisitor& visitor) {
+  visitor.visitForStatement(*this);
+}
+
+bool ForStatement::equals(const Statement& other_) const {
+  auto& other = static_cast<const ForStatement&>(other_);
+  if (!variableName->equals(*other.variableName) ||
+      !array->equals(*other.array)) {
+    return false;
+  }
+  if (getBody().size() != other.getBody().size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < getBody().size(); ++i) {
+    if (!getBody()[i]->equals(*other.getBody()[i])) {
+      return false;
+    }
+  }
+  return true;
 }
 }  // namespace ast
 }  // namespace vellum

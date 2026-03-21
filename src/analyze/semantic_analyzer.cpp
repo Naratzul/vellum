@@ -1,10 +1,12 @@
 #include "semantic_analyzer.h"
 
 #include <cassert>
+#include <format>
 #include <optional>
 
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
+#include "common/string_set.h"
 #include "common/types.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
@@ -125,6 +127,7 @@ void SemanticAnalyzer::visitFunctionDeclaration(
   }
   resolver->endFunction();
   inStaticContext = false;
+  loopCount = 0;
 }
 
 void SemanticAnalyzer::visitPropertyDeclaration(
@@ -245,19 +248,55 @@ void SemanticAnalyzer::visitWhileStatement(ast::WhileStatement& statement) {
 
 void SemanticAnalyzer::visitBreakStatement(ast::BreakStatement& statement) {
   if (loopDepth == 0) {
-    errorHandler->errorAt(
-        statement.getLocation(), CompilerErrorKind::BreakOutsideLoop,
-        "'break' is only allowed inside a loop.");
+    errorHandler->errorAt(statement.getLocation(),
+                          CompilerErrorKind::BreakOutsideLoop,
+                          "'break' is only allowed inside a loop.");
   }
 }
 
 void SemanticAnalyzer::visitContinueStatement(
     ast::ContinueStatement& statement) {
   if (loopDepth == 0) {
-    errorHandler->errorAt(
-        statement.getLocation(), CompilerErrorKind::ContinueOutsideLoop,
-        "'continue' is only allowed inside a loop.");
+    errorHandler->errorAt(statement.getLocation(),
+                          CompilerErrorKind::ContinueOutsideLoop,
+                          "'continue' is only allowed inside a loop.");
   }
+}
+
+void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
+  auto& arrayExpr = statement.getArray();
+  arrayExpr->accept(*this);
+
+  if (!arrayExpr->getType().isArray()) {
+    errorHandler->errorAt(statement.getArrayLocation(), "Array type expected.");
+    return;
+  }
+
+  loopCount++;
+
+  auto variableName =
+      statement.getVariableName()->asIdentifier().getIdentifier();
+  VellumVariable loopVar(variableName, *arrayExpr->getType().asArraySubtype());
+
+  VellumIdentifier pexName(mangleLoopVariable(variableName.getValue()));
+  loopVar.setPexName(pexName);
+
+  resolver->pushScope();
+  resolver->pushLocalVar(loopVar, statement.getVariableNameLocation());
+
+  statement.getVariableName()->accept(*this);
+
+  statement.setCounterMangledName(
+      mangleLoopVariable(std::format("{}_index", variableName.getValue())));
+
+  loopDepth++;
+  for (auto& stmt : statement.getBody()) {
+    stmt->accept(*this);
+  }
+  loopDepth--;
+
+  resolver->popLocalVar();
+  resolver->popScope();
 }
 
 void SemanticAnalyzer::visitIdentifierExpression(
@@ -285,6 +324,9 @@ void SemanticAnalyzer::visitIdentifierExpression(
       break;
     case VellumValueType::Variable:
       expr.setType(value->asVariable().getType());
+      if (auto pexName = value->asVariable().getPexName()) {
+        expr.setMangledIdentifier(*pexName);
+      }
       break;
     case VellumValueType::Function:
       expr.setType(value->asFunction().getReturnType());
@@ -409,11 +451,12 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     }
 
     if (expr.getArguments().size() < requiredArity) {
-      errorHandler->errorAt(
-          expr.getLocation(), CompilerErrorKind::FunctionArgumentsCountMismatch,
-          "Function '{}' expects at least {} arguments, but {} were provided.",
-          func->getName().toString(), requiredArity,
-          expr.getArguments().size());
+      errorHandler->errorAt(expr.getLocation(),
+                            CompilerErrorKind::FunctionArgumentsCountMismatch,
+                            "Function '{}' expects at least {} arguments, "
+                            "but {} were provided.",
+                            func->getName().toString(), requiredArity,
+                            expr.getArguments().size());
       return;
     }
 
@@ -762,8 +805,8 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
     return;
   }
 
-  // For arithmetic operators, operands must be numeric (Int or Float). Bool is
-  // not implicitly converted; use (b as Int) for numeric use. Int + Float
+  // For arithmetic operators, operands must be numeric (Int or Float). Bool
+  // is not implicitly converted; use (b as Int) for numeric use. Int + Float
   // promotes to Float.
   if (expr.getOperator() == ast::BinaryExpression::Operator::Add ||
       expr.getOperator() == ast::BinaryExpression::Operator::Subtract ||
@@ -1025,5 +1068,10 @@ bool SemanticAnalyzer::validateComposedAssignTypes(ast::AssignOperator op,
     default:
       return true;
   }
+}
+
+std::string_view SemanticAnalyzer::mangleLoopVariable(std::string_view name) {
+  auto str = std::format("{}_{}", name, loopCount);
+  return common::StringSet::insert(str);
 }
 }  // namespace vellum

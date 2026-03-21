@@ -44,6 +44,20 @@ TEST_CASE("LexerContinueKeyword") {
   CHECK(tokens[0].lexeme == "continue");
 }
 
+TEST_CASE("LexerForKeyword") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("for"));
+  REQUIRE(tokens.size() >= 1);
+  CHECK(tokens[0].type == TokenType::FOR);
+  CHECK(tokens[0].lexeme == "for");
+}
+
+TEST_CASE("LexerInKeyword") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("in"));
+  REQUIRE(tokens.size() >= 1);
+  CHECK(tokens[0].type == TokenType::IN);
+  CHECK(tokens[0].lexeme == "in");
+}
+
 TEST_CASE("LexerVarDeclarationTest") {
   Vec<Token> expected{
       makeToken(TokenType::VAR, 1, "var"),

@@ -298,6 +298,127 @@ TEST_CASE("ParserContinueInsideWhile") {
       nullptr);
 }
 
+TEST_CASE("ParserForInStatement_Basic") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FOR, 1, "for"),
+                    makeToken(TokenType::IDENTIFIER, 1, "i"),
+                    makeToken(TokenType::IN, 1, "in"),
+                    makeToken(TokenType::IDENTIFIER, 1, "nums"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::BREAK, 1, "break"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody().size() == 1);
+  const auto* forStmt =
+      dynamic_cast<const ast::ForStatement*>(funcDecl->getBody()[0].get());
+  REQUIRE(forStmt != nullptr);
+  REQUIRE(forStmt->getVariableName()->isIdentifierExpression());
+  REQUIRE(forStmt->getVariableName()->asIdentifier().getIdentifier().toString() ==
+          "i");
+  REQUIRE(forStmt->getArray()->isIdentifierExpression());
+  REQUIRE(forStmt->getArray()->asIdentifier().getIdentifier().toString() == "nums");
+  REQUIRE(forStmt->getBody().size() == 1);
+  REQUIRE(dynamic_cast<const ast::BreakStatement*>(forStmt->getBody()[0].get()) !=
+          nullptr);
+}
+
+TEST_CASE("ParserForInStatement_LoopVariableMustBeIdentifier") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FOR, 1, "for"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::IN, 1, "in"),
+                    makeToken(TokenType::IDENTIFIER, 1, "nums"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hadError());
+}
+
+TEST_CASE("ParserForInStatement_ExpectInKeyword") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FOR, 1, "for"),
+                    makeToken(TokenType::IDENTIFIER, 1, "i"),
+                    makeToken(TokenType::IDENTIFIER, 1, "nums"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hadError());
+}
+
+TEST_CASE("ParserForInStatement_ExpectLeftBraceAfterCollection") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FOR, 1, "for"),
+                    makeToken(TokenType::IDENTIFIER, 1, "i"),
+                    makeToken(TokenType::IN, 1, "in"),
+                    makeToken(TokenType::IDENTIFIER, 1, "nums"),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hadError());
+}
+
 TEST_CASE("ParserPropertyDeclaration_NoInitializer") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),

@@ -24,7 +24,12 @@ class VellumType {
   static VellumType array(VellumType subtype);
 
   VellumTypeState getState() const { return state; }
-  bool isResolved() const { return state != VellumTypeState::Unresolved; }
+  bool isResolved() const {
+    if (state == VellumTypeState::Array) {
+      return asArraySubtype()->isResolved();
+    }
+    return state != VellumTypeState::Unresolved;
+  }
 
   std::string_view asRawType() const;
   VellumLiteralType asLiteralType() const;

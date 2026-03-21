@@ -11,6 +11,7 @@ class LocalVariableStatement;
 class WhileStatement;
 class BreakStatement;
 class ContinueStatement;
+class ForStatement;
 
 class StatementVisitor {
  public:
@@ -23,6 +24,7 @@ class StatementVisitor {
   virtual void visitWhileStatement(WhileStatement& statement) = 0;
   virtual void visitBreakStatement(BreakStatement& statement) = 0;
   virtual void visitContinueStatement(ContinueStatement& statement) = 0;
+  virtual void visitForStatement(ForStatement& statement) = 0;
 };
 
 }  // namespace ast

@@ -48,6 +48,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   void visitWhileStatement(ast::WhileStatement& statement) override;
   void visitBreakStatement(ast::BreakStatement& statement) override;
   void visitContinueStatement(ast::ContinueStatement& statement) override;
+  void visitForStatement(ast::ForStatement& statement) override;
 
   pex::PexValue compile(const ast::LiteralExpression& expr) override;
   pex::PexValue compile(const ast::IdentifierExpression& expr) override;
@@ -93,6 +94,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexIdentifier makeTempVarId(const VellumType& type);
   pex::PexTemporaryVariable makeTempVar(const VellumType& type);
   pex::PexTemporaryVariable makeTempVar(const pex::PexString& typeName);
+  std::string_view makeTempVarName();
   pex::PexIdentifier getNoneVar();
 };
 }  // namespace vellum

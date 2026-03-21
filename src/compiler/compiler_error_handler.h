@@ -33,6 +33,7 @@ enum class CompilerErrorKind {
   ExpectParamName,
   ExpectColon,
   ExpectReturnType,
+  ExpectIn,
 
   PropertySetAlreadyDefined,
   PropertyGetAlreadyDefined,
