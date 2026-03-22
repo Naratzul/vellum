@@ -23,7 +23,9 @@ class TypeCollector : public ast::DeclarationVisitor,
  public:
   void collect(Vec<Unique<ast::Declaration>>& declarations);
 
-  const Set<VellumIdentifier>& getDiscoveredTypes() const { return discoveredTypes; }
+  const Set<VellumIdentifier>& getDiscoveredTypes() const {
+    return discoveredTypes;
+  }
 
   void visitImportDeclaration(ast::ImportDeclaration& declaration) override;
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override;
@@ -57,6 +59,7 @@ class TypeCollector : public ast::DeclarationVisitor,
   void visitArrayIndexExpression(ast::ArrayIndexExpression& expr) override;
   void visitArrayIndexSetExpression(
       ast::ArrayIndexSetExpression& expr) override;
+  void visitTernaryExpression(ast::TernaryExpression& expr) override;
 
  private:
   Set<VellumIdentifier> discoveredTypes;

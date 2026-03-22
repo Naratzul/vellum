@@ -64,6 +64,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::NewArrayExpression& expr) override;
   pex::PexValue compile(const ast::SelfExpression& expr) override;
   pex::PexValue compile(const ast::SuperExpression& expr) override;
+  pex::PexValue compile(const ast::TernaryExpression& expr) override;
 
  private:
   void setCurrentLine(int line) { currentLine_ = line; }

@@ -4,6 +4,7 @@
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
 #include "common/types.h"
+#include "compiler/compiler_error_handler.h"
 #include "lexer/token.h"
 #include "mock/mock_lexer.h"
 #include "parser/parser.h"
@@ -1435,4 +1436,178 @@ TEST_CASE("ParserArrayIndex_Precedence_IndexBeforePropertyAndCall") {
 
   REQUIRE(indexExpr->getIndex()->isLiteralExpression());
   REQUIRE(indexExpr->getIndex()->asLiteral().getLiteral().asInt() == 0);
+}
+
+TEST_CASE("ParserReturn_Ternary_Basic") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::ARROW, 1, "->"),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::RETURN, 1, "return"),
+      makeToken(TokenType::TRUE, 1, "true", VellumLiteral(true)),
+      makeToken(TokenType::QUES, 1, "?"),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+      makeToken(TokenType::COLON, 1, ":"),
+      makeToken(TokenType::INT, 1, "2", VellumLiteral(2)),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  const auto* returnStmt =
+      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()[0].get());
+  REQUIRE(returnStmt != nullptr);
+  const auto* ternary = dynamic_cast<const ast::TernaryExpression*>(
+      returnStmt->getExpression().get());
+  REQUIRE(ternary != nullptr);
+  REQUIRE(ternary->getCondition()->isLiteralExpression());
+  REQUIRE(ternary->getCondition()->asLiteral().getLiteral().asBool());
+  REQUIRE(ternary->getLeft()->asLiteral().getLiteral().asInt() == 1);
+  REQUIRE(ternary->getRight()->asLiteral().getLiteral().asInt() == 2);
+}
+
+TEST_CASE("ParserReturn_Ternary_OrPrecedence_ConditionIsOrExpression") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::ARROW, 1, "->"),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::RETURN, 1, "return"),
+      makeToken(TokenType::IDENTIFIER, 1, "a"),
+      makeToken(TokenType::OR, 1, "||"),
+      makeToken(TokenType::IDENTIFIER, 1, "b"),
+      makeToken(TokenType::QUES, 1, "?"),
+      makeToken(TokenType::IDENTIFIER, 1, "c"),
+      makeToken(TokenType::COLON, 1, ":"),
+      makeToken(TokenType::IDENTIFIER, 1, "d"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  const auto* returnStmt =
+      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()[0].get());
+  const auto* ternary = dynamic_cast<const ast::TernaryExpression*>(
+      returnStmt->getExpression().get());
+  REQUIRE(ternary != nullptr);
+  const auto* condOr = dynamic_cast<const ast::BinaryExpression*>(
+      ternary->getCondition().get());
+  REQUIRE(condOr != nullptr);
+  REQUIRE(condOr->getOperator() == ast::BinaryExpression::Operator::Or);
+  REQUIRE(condOr->getLeft()->asIdentifier().getIdentifier().toString() == "a");
+  REQUIRE(condOr->getRight()->asIdentifier().getIdentifier().toString() == "b");
+  REQUIRE(ternary->getLeft()->asIdentifier().getIdentifier().toString() == "c");
+  REQUIRE(ternary->getRight()->asIdentifier().getIdentifier().toString() == "d");
+}
+
+TEST_CASE("ParserReturn_Ternary_RightAssociative_Nested") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::ARROW, 1, "->"),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::RETURN, 1, "return"),
+      makeToken(TokenType::IDENTIFIER, 1, "a"),
+      makeToken(TokenType::QUES, 1, "?"),
+      makeToken(TokenType::IDENTIFIER, 1, "b"),
+      makeToken(TokenType::COLON, 1, ":"),
+      makeToken(TokenType::IDENTIFIER, 1, "c"),
+      makeToken(TokenType::QUES, 1, "?"),
+      makeToken(TokenType::IDENTIFIER, 1, "d"),
+      makeToken(TokenType::COLON, 1, ":"),
+      makeToken(TokenType::IDENTIFIER, 1, "e"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  const auto* returnStmt =
+      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()[0].get());
+  const auto* outer = dynamic_cast<const ast::TernaryExpression*>(
+      returnStmt->getExpression().get());
+  REQUIRE(outer != nullptr);
+  REQUIRE(outer->getCondition()->asIdentifier().getIdentifier().toString() ==
+          "a");
+  REQUIRE(outer->getLeft()->asIdentifier().getIdentifier().toString() == "b");
+  const auto* inner = dynamic_cast<const ast::TernaryExpression*>(
+      outer->getRight().get());
+  REQUIRE(inner != nullptr);
+  REQUIRE(inner->getCondition()->asIdentifier().getIdentifier().toString() ==
+          "c");
+  REQUIRE(inner->getLeft()->asIdentifier().getIdentifier().toString() == "d");
+  REQUIRE(inner->getRight()->asIdentifier().getIdentifier().toString() == "e");
+}
+
+TEST_CASE("ParserReturn_Ternary_MissingColon_ExpectColon") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::ARROW, 1, "->"),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::RETURN, 1, "return"),
+      makeToken(TokenType::TRUE, 1, "true", VellumLiteral(true)),
+      makeToken(TokenType::QUES, 1, "?"),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  (void)Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ExpectColon));
 }

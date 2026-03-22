@@ -45,7 +45,7 @@ ParserResult Parser::parse() {
     try {
       result.declarations.push_back(topDeclaration());
     } catch (const ParseException& e) {
-      errorHandler->errorAt(e.getToken(), e.getMessage());
+      errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
       synchronizeTopDeclaration();
     }
   }
@@ -138,7 +138,7 @@ Unique<ast::Declaration> Parser::scriptDeclaration() {
       try {
         scriptMembers.push_back(scriptMemberDeclaration());
       } catch (const ParseException& e) {
-        errorHandler->errorAt(e.getToken(), e.getMessage());
+        errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
         synchronizeDeclaration();
       }
     }
@@ -175,7 +175,7 @@ Unique<ast::Declaration> Parser::stateDeclaration(bool isAuto) {
       try {
         stateMembers.push_back(scriptMemberDeclaration());
       } catch (const ParseException& e) {
-        errorHandler->errorAt(e.getToken(), e.getMessage());
+        errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
         synchronizeDeclaration();
       }
     }
@@ -300,7 +300,7 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
                                 std::move(defaultValue), paramNameLocation,
                                 paramTypeLocation);
       } catch (const ParseException& e) {
-        errorHandler->errorAt(e.getToken(), e.getMessage());
+        errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
         synchronizeToRightParen();
         break;
       }
@@ -399,7 +399,7 @@ ast::FunctionBody Parser::functionBody(FunctionType type) {
     try {
       body.push_back(statement());
     } catch (const ParseException& e) {
-      errorHandler->errorAt(e.getToken(), e.getMessage());
+      errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
       synchronizeStatement();
     }
   }
@@ -444,7 +444,7 @@ Unique<ast::Statement> Parser::ifStatement() {
     try {
       then_branch.push_back(statement());
     } catch (const ParseException& e) {
-      errorHandler->errorAt(e.getToken(), e.getMessage());
+      errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
       synchronizeStatement();
     }
   }
@@ -460,7 +460,7 @@ Unique<ast::Statement> Parser::ifStatement() {
       try {
         else_statements.push_back(statement());
       } catch (const ParseException& e) {
-        errorHandler->errorAt(e.getToken(), e.getMessage());
+        errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
         synchronizeStatement();
       }
     }
@@ -527,7 +527,7 @@ Unique<ast::Statement> Parser::whileStatement() {
     try {
       body.push_back(statement());
     } catch (const ParseException& e) {
-      errorHandler->errorAt(e.getToken(), e.getMessage());
+      errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
       synchronizeStatement();
     }
   }
@@ -567,7 +567,7 @@ Unique<ast::Statement> Parser::forStatement() {
     try {
       body.push_back(statement());
     } catch (const ParseException& e) {
-      errorHandler->errorAt(e.getToken(), e.getMessage());
+      errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
       synchronizeStatement();
     }
   }
@@ -641,6 +641,10 @@ Unique<ast::Expression> Parser::logicalOrExpression() {
     expr = makeUnique<ast::BinaryExpression>(
         ast::BinaryExpression::Operator::Or, std::move(expr),
         logicalAndExpression(), previous);
+  }
+
+  if (match(TokenType::QUES)) {
+    return ternaryExpression(std::move(expr));
   }
 
   return expr;
@@ -864,6 +868,20 @@ Unique<ast::Expression> Parser::arrayExpression() {
           "Expect ']' after array.");
 
   return makeUnique<ast::NewArrayExpression>(subtype, length, previous);
+}
+
+Unique<ast::Expression> Parser::ternaryExpression(
+    Unique<ast::Expression> condition) {
+  auto location = previous;
+  auto left = logicalOrExpression();
+
+  consume(TokenType::COLON, CompilerErrorKind::ExpectColon,
+          "Expect ':' between ternary operator operands.");
+
+  auto right = logicalOrExpression();
+
+  return makeUnique<ast::TernaryExpression>(
+      std::move(condition), std::move(left), std::move(right), location);
 }
 
 Unique<ast::Expression> Parser::unaryNumericToLiteral(

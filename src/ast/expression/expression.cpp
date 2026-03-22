@@ -247,5 +247,19 @@ pex::PexValue ArrayIndexSetExpression::compile(
   return compiler.compile(*this);
 }
 
+bool TernaryExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const TernaryExpression&>(other_);
+  return condition->equals(*other.condition) && left->equals(*other.left) &&
+         right->equals(*other.right);
+}
+
+void TernaryExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitTernaryExpression(*this);
+}
+
+pex::PexValue TernaryExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
 }  // namespace ast
 }  // namespace vellum

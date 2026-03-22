@@ -107,7 +107,9 @@ class IdentifierExpression : public Expression {
 
   void setMangledIdentifier(VellumIdentifier id) { mangledIdentifier = id; }
 
-  Opt<VellumIdentifier> getMangledIdentifier() const { return mangledIdentifier; }
+  Opt<VellumIdentifier> getMangledIdentifier() const {
+    return mangledIdentifier;
+  }
 
  private:
   VellumIdentifier identifier;
@@ -442,6 +444,29 @@ class NewArrayExpression : public Expression {
  private:
   Opt<VellumType> subtype;
   VellumLiteral length;
+};
+
+class TernaryExpression : public Expression {
+ public:
+  TernaryExpression(Unique<Expression> condition, Unique<Expression> left,
+                    Unique<Expression> right, Token location)
+      : Expression(location),
+        condition(std::move(condition)),
+        left(std::move(left)),
+        right(std::move(right)) {}
+
+  const Unique<Expression>& getCondition() const { return condition; }
+  const Unique<Expression>& getLeft() const { return left; }
+  const Unique<Expression>& getRight() const { return right; }
+
+  bool equals(const Expression& other) const override;
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+ private:
+  Unique<Expression> condition;
+  Unique<Expression> left;
+  Unique<Expression> right;
 };
 }  // namespace ast
 }  // namespace vellum

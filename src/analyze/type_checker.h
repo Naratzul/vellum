@@ -23,7 +23,8 @@ class TypeChecker {
     Return,         // return statement
     BinaryOperand,  // left/right operand in binary operations
     UnaryOperand,   // operand in unary operations
-    Initialization  // variable initialization
+    Initialization,  // variable initialization
+    TernaryBranch,  // ? : true / false branch vs unified result type
   };
 
   struct Result {
@@ -56,6 +57,11 @@ class TypeChecker {
   // Explicit cast compatibility check (expr AS Type).
   // Skyrim-first: casting *to* an Array type is not allowed.
   bool canExplicitlyCast(VellumType src, VellumType dest) const;
+
+  // Unified result type for `cond ? a : b` when branches are compatible
+  // (including Int+Float → Float and None with object/array).
+  std::optional<VellumType> commonTernaryBranchType(VellumType left,
+                                                    VellumType right) const;
 
  private:
   // Check if expression is a valid value (not function/script type identifier)

@@ -60,6 +60,7 @@ enum class CompilerErrorKind {
 
   LogicalOperationTypeMismatch,
   ArithmeticOperationTypeMismatch,
+  TernaryTypeMismatch,
   UnaryOperatorTypeMismatch,
   UnsupportedBinaryOperator,
 

@@ -123,6 +123,37 @@ bool TypeChecker::areTypesCompatible(VellumType actual, VellumType expected) {
   return false;
 }
 
+std::optional<VellumType> TypeChecker::commonTernaryBranchType(
+    VellumType left, VellumType right) const {
+  if (left == right) {
+    return left;
+  }
+
+  const bool leftNumeric = left.isInt() || left.isFloat();
+  const bool rightNumeric = right.isInt() || right.isFloat();
+  if (leftNumeric && rightNumeric) {
+    if (left.isFloat() || right.isFloat()) {
+      return VellumType::literal(VellumLiteralType::Float);
+    }
+    return VellumType::literal(VellumLiteralType::Int);
+  }
+
+  if (left.isNone() && right.getState() == VellumTypeState::Identifier) {
+    return right;
+  }
+  if (right.isNone() && left.getState() == VellumTypeState::Identifier) {
+    return left;
+  }
+  if (left.isNone() && right.isArray()) {
+    return right;
+  }
+  if (right.isNone() && left.isArray()) {
+    return left;
+  }
+
+  return std::nullopt;
+}
+
 bool TypeChecker::canExplicitlyCast(VellumType src, VellumType dest) const {
   // If types aren't resolved yet, defer validation to later passes.
   if (!src.isResolved() || !dest.isResolved()) return true;
@@ -209,6 +240,11 @@ std::string TypeChecker::getInvalidIdentifierErrorMessage(
     case Context::Initialization:
       return std::format(
           "Cannot initialize a variable with a {} {}. Expected a value.{}",
+          entityName, entityValue, suggestion);
+
+    case Context::TernaryBranch:
+      return std::format(
+          "Cannot use a {} {} as a ternary branch. Expected a value.{}",
           entityName, entityValue, suggestion);
   }
   return std::format("Invalid {} {}", entityName, entityValue);
@@ -298,6 +334,15 @@ std::string TypeChecker::getTypeMismatchErrorMessage(
           "'{}'. Got type is '{}'",
           contextInfo, expectedTypeStr, actualTypeStr);
     }
+
+    case Context::TernaryBranch: {
+      const std::string branch =
+          contextInfo.empty() ? "branch" : contextInfo;
+      return std::format(
+          "Ternary {} branch must be compatible with type '{}', but got type "
+          "'{}'.",
+          branch, expectedTypeStr, actualTypeStr);
+    }
   }
   return std::format("Type mismatch: expected '{}', got '{}'.", expectedTypeStr,
                      actualTypeStr);
@@ -317,6 +362,8 @@ CompilerErrorKind TypeChecker::getErrorKindForContext(Context context) {
       return CompilerErrorKind::ArithmeticOperationTypeMismatch;
     case Context::UnaryOperand:
       return CompilerErrorKind::UnaryOperatorTypeMismatch;
+    case Context::TernaryBranch:
+      return CompilerErrorKind::TernaryTypeMismatch;
   }
   return CompilerErrorKind::InvalidArgumentType;
 }

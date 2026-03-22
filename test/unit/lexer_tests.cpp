@@ -198,3 +198,20 @@ TEST_CASE("LexerComposedAssignmentTokens") {
   CHECK_THAT(scanTokens(makeUnique<Lexer>(source)),
              Catch::Matchers::Equals(expected));
 }
+
+TEST_CASE("LexerQuesToken") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("?"));
+  REQUIRE_FALSE(tokens.empty());
+  CHECK(tokens[0].type == TokenType::QUES);
+  CHECK(tokens[0].lexeme == "?");
+}
+
+TEST_CASE("LexerQuesBetweenIdentifiers") {
+  Vec<Token> expected{
+      makeToken(TokenType::IDENTIFIER, 1, "x"),
+      makeToken(TokenType::QUES, 1, "?"),
+      makeToken(TokenType::IDENTIFIER, 1, "y"),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("x ? y")),
+             Catch::Matchers::Equals(expected));
+}

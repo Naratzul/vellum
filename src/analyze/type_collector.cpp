@@ -205,4 +205,10 @@ void TypeCollector::visitArrayIndexSetExpression(
   expr.getValue()->accept(*this);
 }
 
+void TypeCollector::visitTernaryExpression(ast::TernaryExpression& expr) {
+  expr.getCondition()->accept(*this);
+  expr.getLeft()->accept(*this);
+  expr.getRight()->accept(*this);
+}
+
 }  // namespace vellum

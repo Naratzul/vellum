@@ -42,6 +42,7 @@ enum class TokenType {
   LESS,
   LESS_EQUAL,
   ARROW,
+  QUES,
   // Literals.
   IDENTIFIER,
   STRING,

@@ -27,13 +27,21 @@ enum class FunctionType { Function, Event, Getter, Setter };
 class ParseException : public std::runtime_error {
  public:
   ParseException(Token token, const std::string& message)
-      : std::runtime_error(message), token(token) {}
+      : std::runtime_error(message),
+        token(token),
+        errorKind(CompilerErrorKind::UnexpectedToken) {}
+
+  ParseException(Token token, CompilerErrorKind errorKind,
+                 const std::string& message)
+      : std::runtime_error(message), token(token), errorKind(errorKind) {}
 
   Token getToken() const { return token; }
   std::string getMessage() const { return what(); }
+  CompilerErrorKind getErrorKind() const { return errorKind; }
 
  private:
   Token token;
+  CompilerErrorKind errorKind;
 };
 
 class Parser {
@@ -103,6 +111,7 @@ class Parser {
                                          const Token& location);
   Unique<ast::Expression> primaryExpression();
   Unique<ast::Expression> arrayExpression();
+  Unique<ast::Expression> ternaryExpression(Unique<ast::Expression> condition);
 
   Unique<ast::Expression> unaryNumericToLiteral(Unique<ast::Expression> expr);
 
@@ -120,6 +129,7 @@ inline void Parser::consume(TokenType type, CompilerErrorKind error,
     advance();
     return;
   }
-  throw ParseException(current, std::format(fmt, std::forward<Args>(args)...));
+  throw ParseException(
+      current, error, std::format(fmt, std::forward<Args>(args)...));
 }
 }  // namespace vellum

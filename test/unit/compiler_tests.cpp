@@ -1124,3 +1124,97 @@ TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
   }
   CHECK(makeArrCalls == 1);
 }
+
+TEST_CASE("CompileTernary_IntInt_JmpPattern_NoCast") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
+                                                    "testscript");
+  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
+                                               "testscript");
+
+  Token loc{};
+  auto ternary = makeUnique<ast::TernaryExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(2)), loc);
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ReturnStatement>(std::move(ternary)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(body), false));
+
+  collector->collect(ast);
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  auto hasOp = [&](pex::PexOpCode op) {
+    for (const auto& i : instructions)
+      if (i.getOpCode() == op) return true;
+    return false;
+  };
+  CHECK(hasOp(pex::PexOpCode::JmpF));
+  CHECK(hasOp(pex::PexOpCode::Jmp));
+  bool hasCast = false;
+  for (const auto& i : instructions)
+    if (i.getOpCode() == pex::PexOpCode::Cast) hasCast = true;
+  CHECK_FALSE(hasCast);
+}
+
+TEST_CASE("CompileTernary_IntFloat_Promotion_HasCast") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
+                                                    "testscript");
+  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
+                                               "testscript");
+
+  Token loc{};
+  auto ternary = makeUnique<ast::TernaryExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(2.5f)), loc);
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ReturnStatement>(std::move(ternary)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Float"),
+      std::move(body), false));
+
+  collector->collect(ast);
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  auto hasOp = [&](pex::PexOpCode op) {
+    for (const auto& i : instructions)
+      if (i.getOpCode() == op) return true;
+    return false;
+  };
+  CHECK(hasOp(pex::PexOpCode::JmpF));
+  CHECK(hasOp(pex::PexOpCode::Jmp));
+  bool hasCast = false;
+  for (const auto& i : instructions)
+    if (i.getOpCode() == pex::PexOpCode::Cast) hasCast = true;
+  CHECK(hasCast);
+}

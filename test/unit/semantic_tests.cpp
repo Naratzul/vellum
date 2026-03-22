@@ -3279,3 +3279,128 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Arithmetic_IntFloatPromotesToFloat") {
       dynamic_cast<ast::LocalVariableStatement&>(*funcDecl.getBody()[1]);
   REQUIRE(localStmt.getInitializer()->getType().isFloat());
 }
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticTernary_IntInt_ResultInt") {
+  Token loc{};
+  auto ternary = makeUnique<ast::TernaryExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(2)), loc);
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ReturnStatement>(std::move(ternary)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  const auto& ret =
+      dynamic_cast<ast::ReturnStatement&>(*funcDecl.getBody()[0]);
+  const auto& tern =
+      dynamic_cast<ast::TernaryExpression&>(*ret.getExpression());
+  REQUIRE(tern.getType().isInt());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticTernary_IntFloat_ResultFloat") {
+  Token loc{};
+  auto ternary = makeUnique<ast::TernaryExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(3.5f)), loc);
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ReturnStatement>(std::move(ternary)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Float"),
+      std::move(body), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  const auto& ret =
+      dynamic_cast<ast::ReturnStatement&>(*funcDecl.getBody()[0]);
+  const auto& tern =
+      dynamic_cast<ast::TernaryExpression&>(*ret.getExpression());
+  REQUIRE(tern.getType().isFloat());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticTernary_NonBoolCondition_Error") {
+  Token loc{};
+  auto ternary = makeUnique<ast::TernaryExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(2)), loc);
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ReturnStatement>(std::move(ternary)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(body), false));
+
+  collector->collect(ast);
+  (void)analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticTernary_IncompatibleBranches_TernaryTypeMismatch") {
+  Token loc{};
+  auto ternary = makeUnique<ast::TernaryExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      makeUnique<ast::LiteralExpression>(
+          VellumLiteral(std::string_view("no"))),
+      loc);
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(
+      makeUnique<ast::ReturnStatement>(std::move(ternary)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(body), false));
+
+  collector->collect(ast);
+  (void)analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::TernaryTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticTernary_FunctionAsBranch_TernaryTypeMismatch") {
+  auto barBody = Vec<Unique<ast::Statement>>{};
+  barBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "bar", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(barBody), false));
+
+  Token loc{};
+  auto ternary = makeUnique<ast::TernaryExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("bar")),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), loc);
+  auto testBody = Vec<Unique<ast::Statement>>{};
+  testBody.emplace_back(
+      makeUnique<ast::ReturnStatement>(std::move(ternary)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      std::move(testBody), false));
+
+  collector->collect(ast);
+  (void)analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::TernaryTypeMismatch));
+}

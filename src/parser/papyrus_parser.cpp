@@ -36,8 +36,7 @@ ParserResult PapyrusParser::parse() {
       }
       result.declarations.push_back(std::move(decl));
     } catch (const ParseException& e) {
-      errorHandler->errorAt(e.getToken(), CompilerErrorKind::ExpectDeclaration,
-                            e.getMessage());
+      errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
       synchronize();
     }
   }

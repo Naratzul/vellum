@@ -54,9 +54,9 @@ Token Lexer::scanToken() {
     case '.':
       return makeToken(TokenType::DOT);
     case '-':
-      return makeToken(match('=') ? TokenType::MINUS_EQUAL
-                    : match('>') ? TokenType::ARROW
-                                : TokenType::MINUS);
+      return makeToken(match('=')   ? TokenType::MINUS_EQUAL
+                       : match('>') ? TokenType::ARROW
+                                    : TokenType::MINUS);
     case '+':
       return makeToken(match('=') ? TokenType::PLUS_EQUAL : TokenType::PLUS);
     case '/':
@@ -64,9 +64,12 @@ Token Lexer::scanToken() {
     case '*':
       return makeToken(match('=') ? TokenType::STAR_EQUAL : TokenType::STAR);
     case '%':
-      return makeToken(match('=') ? TokenType::PERCENT_EQUAL : TokenType::PERCENT);
+      return makeToken(match('=') ? TokenType::PERCENT_EQUAL
+                                  : TokenType::PERCENT);
     case '!':
       return makeToken(match('=') ? TokenType::BANG_EQUAL : TokenType::BANG);
+    case '?':
+      return makeToken(TokenType::QUES);
     case '=':
       return makeToken(match('=') ? TokenType::EQUAL_EQUAL : TokenType::EQUAL);
     case '<':

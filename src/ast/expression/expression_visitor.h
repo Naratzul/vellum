@@ -20,6 +20,7 @@ class BinaryExpression;
 class UnaryExpression;
 class CastExpression;
 class NewArrayExpression;
+class TernaryExpression;
 
 class ExpressionVisitor {
  public:
@@ -37,6 +38,7 @@ class ExpressionVisitor {
   virtual void visitNewArrayExpression(ast::NewArrayExpression& expr) = 0;
   virtual void visitSelfExpression(ast::SelfExpression& expr) = 0;
   virtual void visitSuperExpression(ast::SuperExpression& expr) = 0;
+  virtual void visitTernaryExpression(ast::TernaryExpression& expr) = 0;
 };
 
 class ExpressionCompiler {
@@ -55,6 +57,7 @@ class ExpressionCompiler {
   virtual pex::PexValue compile(const ast::NewArrayExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::SelfExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::SuperExpression& expr) = 0;
+  virtual pex::PexValue compile(const ast::TernaryExpression& expr) = 0;
 };
 
 }  // namespace ast

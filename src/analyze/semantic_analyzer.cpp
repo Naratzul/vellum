@@ -164,8 +164,7 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
   if (!statement.getExpression()) {
     if (!func->getReturnType().isNone()) {
       errorHandler->errorAt(
-          statement.getLocation(),
-          CompilerErrorKind::ReturnTypeMismatch,
+          statement.getLocation(), CompilerErrorKind::ReturnTypeMismatch,
           "Function expects return type '{}' but no value was returned.",
           func->getReturnType().toString());
     }
@@ -1042,6 +1041,67 @@ void SemanticAnalyzer::visitArrayIndexSetExpression(
   }
 
   expr.setType(*elementType);
+}
+
+void SemanticAnalyzer::visitTernaryExpression(ast::TernaryExpression& expr) {
+  expr.getCondition()->accept(*this);
+  if (!expr.getCondition()->getType().isBool()) {
+    errorHandler->errorAt(
+        expr.getCondition()->getLocation(),
+        "Condition expression must have 'Bool' type. Given type is '{}'.",
+        expr.getCondition()->getType().toString());
+    return;
+  }
+
+  expr.getLeft()->accept(*this);
+  expr.getRight()->accept(*this);
+
+  auto leftValid = checker.checkValidValue(expr.getLeft(),
+                                           TypeChecker::Context::TernaryBranch);
+  if (!leftValid.compatible) {
+    errorHandler->errorAt(expr.getLeft()->getLocation(), leftValid.errorKind,
+                          leftValid.errorMessage);
+    return;
+  }
+
+  auto rightValid = checker.checkValidValue(expr.getRight(),
+                                            TypeChecker::Context::TernaryBranch);
+  if (!rightValid.compatible) {
+    errorHandler->errorAt(expr.getRight()->getLocation(), rightValid.errorKind,
+                          rightValid.errorMessage);
+    return;
+  }
+
+  const VellumType leftType = expr.getLeft()->getType();
+  const VellumType rightType = expr.getRight()->getType();
+  const auto resultType = checker.commonTernaryBranchType(leftType, rightType);
+  if (!resultType.has_value()) {
+    errorHandler->errorAt(
+        expr.getLocation(), CompilerErrorKind::TernaryTypeMismatch,
+        "Ternary branch types '{}' and '{}' are incompatible.",
+        leftType.toString(), rightType.toString());
+    return;
+  }
+
+  auto leftCheck =
+      checker.check(expr.getLeft(), resultType.value(),
+                    TypeChecker::Context::TernaryBranch, "true");
+  if (!leftCheck.compatible) {
+    errorHandler->errorAt(expr.getLeft()->getLocation(), leftCheck.errorKind,
+                          leftCheck.errorMessage);
+    return;
+  }
+
+  auto rightCheck =
+      checker.check(expr.getRight(), resultType.value(),
+                    TypeChecker::Context::TernaryBranch, "false");
+  if (!rightCheck.compatible) {
+    errorHandler->errorAt(expr.getRight()->getLocation(), rightCheck.errorKind,
+                          rightCheck.errorMessage);
+    return;
+  }
+
+  expr.setType(resultType.value());
 }
 
 bool SemanticAnalyzer::validateComposedAssignTypes(ast::AssignOperator op,

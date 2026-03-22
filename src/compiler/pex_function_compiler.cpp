@@ -162,7 +162,7 @@ void PexFunctionCompiler::visitReturnStatement(
     returnValue = pex::PexValue(getNoneVar());
   }
   emitInstruction(pex::PexOpCode::Return,
-                 Vec<pex::PexValue>{std::move(returnValue)});
+                  Vec<pex::PexValue>{std::move(returnValue)});
 }
 
 void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
@@ -479,6 +479,61 @@ pex::PexValue PexFunctionCompiler::compile(const ast::SelfExpression& expr) {
 pex::PexValue PexFunctionCompiler::compile(const ast::SuperExpression& expr) {
   (void)expr;
   return pex::PexValue(pex::PexIdentifier(file.getString("parent")));
+}
+
+pex::PexValue PexFunctionCompiler::compile(const ast::TernaryExpression& expr) {
+  assert(expr.getCondition()->getType().isBool());
+
+  const VellumType resultType = expr.getType();
+  pex::PexIdentifier result = makeTempVarId(resultType);
+
+  setCurrentLocation(expr.getCondition()->getLocation());
+  const pex::PexIdentifier condition =
+      makeTempVarId(expr.getCondition()->getType());
+  Vec<pex::PexValue> args = {condition, expr.getCondition()->compile(*this)};
+  emitInstruction(pex::PexOpCode::Assign, std::move(args));
+
+  pex::PexValue jmp_to_else_label(int32_t(0));
+  args = {condition, jmp_to_else_label};
+  size_t jmp_to_else_pos = instructions.size();
+  emitInstruction(pex::PexOpCode::JmpF, std::move(args));
+
+  setCurrentLocation(expr.getLeft()->getLocation());
+  pex::PexValue leftResult = expr.getLeft()->compile(*this);
+  if (resultType.isFloat() && expr.getLeft()->getType().isInt()) {
+    pex::PexValue floatTemp = makeTempVarId(resultType);
+    Vec<pex::PexValue> castArgs = {floatTemp, leftResult};
+    emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
+    leftResult = floatTemp;
+  }
+  args = {result, leftResult};
+  emitInstruction(pex::PexOpCode::Assign, std::move(args));
+
+  size_t jmp_to_end_pos = instructions.size();
+
+  setCurrentLocation(expr.getCondition()->getLocation());
+  pex::PexValue jmp_to_end_label(int32_t(0));
+  args = {jmp_to_end_label};
+  emitInstruction(pex::PexOpCode::Jmp, args);
+
+  instructions[jmp_to_else_pos].setArg(
+      1, pex::PexValue(int32_t(instructions.size() - jmp_to_else_pos)));
+
+  setCurrentLocation(expr.getRight()->getLocation());
+  pex::PexValue rightResult = expr.getRight()->compile(*this);
+  if (resultType.isFloat() && expr.getRight()->getType().isInt()) {
+    pex::PexValue floatTemp = makeTempVarId(resultType);
+    Vec<pex::PexValue> castArgs = {floatTemp, rightResult};
+    emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
+    rightResult = floatTemp;
+  }
+  args = {result, rightResult};
+  emitInstruction(pex::PexOpCode::Assign, std::move(args));
+
+  instructions[jmp_to_end_pos].setArg(
+      0, pex::PexValue(int32_t(instructions.size() - jmp_to_end_pos)));
+
+  return result;
 }
 
 pex::PexValue PexFunctionCompiler::compile(

@@ -46,24 +46,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 ### Vellum New Features (Priority: Medium)
 
-#### Ternary Operator
-
-**Status**: Not implemented.
-
-**Implementation needed**:
-
-- Ternary syntax: `condition ? trueExpr : falseExpr`
-- Operator precedence (lower than assignment, higher than logical OR)
-- Type checking (both branches must be compatible)
-- Compilation to PEX (conditional jump instructions)
-
-**Files to modify**:
-
-- `src/parser/parser.cpp` - Add ternary to expression parsing (after logical OR)
-- `src/ast/expression/expression.h` - Add `TernaryExpression` class
-- `src/analyze/semantic_analyzer.cpp` - Add `visitTernaryExpression`
-- `src/compiler/pex_function_compiler.cpp` - Compile ternary expressions
-
 #### String Format
 
 **Status**: Not implemented.
@@ -136,6 +118,7 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 - **Binary operations** - All arithmetic (`+`, `-`, `*`, `/`, `%`) and comparison (`==`, `!=`, `<`, `<=`, `>`, `>=`) operators
 - **Logical operations** - Logical AND (`&&`) and OR (`||`)
+- **Ternary operator** - `condition ? trueExpr : falseExpr` (`QUES` token); binds looser than `||`/`&&` (C-style: `a || b ? c : d` → `(a || b) ? c : d`), right-associative; bool condition; branch compatibility via `TypeChecker` (`commonTernaryBranchType`, `TernaryBranch` context, Int→Float promotion, `TernaryTypeMismatch`); PEX `JmpF`/`Jmp` and `Cast` when unifying to Float; parse `consume()` errors retain kinds (e.g. `ExpectColon`); tests in `test/unit/` (lexer, parser, semantic, compiler)
 - **Unary operations** - Negation (`-`) and logical NOT (`!`)
 - **Cast expressions** - Type casting with `AS` keyword; cast semantic validation (Skyrim: compatible cast matrix, no cast to array), implicit Int→Float in arithmetic and assignment
 - **Function calls** - Method and function invocation
@@ -170,7 +153,7 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - Many PEX instructions already exist in `src/pex/pex_instruction.h` that can be leveraged
 - The parser uses recursive descent with good error recovery
 - Type system is well-structured and extensible
-- Consider adding tests for each new feature in `test/unit/`
+- Ternary operator has layered unit tests in `test/unit/` (lexer through compiler); add similar coverage for other new features
 
 ## Testing Strategy
 
