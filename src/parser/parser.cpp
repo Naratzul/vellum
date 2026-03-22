@@ -281,10 +281,16 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
 
         consume(TokenType::COLON, CompilerErrorKind::ExpectColon,
                 "Expect ':' after parameter name.");
+        const bool paramIsArray = match(TokenType::LEFT_BRACK);
         consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectTypeName,
                 "Expect a parameter type.");
-        std::string_view paramType = previous.lexeme;
+        VellumType paramTypeName = VellumType::unresolved(previous.lexeme);
         Token paramTypeLocation = previous;
+        if (paramIsArray) {
+          consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
+                  "Expect ']' after array element type.");
+          paramTypeName = VellumType::array(paramTypeName);
+        }
 
         Opt<VellumLiteral> defaultValue = std::nullopt;
         if (match(TokenType::EQUAL)) {
@@ -296,9 +302,8 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
           defaultValue = initializer->asLiteral().getLiteral();
         }
 
-        parameters.emplace_back(paramName, VellumType::unresolved(paramType),
-                                std::move(defaultValue), paramNameLocation,
-                                paramTypeLocation);
+        parameters.emplace_back(paramName, paramTypeName, std::move(defaultValue),
+                                paramNameLocation, paramTypeLocation);
       } catch (const ParseException& e) {
         errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
         synchronizeToRightParen();

@@ -220,6 +220,43 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
   CHECK(expected == *result.declarations[0]);
 }
 
+TEST_CASE("ParserFunctionDeclaration_ArrayParameterType") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "squared"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::IDENTIFIER, 1, "nums"),
+      makeToken(TokenType::COLON, 1, ":"),
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getParameters().size() == 1);
+  const auto& p = funcDecl->getParameters()[0];
+  REQUIRE(p.type.isArray());
+  REQUIRE(*p.type.asArraySubtype() == VellumType::unresolved("Int"));
+}
+
 TEST_CASE("ParserBreakInsideWhile") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
