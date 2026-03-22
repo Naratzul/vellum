@@ -183,22 +183,22 @@ enum class AssignOperator { Assign, Add, Subtract, Multiply, Divide, Modulo };
 
 class AssignExpression : public Expression {
  public:
-  AssignExpression(VellumIdentifier name, Unique<Expression> value,
+  AssignExpression(Unique<Expression> name, Unique<Expression> value,
                    AssignOperator op = AssignOperator::Assign,
                    Token location = Token{})
-      : Expression(location), name(name), value(std::move(value)), op(op) {}
+      : Expression(location), name(std::move(name)), value(std::move(value)), op(op) {}
 
   bool equals(const Expression& other) const override;
 
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
-  VellumIdentifier getName() const { return name; }
+  const Unique<Expression>& getName() const { return name; }
   const Unique<Expression>& getValue() const { return value; }
   AssignOperator getOperator() const { return op; }
 
  private:
-  VellumIdentifier name;
+  Unique<Expression> name;
   Unique<Expression> value;
   AssignOperator op;
 };

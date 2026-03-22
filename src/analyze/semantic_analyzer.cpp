@@ -698,41 +698,50 @@ void SemanticAnalyzer::visitPropertySetExpression(
 }
 
 void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
-  const auto identifier = resolver->resolveIdentifier(expr.getName());
-  if (!identifier) {
-    errorHandler->errorAt(
-        expr.getLocation(), CompilerErrorKind::UndefinedIdentifier,
-        "Undefined identifier '{}'.", expr.getName().toString());
+  expr.getName()->accept(*this);
+
+  if (!expr.getName()->isIdentifierExpression()) {
+    errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::NotAssignable,
+                          "Invalid assignment target.");
     return;
   }
 
-  if (inStaticContext && resolver->isInstanceMember(expr.getName())) {
+  VellumIdentifier identifier(
+      expr.getName()->asIdentifier().getIdentifier());
+  const auto value = resolver->resolveIdentifier(identifier);
+  if (!value) {
+    errorHandler->errorAt(expr.getLocation(),
+                          CompilerErrorKind::UndefinedIdentifier,
+                          "Undefined identifier '{}'.", identifier.toString());
+    return;
+  }
+
+  if (inStaticContext && resolver->isInstanceMember(identifier)) {
     errorHandler->errorAt(expr.getLocation(),
                           CompilerErrorKind::InstanceMemberInStaticContext,
                           "Instance member '{}' is not allowed in a static "
                           "function.",
-                          expr.getName().toString());
+                          identifier.toString());
     return;
   }
 
-  switch (identifier->getType()) {
+  switch (value->getType()) {
     case VellumValueType::Property:
-      if (identifier->asProperty().isReadonly()) {
-        errorHandler->errorAt(expr.getLocation(),
-                              CompilerErrorKind::NotAssignable,
-                              "Can't assign to readonly property '{}'",
-                              expr.getName().toString());
+      if (value->asProperty().isReadonly()) {
+        errorHandler->errorAt(
+            expr.getLocation(), CompilerErrorKind::NotAssignable,
+            "Can't assign to readonly property '{}'", identifier.toString());
       }
-      expr.setType(identifier->asProperty().getType());
+      expr.setType(value->asProperty().getType());
       break;
 
     case VellumValueType::Variable:
-      expr.setType(identifier->asVariable().getType());
+      expr.setType(value->asVariable().getType());
       break;
     default:
-      errorHandler->errorAt(
-          expr.getLocation(), CompilerErrorKind::NotAssignable,
-          "'{}' is not assignable.", expr.getName().toString());
+      errorHandler->errorAt(expr.getLocation(),
+                            CompilerErrorKind::NotAssignable,
+                            "'{}' is not assignable.", identifier.toString());
       return;
   }
 
@@ -746,8 +755,7 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
     }
   }
 
-  std::string contextInfo =
-      "variable," + std::string(expr.getName().toString());
+  std::string contextInfo = "variable," + std::string(identifier.toString());
   auto result = checker.check(expr.getValue(), expr.getType(),
                               TypeChecker::Context::Assignment, contextInfo);
   if (!result.compatible) {
@@ -1064,8 +1072,8 @@ void SemanticAnalyzer::visitTernaryExpression(ast::TernaryExpression& expr) {
     return;
   }
 
-  auto rightValid = checker.checkValidValue(expr.getRight(),
-                                            TypeChecker::Context::TernaryBranch);
+  auto rightValid = checker.checkValidValue(
+      expr.getRight(), TypeChecker::Context::TernaryBranch);
   if (!rightValid.compatible) {
     errorHandler->errorAt(expr.getRight()->getLocation(), rightValid.errorKind,
                           rightValid.errorMessage);
@@ -1083,18 +1091,16 @@ void SemanticAnalyzer::visitTernaryExpression(ast::TernaryExpression& expr) {
     return;
   }
 
-  auto leftCheck =
-      checker.check(expr.getLeft(), resultType.value(),
-                    TypeChecker::Context::TernaryBranch, "true");
+  auto leftCheck = checker.check(expr.getLeft(), resultType.value(),
+                                 TypeChecker::Context::TernaryBranch, "true");
   if (!leftCheck.compatible) {
     errorHandler->errorAt(expr.getLeft()->getLocation(), leftCheck.errorKind,
                           leftCheck.errorMessage);
     return;
   }
 
-  auto rightCheck =
-      checker.check(expr.getRight(), resultType.value(),
-                    TypeChecker::Context::TernaryBranch, "false");
+  auto rightCheck = checker.check(expr.getRight(), resultType.value(),
+                                  TypeChecker::Context::TernaryBranch, "false");
   if (!rightCheck.compatible) {
     errorHandler->errorAt(expr.getRight()->getLocation(), rightCheck.errorKind,
                           rightCheck.errorMessage);

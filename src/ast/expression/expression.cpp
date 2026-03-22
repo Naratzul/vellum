@@ -80,8 +80,9 @@ bool operator!=(const Expression& lhs, const Expression& rhs) {
 
 bool AssignExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const AssignExpression&>(other_);
-  return getName() == other.getName() && getOperator() == other.getOperator() &&
-         getType() == other.getType() && getValue()->equals(*other.getValue());
+  return getName()->equals(*other.getName()) &&
+         getOperator() == other.getOperator() && getType() == other.getType() &&
+         getValue()->equals(*other.getValue());
 }
 
 void AssignExpression::accept(ExpressionVisitor& visitor) {

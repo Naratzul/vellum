@@ -662,6 +662,7 @@ pex::PexValue PexFunctionCompiler::compile(
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
+  pex::PexValue name = expr.getName()->compile(*this);
   if (expr.getOperator() == ast::AssignOperator::Assign) {
     pex::PexValue value = expr.getValue()->compile(*this);
     if (expr.getType().isFloat() && expr.getValue()->getType().isInt()) {
@@ -672,11 +673,11 @@ pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
       value = floatTemp;
     }
     setCurrentLocation(expr.getLocation());
-    Vec<pex::PexValue> args = {makePexValue(expr.getName(), file), value};
+    Vec<pex::PexValue> args = {name, value};
     emitInstruction(pex::PexOpCode::Assign, std::move(args));
     return value;
   }
-  const pex::PexValue lhsVal = makePexValue(expr.getName(), file);
+  const pex::PexValue lhsVal = name;
   const pex::PexValue rhsVal = expr.getValue()->compile(*this);
   const pex::PexValue dest = makeTempVar(expr.getType());
   setCurrentLocation(expr.getLocation());
@@ -690,8 +691,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
                                lhsVal, rhsVal};
   emitInstruction(code, std::move(opArgs));
   Vec<pex::PexValue> assignArgs = {
-      makePexValue(expr.getName(), file),
-      pex::PexIdentifier(dest.asTempVar().getName())};
+      name, pex::PexIdentifier(dest.asTempVar().getName())};
   emitInstruction(pex::PexOpCode::Assign, std::move(assignArgs));
   return pex::PexIdentifier(dest.asTempVar().getName());
 }

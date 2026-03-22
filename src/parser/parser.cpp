@@ -302,8 +302,9 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
           defaultValue = initializer->asLiteral().getLiteral();
         }
 
-        parameters.emplace_back(paramName, paramTypeName, std::move(defaultValue),
-                                paramNameLocation, paramTypeLocation);
+        parameters.emplace_back(paramName, paramTypeName,
+                                std::move(defaultValue), paramNameLocation,
+                                paramTypeLocation);
       } catch (const ParseException& e) {
         errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
         synchronizeToRightParen();
@@ -619,8 +620,7 @@ Unique<ast::Expression> Parser::assignExpression() {
     }
     if (expr->isIdentifierExpression()) {
       return makeUnique<ast::AssignExpression>(
-          expr->asIdentifier().getIdentifier(), assignExpression(), op,
-          previous);
+          std::move(expr), assignExpression(), op, previous);
     } else if (expr->isPropertyGetExpression()) {
       ast::PropertyGetExpression& getExpr = expr->asPropertyGet();
       return makeUnique<ast::PropertySetExpression>(

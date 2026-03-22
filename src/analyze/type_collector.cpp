@@ -166,6 +166,7 @@ void TypeCollector::visitPropertySetExpression(
 }
 
 void TypeCollector::visitAssignExpression(ast::AssignExpression& expr) {
+  expr.getName()->accept(*this);
   expr.getValue()->accept(*this);
 }
 

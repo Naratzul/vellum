@@ -61,7 +61,7 @@ TEST_CASE("CompileComposedAssignTest") {
       makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
 
   auto assign_expr = makeUnique<ast::AssignExpression>(
-      VellumIdentifier("x"),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("x"), Token{}),
       makeUnique<ast::LiteralExpression>(VellumLiteral(5)),
       ast::AssignOperator::Add, Token{});
   assign_expr->setType(VellumType::literal(VellumLiteralType::Int));
