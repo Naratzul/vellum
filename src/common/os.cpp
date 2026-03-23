@@ -6,6 +6,7 @@
 #include <Windows.h>
 #include <debugapi.h>
 #include <lmcons.h>
+#include <shlobj_core.h>
 #elif defined __APPLE__
 #include <sys/sysctl.h>
 #include <sys/types.h>
