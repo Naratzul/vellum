@@ -1,4 +1,6 @@
 #include <cassert>
+#include <cstdlib>
+#include <filesystem>
 
 #ifdef WIN32
 #include <Windows.h>
@@ -14,6 +16,8 @@
 
 namespace vellum {
 namespace common {
+
+namespace fs = std::filesystem;
 
 #ifdef WIN32
 std::string getUserName() {
@@ -35,6 +39,26 @@ std::string getComputerName() {
 }
 void debugBreak() { DebugBreak(); }
 bool isDebuggerPresent() { return IsDebuggerPresent(); }
+
+std::string getSentryDatabasePath(std::string_view appName) {
+  wchar_t* localAppData = nullptr;
+  if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr,
+                                     &localAppData))) {
+    std::string result =
+        (fs::path(localAppData) / "Vellum" / appName / ".sentry-native")
+            .string();
+    CoTaskMemFree(localAppData);
+    return result;
+  }
+
+  if (const wchar_t* userProfile = _wgetenv(L"USERPROFILE")) {
+    return (fs::path(userProfile) / "AppData" / "Local" / "Vellum" / appName /
+            ".sentry-native")
+        .string();
+  }
+
+  return (fs::path(".") / ".sentry-native").string();
+}
 
 #elif defined __APPLE__
 std::string getUserName() { return std::string(); }
@@ -70,6 +94,16 @@ bool isDebuggerPresent() {
 
   return ((info.kp_proc.p_flag & P_TRACED) != 0);
 }
+
+std::string getSentryDatabasePath(std::string_view appName) {
+  if (const char* home = getenv("HOME")) {
+    return (fs::path(home) / "Library" / "Caches" / "Vellum" / appName /
+            ".sentry-native")
+        .string();
+  }
+  return (fs::path(".") / ".sentry-native").string();
+}
+
 #else
 #error "Unsupported platform."
 #endif

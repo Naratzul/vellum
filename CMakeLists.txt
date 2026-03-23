@@ -3,6 +3,16 @@ project(vellum LANGUAGES CXX)
 
 enable_testing()
 
+include(FetchContent)
+FetchContent_Declare(
+  sentry-native
+  GIT_REPOSITORY https://github.com/getsentry/sentry-native.git
+  GIT_TAG        0.13.3
+)
+set(SENTRY_BACKEND inproc CACHE STRING "" FORCE)
+set(SENTRY_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(sentry-native)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

@@ -35,7 +35,6 @@
 .vscode/
 build/
 cmake-build-debug/
-scripts/
 *.DS_Store
 .cache/
 bin/
@@ -44,3 +43,5 @@ bin/
 out/
 
 papyrus scripts/
+local/
+# Note: scripts/ is tracked; local/ holds sensitive config (DSN, auth) and is gitignored
