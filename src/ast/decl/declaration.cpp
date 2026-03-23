@@ -68,6 +68,9 @@ VellumValue GlobalVariableDeclaration::getValue() const {
   if (typeName_->isArray()) {
     return makeDefaultLiteral(VellumLiteralType::None);
   }
+  if (typeName_->getState() == VellumTypeState::Identifier) {
+    return makeDefaultLiteral(VellumLiteralType::None);
+  }
   return makeDefaultLiteral(typeName_->asLiteralType());
 }
 
