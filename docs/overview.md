@@ -1,0 +1,154 @@
+Vellum is a scripting language created for Creation Kit. It's a rethinking of what Papyrus was. This is the basic overview of the language and its features
+
+## Script declaration
+
+Put your script inside a .vel file. Classic hello world example in Vellum:
+
+```swift
+script HelloWorld : ObjectReference {
+    event OnActivate(actionRef: ObjectReference) {
+        Debug.MessageBox("Hello, World!")
+    }
+}
+```
+
+## Functions and events
+
+You can define a function using the `fun` keyword. A function that takes 2 `Int` parameters and returns an `Int`:
+
+```swift
+fun sum(a: Int, b: Int) -> Int {
+    return a + b
+}
+```
+
+Event definitions start with the `event` keyword:
+
+```swift
+event OnActivate(activator: ObjectReference) {
+  PlayAnimation("CoolStuff")
+}
+```
+
+## Variables
+In Vellum, you declare a variable using the `var` keyword followed by the name of the variable:
+
+```swift
+var x: Int = 4
+var m: String = "Hello"
+```
+
+Vellum supports type inference, so you can omit the type after the variable name:
+
+```swift
+var x = 4 // type `Int` is inferred
+```
+
+## Properties
+Properties are defined using the `var` keyword followed by name, type, and accessors:
+
+```swift
+var myProperty: String {get set} // defines auto property myProperty with type String
+
+var anotherProperty: Float {get} // defines readonly property anotherProperty with type Float
+```
+
+## Arrays
+Arrays can hold multiple items of the same type:
+
+```swift
+var numbers = [Int; 10] // defines array of 10 Ints
+
+numbers[0] = 5 // assign 5 to the first element of array numbers
+
+var x = numbers[9] // assign array last element value to new variable x
+```
+
+You can use the `length` property to get the number of elements:
+
+```swift
+var numbersCount = numbers.length
+```
+
+## For loop
+Use a `for` loop to iterate over an array:
+
+```swift
+var messages = [String; 5] // array of 5 String objects
+
+// fill messages array somehow
+// ...
+// ...
+
+for message in messages {
+    processMessage(message)
+}
+```
+
+## While loop
+A `while` loop runs the code inside the loop body continuously while the condition is satisfied:
+
+```swift
+var x = 0
+while x < 10 {
+    x += 1
+}
+```
+
+## If statement
+
+```swift
+// assume value is set
+var x: Int
+if value > 10 {
+  x = 1
+} else {
+  x = 0
+}
+```
+
+## Ternary conditional operator
+In some cases you can shorten your if statement:
+
+```swift
+// assume value is set
+var x = value > 10 ? 1 : 0
+```
+
+You can also use it in a return statement:
+
+```swift
+fun max(a: Int, b: Int) -> Int {
+    return a > b ? a : b
+}
+```
+
+## States
+
+```swift
+script MyScript {
+
+}
+
+state MyState {
+    event onInit() {
+
+    }
+
+    fun foo() {
+
+    }
+}
+```
+
+If you want your script to start in a particular state, put the `auto` keyword before `state`:
+
+```swift title="MyScript.vel"
+script MyScript {
+
+}
+
+auto state InitialState {
+
+}
+```
