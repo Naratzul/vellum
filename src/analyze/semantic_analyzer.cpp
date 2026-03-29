@@ -188,16 +188,12 @@ void SemanticAnalyzer::visitIfStatement(ast::IfStatement& statement) {
   }
 
   resolver->pushScope();
-  for (const auto& stmt : statement.getThenBlock()) {
-    stmt->accept(*this);
-  }
+  statement.getThenBlock()->accept(*this);
   resolver->popScope();
 
-  if (statement.getElseBlock().has_value()) {
+  if (auto& elseBlock = statement.getElseBlock()) {
     resolver->pushScope();
-    for (const auto& stmt : statement.getElseBlock().value()) {
-      stmt->accept(*this);
-    }
+    elseBlock->accept(*this);
     resolver->popScope();
   }
 }

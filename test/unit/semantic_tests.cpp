@@ -2786,6 +2786,75 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Break_InsideWhile_NoError") {
   REQUIRE(result.declarations.size() == 1);
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture, "If_NonBoolCondition_Error") {
+  ast::FunctionBody body;
+  auto badCond = makeUnique<ast::LiteralExpression>(VellumLiteral(42));
+  badCond->setType(VellumType::literal(VellumLiteralType::Int));
+  Vec<Unique<ast::Statement>> thenStmts;
+  thenStmts.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+  body.push_back(makeUnique<ast::IfStatement>(
+      std::move(badCond), makeUnique<ast::BlockStatement>(std::move(thenStmts)),
+      nullptr));
+
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "If_ElseIfChain_BoolConditions_NoError") {
+  auto cond1 = makeUnique<ast::LiteralExpression>(VellumLiteral(true));
+  cond1->setType(VellumType::literal(VellumLiteralType::Bool));
+  Vec<Unique<ast::Statement>> then1;
+  then1.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  auto cond2 = makeUnique<ast::LiteralExpression>(VellumLiteral(false));
+  cond2->setType(VellumType::literal(VellumLiteralType::Bool));
+  Vec<Unique<ast::Statement>> then2;
+  then2.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<Unique<ast::Statement>> elseStmts;
+  elseStmts.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  auto inner =
+      makeUnique<ast::IfStatement>(std::move(cond2),
+                                 makeUnique<ast::BlockStatement>(std::move(then2)),
+                                 makeUnique<ast::BlockStatement>(std::move(elseStmts)));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::IfStatement>(
+      std::move(cond1), makeUnique<ast::BlockStatement>(std::move(then1)),
+      std::move(inner)));
+
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+}
+
 TEST_CASE_METHOD(SemanticTestsFixture, "Continue_OutsideLoop_Error") {
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::ContinueStatement>(

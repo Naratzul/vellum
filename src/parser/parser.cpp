@@ -318,9 +318,9 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
     }
   }
 
-  return makeUnique<ast::FunctionDeclaration>(
-      name, parameters, returnTypeName, parseBlockStatement(), isStatic,
-      nameLocation, returnTypeLocation);
+  return makeUnique<ast::FunctionDeclaration>(name, parameters, returnTypeName,
+                                              parseBlockStatement(), isStatic,
+                                              nameLocation, returnTypeLocation);
 }
 
 Unique<ast::Declaration> Parser::propertyDeclaration(
@@ -341,8 +341,8 @@ Unique<ast::Declaration> Parser::propertyDeclaration(
                         name));
         continue;
       }
-      getAccessor = makeUnique<ast::BlockStatement>(
-          Vec<Unique<ast::Statement>>{});
+      getAccessor =
+          makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{});
       if (check(TokenType::LEFT_BRACE)) {
         getAccessor = parseBlockStatement();
       }
@@ -354,8 +354,8 @@ Unique<ast::Declaration> Parser::propertyDeclaration(
                         name));
         continue;
       }
-      setAccessor = makeUnique<ast::BlockStatement>(
-          Vec<Unique<ast::Statement>>{});
+      setAccessor =
+          makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{});
       if (check(TokenType::LEFT_BRACE)) {
         setAccessor = parseBlockStatement();
       }
@@ -407,41 +407,19 @@ Unique<ast::Statement> Parser::statement() {
 
 Unique<ast::Statement> Parser::ifStatement() {
   auto condition = expression();
+  auto thenBlock = blockStatement();
 
-  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
-          "Expected '{{' after if condition.");
-  Vec<Unique<ast::Statement>> then_branch;
-  while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    try {
-      then_branch.push_back(statement());
-    } catch (const ParseException& e) {
-      errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
-      synchronizeStatement();
-    }
-  }
-  consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
-          "Expected '}}' after if block.");
-
-  Opt<Vec<Unique<ast::Statement>>> else_branch;
+  Unique<ast::Statement> elseBlock;
   if (match(TokenType::ELSE)) {
-    Vec<Unique<ast::Statement>> else_statements;
-    consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
-            "Expected '{{' after 'else'.");
-    while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-      try {
-        else_statements.push_back(statement());
-      } catch (const ParseException& e) {
-        errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
-        synchronizeStatement();
-      }
+    if (match(TokenType::IF)) {
+      elseBlock = ifStatement();
+    } else {
+      elseBlock = blockStatement();
     }
-    consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
-            "Expected '}}' after else block.");
-    else_branch = std::move(else_statements);
   }
 
   return makeUnique<ast::IfStatement>(
-      std::move(condition), std::move(then_branch), std::move(else_branch));
+      std::move(condition), std::move(thenBlock), std::move(elseBlock));
 }
 
 Unique<ast::Statement> Parser::returnStatement() {

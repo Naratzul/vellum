@@ -44,31 +44,16 @@ bool IfStatement::equals(const Statement& other_) const {
     return false;
   }
 
-  const auto& other_then = other.getThenBlock();
-  if (then_block.size() != other_then.size()) {
+  if (!thenBlock->equals(*other.thenBlock)) {
     return false;
-  }
-  for (size_t i = 0; i < then_block.size(); ++i) {
-    if (!then_block[i]->equals(*other_then[i])) {
-      return false;
-    }
   }
 
-  if (else_block.has_value() != other.getElseBlock().has_value()) {
+  const bool hasElse = static_cast<bool>(elseBlock);
+  const bool otherHasElse = static_cast<bool>(other.elseBlock);
+  if (hasElse != otherHasElse) {
     return false;
   }
-  if (else_block) {
-    const auto& other_else = other.getElseBlock().value();
-    if (else_block->size() != other_else.size()) {
-      return false;
-    }
-    for (size_t i = 0; i < else_block->size(); ++i) {
-      if (!(*else_block)[i]->equals(*other_else[i])) {
-        return false;
-      }
-    }
-  }
-  return true;
+  return !hasElse || elseBlock->equals(*other.elseBlock);
 }
 
 void LocalVariableStatement::accept(StatementVisitor& visitor) {

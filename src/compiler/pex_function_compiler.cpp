@@ -177,13 +177,11 @@ void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
   size_t jmp_to_else_pos = instructions.size();
   emitInstruction(pex::PexOpCode::JmpF, std::move(jmp_to_else_args));
 
-  for (const auto& stmt : statement.getThenBlock()) {
-    stmt->accept(*this);
-  }
+  statement.getThenBlock()->accept(*this);
 
   size_t jmp_to_end_pos = instructions.size();
 
-  if (statement.getElseBlock().has_value()) {
+  if (statement.getElseBlock()) {
     setCurrentLocation(statement.getCondition()->getLocation());
     pex::PexValue jmp_to_end_label(int32_t(0));
     Vec<pex::PexValue> endJmpArgs = {jmp_to_end_label};
@@ -193,11 +191,8 @@ void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
   instructions[jmp_to_else_pos].setArg(
       1, pex::PexValue(int32_t(instructions.size() - jmp_to_else_pos)));
 
-  if (statement.getElseBlock().has_value()) {
-    for (const auto& stmt : statement.getElseBlock().value()) {
-      stmt->accept(*this);
-    }
-
+  if (auto& elseBlock = statement.getElseBlock()) {
+    elseBlock->accept(*this);
     instructions[jmp_to_end_pos].setArg(
         0, pex::PexValue(int32_t(instructions.size() - jmp_to_end_pos)));
   }

@@ -115,14 +115,10 @@ void TypeCollector::visitReturnStatement(ast::ReturnStatement& statement) {
 void TypeCollector::visitIfStatement(ast::IfStatement& statement) {
   statement.getCondition()->accept(*this);
 
-  for (const auto& stmt : statement.getThenBlock()) {
-    stmt->accept(*this);
-  }
+  statement.getThenBlock()->accept(*this);
 
-  if (const auto& elseBlock = statement.getElseBlock()) {
-    for (const auto& stmt : elseBlock.value()) {
-      stmt->accept(*this);
-    }
+  if (auto& elseBlock = statement.getElseBlock()) {
+    elseBlock->accept(*this);
   }
 }
 

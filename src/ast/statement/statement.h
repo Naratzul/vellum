@@ -77,23 +77,23 @@ class BlockStatement : public Statement {
 
 class IfStatement : public Statement {
  public:
-  IfStatement(Unique<Expression> condition, Vec<Unique<Statement>> then_block,
-              Opt<Vec<Unique<Statement>>> else_block = std::nullopt)
+  IfStatement(Unique<Expression> condition, Unique<Statement> thenBlock,
+              Unique<Statement> elseBlock = nullptr)
       : condition(std::move(condition)),
-        then_block(std::move(then_block)),
-        else_block(std::move(else_block)) {}
+        thenBlock(std::move(thenBlock)),
+        elseBlock(std::move(elseBlock)) {}
 
   const Unique<Expression>& getCondition() const { return condition; }
-  const Vec<Unique<Statement>>& getThenBlock() const { return then_block; }
-  const Opt<Vec<Unique<Statement>>>& getElseBlock() const { return else_block; }
+  const Unique<Statement>& getThenBlock() const { return thenBlock; }
+  const Unique<Statement>& getElseBlock() const { return elseBlock; }
 
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
 
  private:
   Unique<Expression> condition;
-  Vec<Unique<Statement>> then_block;
-  Opt<Vec<Unique<Statement>>> else_block;
+  Unique<Statement> thenBlock;
+  Unique<Statement> elseBlock;
 };
 
 class LocalVariableStatement : public Statement {
