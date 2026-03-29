@@ -49,6 +49,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   void visitBreakStatement(ast::BreakStatement& statement) override;
   void visitContinueStatement(ast::ContinueStatement& statement) override;
   void visitForStatement(ast::ForStatement& statement) override;
+  void visitBlockStatement(ast::BlockStatement& statement) override;
 
   pex::PexValue compile(const ast::LiteralExpression& expr) override;
   pex::PexValue compile(const ast::IdentifierExpression& expr) override;

@@ -60,6 +60,21 @@ class ReturnStatement : public Statement {
   Token returnToken;
 };
 
+class BlockStatement : public Statement {
+ public:
+  BlockStatement(Vec<Unique<Statement>> statements)
+      : statements(std::move(statements)) {}
+
+  const Vec<Unique<Statement>>& getStatements() const { return statements; }
+  Vec<Unique<Statement>>& getStatements() { return statements; }
+
+  void accept(StatementVisitor& visitor) override;
+  bool equals(const Statement& other) const override;
+
+ private:
+  Vec<Unique<Statement>> statements;
+};
+
 class IfStatement : public Statement {
  public:
   IfStatement(Unique<Expression> condition, Vec<Unique<Statement>> then_block,
@@ -115,21 +130,21 @@ class LocalVariableStatement : public Statement {
 
 class WhileStatement : public Statement {
  public:
-  using Body = Vec<Unique<Statement>>;
-
-  WhileStatement(Unique<Expression> condition, Body body)
+  WhileStatement(Unique<Expression> condition, Unique<Statement> body)
       : condition(std::move(condition)), body(std::move(body)) {}
 
   const Unique<Expression>& getCondition() const { return condition; }
 
-  const Body& getBody() const { return body; }
+  const Unique<Statement>& getBody() const { return body; }
+
+  Unique<Statement>& getBody() { return body; }
 
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
 
  private:
   Unique<Expression> condition;
-  Body body;
+  Unique<Statement> body;
 };
 
 class BreakStatement : public Statement {
@@ -161,10 +176,8 @@ class ContinueStatement : public Statement {
 
 class ForStatement : public Statement {
  public:
-  using Body = Vec<Unique<Statement>>;
-
   ForStatement(Unique<Expression> variableName, Unique<Expression> array,
-               Body body, Token variableNameLocation = {},
+               Unique<Statement> body, Token variableNameLocation = {},
                Token arrayLocation = {})
       : variableName(std::move(variableName)),
         array(std::move(array)),
@@ -181,9 +194,9 @@ class ForStatement : public Statement {
 
   const Unique<Expression>& getArray() const { return array; }
 
-  const Body& getBody() const { return body; }
+  const Unique<Statement>& getBody() const { return body; }
 
-  Body& getBody() { return body; }
+  Unique<Statement>& getBody() { return body; }
 
   Token getVariableNameLocation() const { return variableNameLocation; }
 
@@ -200,7 +213,7 @@ class ForStatement : public Statement {
  private:
   Unique<Expression> variableName;
   Unique<Expression> array;
-  Body body;
+  Unique<Statement> body;
   Token variableNameLocation;
   Token arrayLocation;
   std::string counterMangledName;

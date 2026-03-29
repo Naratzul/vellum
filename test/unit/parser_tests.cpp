@@ -68,9 +68,9 @@ TEST_CASE("ParserSuperCallInFunction") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
   const auto* call =
       dynamic_cast<const ast::CallExpression*>(exprStmt->getExpression().get());
@@ -111,9 +111,9 @@ TEST_CASE("ParserSelfCallInFunction") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
   const auto* call =
       dynamic_cast<const ast::CallExpression*>(exprStmt->getExpression().get());
@@ -211,7 +211,7 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      ast::FunctionBody{}, false));
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -287,13 +287,16 @@ TEST_CASE("ParserBreakInsideWhile") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* whileStmt = dynamic_cast<const ast::WhileStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(whileStmt != nullptr);
-  REQUIRE(whileStmt->getBody().size() == 1);
-  REQUIRE(dynamic_cast<const ast::BreakStatement*>(whileStmt->getBody()[0].get()) !=
-          nullptr);
+  const auto* whileBody =
+      dynamic_cast<const ast::BlockStatement*>(whileStmt->getBody().get());
+  REQUIRE(whileBody != nullptr);
+  REQUIRE(whileBody->getStatements().size() == 1);
+  REQUIRE(dynamic_cast<const ast::BreakStatement*>(
+              whileBody->getStatements()[0].get()) != nullptr);
 }
 
 TEST_CASE("ParserContinueInsideWhile") {
@@ -326,14 +329,16 @@ TEST_CASE("ParserContinueInsideWhile") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* whileStmt = dynamic_cast<const ast::WhileStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(whileStmt != nullptr);
-  REQUIRE(whileStmt->getBody().size() == 1);
-  REQUIRE(
-      dynamic_cast<const ast::ContinueStatement*>(whileStmt->getBody()[0].get()) !=
-      nullptr);
+  const auto* whileBody =
+      dynamic_cast<const ast::BlockStatement*>(whileStmt->getBody().get());
+  REQUIRE(whileBody != nullptr);
+  REQUIRE(whileBody->getStatements().size() == 1);
+  REQUIRE(dynamic_cast<const ast::ContinueStatement*>(
+              whileBody->getStatements()[0].get()) != nullptr);
 }
 
 TEST_CASE("ParserReturn_BareReturn") {
@@ -362,9 +367,9 @@ TEST_CASE("ParserReturn_BareReturn") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* returnStmt =
-      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()[0].get());
+      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(returnStmt != nullptr);
   REQUIRE(returnStmt->getExpression() == nullptr);
 }
@@ -398,9 +403,9 @@ TEST_CASE("ParserReturn_WithIntLiteral") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* returnStmt =
-      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()[0].get());
+      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(returnStmt != nullptr);
   REQUIRE(returnStmt->getExpression() != nullptr);
   REQUIRE(returnStmt->getExpression()->isLiteralExpression());
@@ -434,9 +439,9 @@ TEST_CASE("ParserReturn_WithNone") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* returnStmt =
-      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()[0].get());
+      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(returnStmt != nullptr);
   REQUIRE(returnStmt->getExpression() != nullptr);
   REQUIRE(returnStmt->getExpression()->isLiteralExpression());
@@ -476,18 +481,21 @@ TEST_CASE("ParserForInStatement_Basic") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* forStmt =
-      dynamic_cast<const ast::ForStatement*>(funcDecl->getBody()[0].get());
+      dynamic_cast<const ast::ForStatement*>(funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(forStmt != nullptr);
   REQUIRE(forStmt->getVariableName()->isIdentifierExpression());
   REQUIRE(forStmt->getVariableName()->asIdentifier().getIdentifier().toString() ==
           "i");
   REQUIRE(forStmt->getArray()->isIdentifierExpression());
   REQUIRE(forStmt->getArray()->asIdentifier().getIdentifier().toString() == "nums");
-  REQUIRE(forStmt->getBody().size() == 1);
-  REQUIRE(dynamic_cast<const ast::BreakStatement*>(forStmt->getBody()[0].get()) !=
-          nullptr);
+  const auto* forBodyBlock =
+      dynamic_cast<const ast::BlockStatement*>(forStmt->getBody().get());
+  REQUIRE(forBodyBlock != nullptr);
+  REQUIRE(forBodyBlock->getStatements().size() == 1);
+  REQUIRE(dynamic_cast<const ast::BreakStatement*>(
+              forBodyBlock->getStatements()[0].get()) != nullptr);
 }
 
 TEST_CASE("ParserForInStatement_LoopVariableMustBeIdentifier") {
@@ -599,8 +607,8 @@ TEST_CASE("ParserPropertyDeclaration_NoInitializer") {
   REQUIRE_FALSE(propDecl->getDefaultValue().has_value());
   REQUIRE(propDecl->getGetAccessor().has_value());
   REQUIRE(propDecl->getSetAccessor().has_value());
-  REQUIRE(propDecl->getGetAccessor()->empty());
-  REQUIRE(propDecl->getSetAccessor()->empty());
+  REQUIRE(propDecl->getGetAccessor().value()->getStatements().empty());
+  REQUIRE(propDecl->getSetAccessor().value()->getStatements().empty());
 }
 
 TEST_CASE("ParserPropertyDeclaration_WithIntInitializer") {
@@ -759,7 +767,7 @@ TEST_CASE("ParserFunctionDeclaration_Params_NoReturn") {
 
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
-      "bar", params, VellumType::none(), ast::FunctionBody{}, false));
+      "bar", params, VellumType::none(), makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -914,7 +922,7 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_WithReturn") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "baz", Vec<ast::FunctionParameter>{}, VellumType::unresolved("String"),
-      ast::FunctionBody{}, false));
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -952,8 +960,8 @@ TEST_CASE("ParserFunctionDeclaration_Params_WithReturn") {
 
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
-      "qux", params, VellumType::unresolved("Int"), ast::FunctionBody{},
-      false));
+      "qux", params, VellumType::unresolved("Int"),
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -1000,7 +1008,7 @@ TEST_CASE("ParserFunctionDeclaration_MultipleParams_MixedTypes") {
 
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
-      "mix", params, VellumType::none(), ast::FunctionBody{}, false));
+      "mix", params, VellumType::none(), makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -1039,9 +1047,9 @@ TEST_CASE("ParserArrayIndexExpression") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
   const auto* indexExpr = dynamic_cast<const ast::ArrayIndexExpression*>(
       exprStmt->getExpression().get());
@@ -1080,9 +1088,9 @@ TEST_CASE("ParserArrayIndexAssignment") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
   const auto* setExpr = dynamic_cast<const ast::ArrayIndexSetExpression*>(
       exprStmt->getExpression().get());
@@ -1118,7 +1126,7 @@ TEST_CASE("ParserComposedAssign_Identifier") {
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
   const auto* assignExpr = dynamic_cast<const ast::AssignExpression*>(
       exprStmt->getExpression().get());
@@ -1156,7 +1164,7 @@ TEST_CASE("ParserComposedAssign_Property") {
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
   const auto* setExpr = dynamic_cast<const ast::PropertySetExpression*>(
       exprStmt->getExpression().get());
@@ -1195,7 +1203,7 @@ TEST_CASE("ParserComposedAssign_ArrayIndex") {
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
   const auto* setExpr = dynamic_cast<const ast::ArrayIndexSetExpression*>(
       exprStmt->getExpression().get());
@@ -1236,7 +1244,7 @@ TEST_CASE("ParserCall_NoArgs") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(expected_body), false));
+      makeUnique<ast::BlockStatement>(std::move(expected_body)), false));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -1287,7 +1295,7 @@ TEST_CASE("ParserCall_WithArgs") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(expected_body), false));
+      makeUnique<ast::BlockStatement>(std::move(expected_body)), false));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -1330,10 +1338,10 @@ TEST_CASE("ParserArrayIndex_LiteralIndex") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
 
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
 
   const auto* indexExpr = dynamic_cast<const ast::ArrayIndexExpression*>(
@@ -1383,10 +1391,10 @@ TEST_CASE("ParserArrayIndex_Nested") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
 
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
 
   const auto* outerIndexExpr = dynamic_cast<const ast::ArrayIndexExpression*>(
@@ -1447,10 +1455,10 @@ TEST_CASE("ParserArrayIndex_Precedence_IndexBeforePropertyAndCall") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   REQUIRE(funcDecl != nullptr);
-  REQUIRE(funcDecl->getBody().size() == 1);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
 
   const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
-      funcDecl->getBody()[0].get());
+      funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(exprStmt != nullptr);
 
   const auto* callExpr =
@@ -1509,7 +1517,7 @@ TEST_CASE("ParserReturn_Ternary_Basic") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   const auto* returnStmt =
-      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()[0].get());
+      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(returnStmt != nullptr);
   const auto* ternary = dynamic_cast<const ast::TernaryExpression*>(
       returnStmt->getExpression().get());
@@ -1555,7 +1563,7 @@ TEST_CASE("ParserReturn_Ternary_OrPrecedence_ConditionIsOrExpression") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   const auto* returnStmt =
-      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()[0].get());
+      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()->getStatements()[0].get());
   const auto* ternary = dynamic_cast<const ast::TernaryExpression*>(
       returnStmt->getExpression().get());
   REQUIRE(ternary != nullptr);
@@ -1606,7 +1614,7 @@ TEST_CASE("ParserReturn_Ternary_RightAssociative_Nested") {
   const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
       scriptDecl->getMemberDecls()[0].get());
   const auto* returnStmt =
-      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()[0].get());
+      dynamic_cast<const ast::ReturnStatement*>(funcDecl->getBody()->getStatements()[0].get());
   const auto* outer = dynamic_cast<const ast::TernaryExpression*>(
       returnStmt->getExpression().get());
   REQUIRE(outer != nullptr);

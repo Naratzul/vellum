@@ -51,14 +51,18 @@ void TypeCollector::visitFunctionDeclaration(
     collectTypeFromVellumType(param.type);
   }
 
-  for (const auto& stmt : declaration.getBody()) {
-    stmt->accept(*this);
-  }
+  declaration.getBody()->accept(*this);
 }
 
 void TypeCollector::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
   collectTypeFromVellumType(declaration.getTypeName());
+  if (auto& getBlock = declaration.getGetAccessor()) {
+    getBlock.value()->accept(*this);
+  }
+  if (auto& setBlock = declaration.getSetAccessor()) {
+    setBlock.value()->accept(*this);
+  }
 }
 
 void TypeCollector::collectTypeFromVellumType(const VellumType& type) {
@@ -135,8 +139,17 @@ void TypeCollector::visitLocalVariableStatement(
 
 void TypeCollector::visitWhileStatement(ast::WhileStatement& statement) {
   statement.getCondition()->accept(*this);
+  statement.getBody()->accept(*this);
+}
 
-  for (const auto& stmt : statement.getBody()) {
+void TypeCollector::visitForStatement(ast::ForStatement& statement) {
+  statement.getArray()->accept(*this);
+  statement.getVariableName()->accept(*this);
+  statement.getBody()->accept(*this);
+}
+
+void TypeCollector::visitBlockStatement(ast::BlockStatement& statement) {
+  for (const auto& stmt : statement.getStatements()) {
     stmt->accept(*this);
   }
 }

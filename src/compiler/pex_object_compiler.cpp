@@ -135,8 +135,9 @@ void PexObjectCompiler::visitPropertyDeclaration(
             declaration.getDefaultValue().value_or(
                 makeDefaultLiteral(defaultValueType.asLiteralType())))));
 
-    ast::FunctionDeclaration funcDecl({}, {}, declaration.getTypeName(),
-                                      std::move(body), false);
+    ast::FunctionDeclaration funcDecl(
+        {}, {}, declaration.getTypeName(),
+        makeUnique<ast::BlockStatement>(std::move(body)), false);
     pex::PexDebugFunctionInfo* getterDebugInfo = nullptr;
     pex::PexDebugFunctionInfo getterDebugInfoStorage;
     if (file.hasDebugInfo()) {
@@ -168,18 +169,18 @@ void PexObjectCompiler::visitPropertyDeclaration(
       setterDebugInfoStorage.functionType = pex::PexDebugFunctionType::Setter;
       setterDebugInfo = &setterDebugInfoStorage;
     }
-    ast::FunctionDeclaration getFuncDecl(
-        {}, {}, VellumType::none(), declaration.releaseGetAccessor().value(),
-        false);
+    auto getBlock = declaration.releaseGetAccessor().value();
+    ast::FunctionDeclaration getFuncDecl({}, {}, VellumType::none(),
+                                         std::move(getBlock), false);
     getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(
         getFuncDecl, getterDebugInfo);
     if (file.hasDebugInfo()) {
       file.debugInfo()->functions.push_back(std::move(getterDebugInfoStorage));
     }
 
-    ast::FunctionDeclaration setFuncDecl(
-        {}, {}, VellumType::none(), declaration.releaseSetAccessor().value(),
-        false);
+    auto setBlock = declaration.releaseSetAccessor().value();
+    ast::FunctionDeclaration setFuncDecl({}, {}, VellumType::none(),
+                                         std::move(setBlock), false);
     setAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(
         setFuncDecl, setterDebugInfo);
     if (file.hasDebugInfo()) {

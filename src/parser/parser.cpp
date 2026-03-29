@@ -18,21 +18,6 @@ using common::Shared;
 using common::Unique;
 using common::Vec;
 
-static std::string_view getFunctionTypeName(FunctionType type) {
-  switch (type) {
-    case FunctionType::Event:
-      return "event";
-    case FunctionType::Function:
-      return "function";
-    case FunctionType::Getter:
-      return "get";
-    case FunctionType::Setter:
-      return "set";
-    default:
-      assert(false && "Unknown function type");
-  }
-}
-
 Parser::Parser(Unique<ILexer> lexer, Shared<CompilerErrorHandler> errorHandler)
     : lexer(std::move(lexer)), errorHandler(errorHandler) {}
 
@@ -334,7 +319,7 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
   }
 
   return makeUnique<ast::FunctionDeclaration>(
-      name, parameters, returnTypeName, functionBody(functionType), isStatic,
+      name, parameters, returnTypeName, parseBlockStatement(), isStatic,
       nameLocation, returnTypeLocation);
 }
 
@@ -344,8 +329,8 @@ Unique<ast::Declaration> Parser::propertyDeclaration(
   consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
           "Expect '{{' after property type.");
 
-  Opt<ast::FunctionBody> getAccessor;
-  Opt<ast::FunctionBody> setAccessor;
+  Opt<Unique<ast::BlockStatement>> getAccessor;
+  Opt<Unique<ast::BlockStatement>> setAccessor;
 
   for (int i = 0; i < 2; ++i) {
     if (match(TokenType::GET)) {
@@ -356,9 +341,10 @@ Unique<ast::Declaration> Parser::propertyDeclaration(
                         name));
         continue;
       }
-      getAccessor = ast::FunctionBody();
+      getAccessor = makeUnique<ast::BlockStatement>(
+          Vec<Unique<ast::Statement>>{});
       if (check(TokenType::LEFT_BRACE)) {
-        getAccessor = functionBody(FunctionType::Getter);
+        getAccessor = parseBlockStatement();
       }
     } else if (match(TokenType::SET)) {
       if (setAccessor.has_value()) {
@@ -368,9 +354,10 @@ Unique<ast::Declaration> Parser::propertyDeclaration(
                         name));
         continue;
       }
-      setAccessor = ast::FunctionBody();
+      setAccessor = makeUnique<ast::BlockStatement>(
+          Vec<Unique<ast::Statement>>{});
       if (check(TokenType::LEFT_BRACE)) {
-        setAccessor = functionBody(FunctionType::Setter);
+        setAccessor = parseBlockStatement();
       }
     }
   }
@@ -392,28 +379,6 @@ Unique<ast::Declaration> Parser::propertyDeclaration(
   return makeUnique<ast::PropertyDeclaration>(
       name, type, documentationString, std::move(getAccessor),
       std::move(setAccessor), value, nameLocation, typeLocation);
-}
-
-ast::FunctionBody Parser::functionBody(FunctionType type) {
-  const std::string_view functionTypeName = getFunctionTypeName(type);
-  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
-          "Expect '{{' before {} body.", functionTypeName);
-
-  ast::FunctionBody body;
-
-  while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    try {
-      body.push_back(statement());
-    } catch (const ParseException& e) {
-      errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
-      synchronizeStatement();
-    }
-  }
-
-  consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
-          "Expect '}}' after {} body.", functionTypeName);
-
-  return body;
 }
 
 Unique<ast::Statement> Parser::statement() {
@@ -525,23 +490,8 @@ Unique<ast::Statement> Parser::varStatement() {
 
 Unique<ast::Statement> Parser::whileStatement() {
   auto condition = expression();
-  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
-          "Expect '{{' after condition.");
-
-  ast::WhileStatement::Body body;
-  while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
-    try {
-      body.push_back(statement());
-    } catch (const ParseException& e) {
-      errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
-      synchronizeStatement();
-    }
-  }
-
-  consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
-          "Expect '}}' after while loop.");
-
-  return makeUnique<ast::WhileStatement>(std::move(condition), std::move(body));
+  return makeUnique<ast::WhileStatement>(std::move(condition),
+                                         blockStatement());
 }
 
 Unique<ast::Statement> Parser::breakStatement() {
@@ -565,13 +515,19 @@ Unique<ast::Statement> Parser::forStatement() {
   auto arrayExpr = expression();
   Token arrayLocation = previous;
 
-  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
-          "Expect '{{' after array expression.");
+  return makeUnique<ast::ForStatement>(std::move(nameExpr),
+                                       std::move(arrayExpr), blockStatement(),
+                                       nameLocation, arrayLocation);
+}
 
-  ast::ForStatement::Body body;
+Unique<ast::BlockStatement> Parser::parseBlockStatement() {
+  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
+          "Expect '{{'.");
+
+  Vec<Unique<ast::Statement>> block;
   while (!check(TokenType::RIGHT_BRACE) && !check(TokenType::END_OF_FILE)) {
     try {
-      body.push_back(statement());
+      block.push_back(statement());
     } catch (const ParseException& e) {
       errorHandler->errorAt(e.getToken(), e.getErrorKind(), e.what());
       synchronizeStatement();
@@ -579,11 +535,13 @@ Unique<ast::Statement> Parser::forStatement() {
   }
 
   consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
-          "Expect '}}' after for loop.");
+          "Expect '}}' after code block.");
 
-  return makeUnique<ast::ForStatement>(std::move(nameExpr),
-                                       std::move(arrayExpr), std::move(body),
-                                       nameLocation, arrayLocation);
+  return makeUnique<ast::BlockStatement>(std::move(block));
+}
+
+Unique<ast::Statement> Parser::blockStatement() {
+  return parseBlockStatement();
 }
 
 Unique<ast::Statement> Parser::expressionStatement() {

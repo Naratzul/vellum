@@ -199,8 +199,9 @@ class FunctionDeclaration : public Declaration {
  public:
   FunctionDeclaration(Opt<std::string_view> name,
                       Vec<FunctionParameter> parameters,
-                      VellumType returnTypeName, FunctionBody body,
-                      bool staticFunc, Opt<Token> nameLocation = std::nullopt,
+                      VellumType returnTypeName,
+                      Unique<BlockStatement> body, bool staticFunc,
+                      Opt<Token> nameLocation = std::nullopt,
                       Opt<Token> returnTypeLocation = std::nullopt)
       : name(name),
         parameters(std::move(parameters)),
@@ -215,7 +216,8 @@ class FunctionDeclaration : public Declaration {
   Vec<FunctionParameter>& getParameters() { return parameters; }
   const VellumType& getReturnTypeName() const { return returnTypeName; }
   VellumType& getReturnTypeName() { return returnTypeName; }
-  const FunctionBody& getBody() const { return body; }
+  const Unique<BlockStatement>& getBody() const { return body; }
+  Unique<BlockStatement>& getBody() { return body; }
   bool isStatic() const { return staticFunc; }
   Opt<Token> getNameLocation() const { return nameLocation; }
   Opt<Token> getReturnTypeLocation() const { return returnTypeLocation; }
@@ -231,7 +233,7 @@ class FunctionDeclaration : public Declaration {
   Opt<std::string_view> name;
   Vec<FunctionParameter> parameters;
   VellumType returnTypeName;
-  FunctionBody body;
+  Unique<BlockStatement> body;
   bool staticFunc;
   Opt<Token> nameLocation;
   Opt<Token> returnTypeLocation;
@@ -241,8 +243,8 @@ class PropertyDeclaration : public Declaration {
  public:
   PropertyDeclaration(std::string_view name, VellumType typeName,
                       std::string_view documentationString,
-                      Opt<ast::FunctionBody> getAccessor,
-                      Opt<ast::FunctionBody> setAccessor,
+                      Opt<Unique<BlockStatement>> getAccessor,
+                      Opt<Unique<BlockStatement>> setAccessor,
                       Opt<VellumLiteral> defaultValue,
                       Token nameLocation = Token(),
                       Token typeLocation = Token())
@@ -263,10 +265,13 @@ class PropertyDeclaration : public Declaration {
   }
 
   bool isAutoProperty() const {
-    return getAccessor && setAccessor && getAccessor->empty() &&
-           setAccessor->empty();
+    return getAccessor && setAccessor &&
+           getAccessor.value()->getStatements().empty() &&
+           setAccessor.value()->getStatements().empty();
   }
-  bool isAutoReadonly() const { return isReadonly() && getAccessor->empty(); }
+  bool isAutoReadonly() const {
+    return isReadonly() && getAccessor.value()->getStatements().empty();
+  }
   bool isReadonly() const { return !setAccessor && getAccessor; }
 
   std::string_view getName() const { return name; }
@@ -276,11 +281,19 @@ class PropertyDeclaration : public Declaration {
     return documentationString;
   }
 
-  const Opt<ast::FunctionBody>& getGetAccessor() const { return getAccessor; }
-  Opt<ast::FunctionBody> releaseGetAccessor() { return std::move(getAccessor); }
+  const Opt<Unique<BlockStatement>>& getGetAccessor() const {
+    return getAccessor;
+  }
+  Opt<Unique<BlockStatement>> releaseGetAccessor() {
+    return std::move(getAccessor);
+  }
 
-  const Opt<ast::FunctionBody>& getSetAccessor() const { return setAccessor; }
-  Opt<ast::FunctionBody> releaseSetAccessor() { return std::move(setAccessor); }
+  const Opt<Unique<BlockStatement>>& getSetAccessor() const {
+    return setAccessor;
+  }
+  Opt<Unique<BlockStatement>> releaseSetAccessor() {
+    return std::move(setAccessor);
+  }
 
   Opt<VellumLiteral> getDefaultValue() const { return defaultValue; }
   Token getNameLocation() const { return nameLocation; }
@@ -291,8 +304,8 @@ class PropertyDeclaration : public Declaration {
   VellumType typeName;
   std::string_view documentationString;
 
-  Opt<ast::FunctionBody> getAccessor;
-  Opt<ast::FunctionBody> setAccessor;
+  Opt<Unique<BlockStatement>> getAccessor;
+  Opt<Unique<BlockStatement>> setAccessor;
 
   Opt<VellumLiteral> defaultValue;
   Token nameLocation;

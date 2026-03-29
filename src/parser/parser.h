@@ -84,8 +84,6 @@ class Parser {
                                                const VellumType& type,
                                                const Token& typeLocation);
 
-  ast::FunctionBody functionBody(FunctionType type);
-
   Unique<ast::Statement> statement();
   Unique<ast::Statement> expressionStatement();
   Unique<ast::Statement> ifStatement();
@@ -95,6 +93,7 @@ class Parser {
   Unique<ast::Statement> breakStatement();
   Unique<ast::Statement> continueStatement();
   Unique<ast::Statement> forStatement();
+  Unique<ast::Statement> blockStatement();
 
   Unique<ast::Expression> expression();
   Unique<ast::Expression> assignExpression();
@@ -116,6 +115,8 @@ class Parser {
   Unique<ast::Expression> unaryNumericToLiteral(Unique<ast::Expression> expr);
 
   bool canStartExpression(const Token& token);
+
+  Unique<ast::BlockStatement> parseBlockStatement();
 
   void synchronizeTopDeclaration();
   void synchronizeDeclaration();

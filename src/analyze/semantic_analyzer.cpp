@@ -122,9 +122,7 @@ void SemanticAnalyzer::visitFunctionDeclaration(
 
   inStaticContext = declaration.isStatic();
   resolver->startFunction(func.value());
-  for (auto& statement : declaration.getBody()) {
-    statement->accept(*this);
-  }
+  declaration.getBody()->accept(*this);
   resolver->endFunction();
   inStaticContext = false;
   loopCount = 0;
@@ -135,19 +133,15 @@ void SemanticAnalyzer::visitPropertyDeclaration(
   VellumFunction dummyFunc(VellumIdentifier(declaration.getName()),
                            declaration.getTypeName(), {}, false);
 
-  if (auto& getFunc = declaration.getGetAccessor()) {
+  if (auto& getBlock = declaration.getGetAccessor()) {
     resolver->startFunction(dummyFunc);
-    for (auto& statement : getFunc.value()) {
-      statement->accept(*this);
-    }
+    getBlock.value()->accept(*this);
     resolver->endFunction();
   }
 
-  if (auto& setFunc = declaration.getSetAccessor()) {
+  if (auto& setBlock = declaration.getSetAccessor()) {
     resolver->startFunction(dummyFunc);
-    for (auto& statement : setFunc.value()) {
-      statement->accept(*this);
-    }
+    setBlock.value()->accept(*this);
     resolver->endFunction();
   }
 }
@@ -250,9 +244,7 @@ void SemanticAnalyzer::visitLocalVariableStatement(
 void SemanticAnalyzer::visitWhileStatement(ast::WhileStatement& statement) {
   statement.getCondition()->accept(*this);
   loopDepth++;
-  for (auto& stmt : statement.getBody()) {
-    stmt->accept(*this);
-  }
+  statement.getBody()->accept(*this);
   loopDepth--;
 }
 
@@ -300,13 +292,17 @@ void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
       mangleLoopVariable(std::format("{}_index", variableName.getValue())));
 
   loopDepth++;
-  for (auto& stmt : statement.getBody()) {
-    stmt->accept(*this);
-  }
+  statement.getBody()->accept(*this);
   loopDepth--;
 
   resolver->popLocalVar();
   resolver->popScope();
+}
+
+void SemanticAnalyzer::visitBlockStatement(ast::BlockStatement& statement) {
+  for (auto& stmt : statement.getStatements()) {
+    stmt->accept(*this);
+  }
 }
 
 void SemanticAnalyzer::visitIdentifierExpression(
@@ -706,8 +702,7 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
     return;
   }
 
-  VellumIdentifier identifier(
-      expr.getName()->asIdentifier().getIdentifier());
+  VellumIdentifier identifier(expr.getName()->asIdentifier().getIdentifier());
   const auto value = resolver->resolveIdentifier(identifier);
   if (!value) {
     errorHandler->errorAt(expr.getLocation(),

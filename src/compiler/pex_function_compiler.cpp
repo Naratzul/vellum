@@ -119,9 +119,7 @@ pex::PexFunction PexFunctionCompiler::compile(
   debugInfo_ = debugInfo;
   currentLine_ = 1;
 
-  for (const auto& statement : func.getBody()) {
-    statement->accept(*this);
-  }
+  func.getBody()->accept(*this);
 
   Opt<pex::PexString> name;
   if (auto funcName = func.getName()) {
@@ -237,9 +235,7 @@ void PexFunctionCompiler::visitWhileStatement(ast::WhileStatement& statement) {
   emitInstruction(pex::PexOpCode::JmpF,
                   Vec<pex::PexValue>{condition, jmpToEnd});
 
-  for (const auto& stmt : statement.getBody()) {
-    stmt->accept(*this);
-  }
+  statement.getBody()->accept(*this);
 
   setCurrentLocation(statement.getCondition()->getLocation());
   emitInstruction(pex::PexOpCode::Jmp,
@@ -329,9 +325,7 @@ void PexFunctionCompiler::visitForStatement(ast::ForStatement& statement) {
   args = {counter, counter, pex::PexValue(1)};
   emitInstruction(pex::PexOpCode::IAdd, std::move(args));
 
-  for (const auto& stmt : statement.getBody()) {
-    stmt->accept(*this);
-  }
+  statement.getBody()->accept(*this);
 
   setCurrentLocation(statement.getArrayLocation());
   emitInstruction(pex::PexOpCode::Jmp,
@@ -357,6 +351,12 @@ void PexFunctionCompiler::visitForStatement(ast::ForStatement& statement) {
 
   continueInstructions.pop_back();
   breakInstructions.pop_back();
+}
+
+void PexFunctionCompiler::visitBlockStatement(ast::BlockStatement& statement) {
+  for (auto& stmt : statement.getStatements()) {
+    stmt->accept(*this);
+  }
 }
 
 pex::PexValue PexFunctionCompiler::compile(const ast::LiteralExpression& expr) {

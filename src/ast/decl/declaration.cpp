@@ -114,30 +114,33 @@ bool FunctionDeclaration::equals(const Declaration& other_) const {
     return false;
   }
 
-  if (getBody().size() != other.getBody().size()) {
-    return false;
-  }
-
-  for (size_t i = 0; i < getBody().size(); i++) {
-    if (!getBody()[i]->equals(*other.getBody()[i])) {
-      return false;
-    }
-  }
-
-  return true;
+  return getBody()->equals(*other.getBody());
 }
 
 void PropertyDeclaration::accept(DeclarationVisitor& visitor) {
   visitor.visitPropertyDeclaration(*this);
 }
 
+namespace {
+bool optionalBlockEquals(const Opt<Unique<BlockStatement>>& a,
+                         const Opt<Unique<BlockStatement>>& b) {
+  if (a.has_value() != b.has_value()) {
+    return false;
+  }
+  if (!a.has_value()) {
+    return true;
+  }
+  return *a.value() == *b.value();
+}
+}  // namespace
+
 bool PropertyDeclaration::equals(const Declaration& other_) const {
   auto& other = static_cast<const PropertyDeclaration&>(other_);
   return getName() == other.getName() && getTypeName() == other.getTypeName() &&
          getDocumentationString() == other.getDocumentationString() &&
          getDefaultValue() == other.getDefaultValue() &&
-         getGetAccessor() == other.getGetAccessor() &&
-         getSetAccessor() == other.getSetAccessor();
+         optionalBlockEquals(getGetAccessor(), other.getGetAccessor()) &&
+         optionalBlockEquals(getSetAccessor(), other.getSetAccessor());
 }
 
 bool operator==(const Declaration& lhs, const Declaration& rhs) {

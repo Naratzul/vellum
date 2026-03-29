@@ -102,15 +102,7 @@ bool WhileStatement::equals(const Statement& other_) const {
   if (!getCondition()->equals(*other.getCondition())) {
     return false;
   }
-  if (getBody().size() != other.getBody().size()) {
-    return false;
-  }
-  for (std::size_t i = 0; i < getBody().size(); ++i) {
-    if (!getBody()[i]->equals(*other.getBody()[i])) {
-      return false;
-    }
-  }
-  return true;
+  return getBody()->equals(*other.getBody());
 }
 
 void BreakStatement::accept(StatementVisitor& visitor) {
@@ -139,11 +131,20 @@ bool ForStatement::equals(const Statement& other_) const {
       !array->equals(*other.array)) {
     return false;
   }
-  if (getBody().size() != other.getBody().size()) {
+  return getBody()->equals(*other.getBody());
+}
+
+void BlockStatement::accept(StatementVisitor& visitor) {
+  visitor.visitBlockStatement(*this);
+}
+
+bool BlockStatement::equals(const Statement& other_) const {
+  auto& other = static_cast<const BlockStatement&>(other_);
+  if (statements.size() != other.statements.size()) {
     return false;
   }
-  for (std::size_t i = 0; i < getBody().size(); ++i) {
-    if (!getBody()[i]->equals(*other.getBody()[i])) {
+  for (std::size_t i = 0; i < statements.size(); ++i) {
+    if (!statements[i]->equals(*other.statements[i])) {
       return false;
     }
   }

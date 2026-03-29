@@ -160,9 +160,10 @@ Unique<ast::Declaration> PapyrusParser::functionDeclarationWithReturnType(
 
   Opt<Token> returnTypeLocation = std::nullopt;
   // Return type location is not available in Papyrus parser context
-  return makeUnique<ast::FunctionDeclaration>(name, parameters, returnTypeName,
-                                              ast::FunctionBody{}, isGlobal,
-                                              nameLocation, returnTypeLocation);
+  return makeUnique<ast::FunctionDeclaration>(
+      name, parameters, returnTypeName,
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), isGlobal,
+      nameLocation, returnTypeLocation);
 }
 
 Unique<ast::Declaration> PapyrusParser::eventDeclaration() {
@@ -194,7 +195,8 @@ Unique<ast::Declaration> PapyrusParser::eventDeclaration() {
 
   Opt<Token> returnTypeLocation = std::nullopt;
   return makeUnique<ast::FunctionDeclaration>(
-      name, parameters, VellumType::none(), ast::FunctionBody{}, false,
+      name, parameters, VellumType::none(),
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false,
       nameLocation, returnTypeLocation);
 }
 

@@ -70,7 +70,7 @@ TEST_CASE("CompileComposedAssignTest") {
       makeUnique<ast::ExpressionStatement>(std::move(assign_expr)));
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   pex::PexFile file =
@@ -105,11 +105,12 @@ TEST_CASE("CompileFunctionCallTest") {
 
   auto foo_func = makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      Vec<Unique<ast::Statement>>{}, false);
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      false);
 
   auto test_func = makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body), false);
+      makeUnique<ast::BlockStatement>(std::move(body)), false);
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(std::move(foo_func));
@@ -155,7 +156,7 @@ TEST_CASE("CompileArrayIndexGetTest") {
   // function test() { arr[0]; }
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   pex::PexFile file =
@@ -201,7 +202,7 @@ TEST_CASE("CompileArrayIndexSetTest") {
 
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   pex::PexFile file =
@@ -228,12 +229,12 @@ TEST_CASE("CompileBreakInWhile") {
   Vec<Unique<ast::Statement>> loopBody;
   loopBody.push_back(makeUnique<ast::BreakStatement>(Token()));
   auto body = Vec<Unique<ast::Statement>>{};
-  body.push_back(makeUnique<ast::WhileStatement>(std::move(cond),
-                                                 std::move(loopBody)));
+  body.push_back(makeUnique<ast::WhileStatement>(
+      std::move(cond), makeUnique<ast::BlockStatement>(std::move(loopBody))));
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   pex::PexFile file =
@@ -256,12 +257,12 @@ TEST_CASE("CompileContinueInWhile") {
   Vec<Unique<ast::Statement>> loopBody;
   loopBody.push_back(makeUnique<ast::ContinueStatement>(Token()));
   auto body = Vec<Unique<ast::Statement>>{};
-  body.push_back(makeUnique<ast::WhileStatement>(std::move(cond),
-                                                 std::move(loopBody)));
+  body.push_back(makeUnique<ast::WhileStatement>(
+      std::move(cond), makeUnique<ast::BlockStatement>(std::move(loopBody))));
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   pex::PexFile file =
@@ -295,10 +296,10 @@ TEST_CASE("CompileDefaultArgs_EndToEnd") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", std::move(fooParams), VellumType::unresolved("Int"),
-      std::move(fooBody), false));
+      makeUnique<ast::BlockStatement>(std::move(fooBody)), false));
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(testBody), false));
+      makeUnique<ast::BlockStatement>(std::move(testBody)), false));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -361,7 +362,7 @@ TEST_CASE("CompileReturn_BareReturn_EmitsReturnWithNoneVar") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(fooBody), false));
+      makeUnique<ast::BlockStatement>(std::move(fooBody)), false));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -433,7 +434,7 @@ TEST_CASE("CompileReturn_WithValue_EmitsReturnWithValue") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      std::move(fooBody), false));
+      makeUnique<ast::BlockStatement>(std::move(fooBody)), false));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -506,10 +507,11 @@ TEST_CASE("CompileSelfExpression_CallMethodUsesSelf") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::literal(VellumLiteralType::Int),
-      Vec<Unique<ast::Statement>>{}, false));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      false));
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(testBody), false));
+      makeUnique<ast::BlockStatement>(std::move(testBody)), false));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -584,10 +586,10 @@ TEST_CASE("CompileNegativeDefaultArgs_EndToEnd") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", std::move(fooParams), VellumType::unresolved("Int"),
-      std::move(fooBody), false));
+      makeUnique<ast::BlockStatement>(std::move(fooBody)), false));
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(testBody), false));
+      makeUnique<ast::BlockStatement>(std::move(testBody)), false));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -668,7 +670,8 @@ TEST_CASE("CompileAutoProperty_WithInitializer") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::PropertyDeclaration>(
       "value", VellumType::literal(VellumLiteralType::Int), "",
-      ast::FunctionBody{}, ast::FunctionBody{}, VellumLiteral(42)));
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}),
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), VellumLiteral(42)));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -733,7 +736,7 @@ TEST_CASE("DebugInfo_WhenEnabled_FileHasDebugInfoAndFunctionLineMap") {
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   ScriptMetadata metadata;
   metadata.emitDebugInfo = true;
@@ -764,7 +767,7 @@ TEST_CASE("DebugInfo_EmptyFunction_HasEmptyLineMap") {
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "empty", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   ScriptMetadata metadata;
   metadata.emitDebugInfo = true;
@@ -790,7 +793,8 @@ TEST_CASE("DebugInfo_Property_GetterSetterHaveDebugEntries") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::PropertyDeclaration>(
       "value", VellumType::literal(VellumLiteralType::Int), "",
-      std::move(getBody), std::move(setBody), std::nullopt));
+      makeUnique<ast::BlockStatement>(std::move(getBody)),
+      makeUnique<ast::BlockStatement>(std::move(setBody)), std::nullopt));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -845,7 +849,7 @@ TEST_CASE("DebugInfo_WriteToFile_OutputDiffersWithAndWithoutDebug") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -867,7 +871,7 @@ TEST_CASE("DebugInfo_WriteToFile_OutputDiffersWithAndWithoutDebug") {
   Vec<Unique<ast::Declaration>> scriptMembersCopy;
   scriptMembersCopy.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      std::move(bodyCopy), false));
+      makeUnique<ast::BlockStatement>(std::move(bodyCopy)), false));
   Vec<Unique<ast::Declaration>> astCopy;
   astCopy.emplace_back(makeUnique<ast::ScriptDeclaration>(
       VellumType::identifier("testscript"), Token{}, VellumType::none(),
@@ -930,7 +934,7 @@ TEST_CASE("CompileCastAndIntFloatArithmetic") {
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   collector->collect(ast);
   auto result = analyzer->analyze(std::move(ast));
@@ -966,12 +970,12 @@ TEST_CASE("CompileForIn_OpcodePatternAndMangledLocals") {
   body.push_back(makeUnique<ast::ForStatement>(
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("a"), tokA),
-      std::move(forBody), tokI, tokA));
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokI, tokA));
 
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -1058,16 +1062,17 @@ TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
   ast::FunctionBody testBody;
   testBody.push_back(makeUnique<ast::ForStatement>(
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
-      std::move(callMake), std::move(forBody), tokI, Token{}));
+      std::move(callMake),
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokI, Token{}));
 
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
       "makeArr", Vec<ast::FunctionParameter>{},
       VellumType::array(VellumType::literal(VellumLiteralType::Int)),
-      std::move(makeArrBody), false));
+      makeUnique<ast::BlockStatement>(std::move(makeArrBody)), false));
   scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      std::move(testBody), false));
+      makeUnique<ast::BlockStatement>(std::move(testBody)), false));
 
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
@@ -1147,7 +1152,7 @@ TEST_CASE("CompileTernary_IntInt_JmpPattern_NoCast") {
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   collector->collect(ast);
   auto result = analyzer->analyze(std::move(ast));
@@ -1194,7 +1199,7 @@ TEST_CASE("CompileTernary_IntFloat_Promotion_HasCast") {
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Float"),
-      std::move(body), false));
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   collector->collect(ast);
   auto result = analyzer->analyze(std::move(ast));
