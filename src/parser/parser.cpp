@@ -618,10 +618,7 @@ Unique<ast::Expression> Parser::assignExpression() {
       default:
         break;
     }
-    if (expr->isIdentifierExpression()) {
-      return makeUnique<ast::AssignExpression>(
-          std::move(expr), assignExpression(), op, previous);
-    } else if (expr->isPropertyGetExpression()) {
+    if (expr->isPropertyGetExpression()) {
       ast::PropertyGetExpression& getExpr = expr->asPropertyGet();
       return makeUnique<ast::PropertySetExpression>(
           getExpr.releaseObject(), getExpr.getProperty(), assignExpression(),
@@ -631,9 +628,10 @@ Unique<ast::Expression> Parser::assignExpression() {
       return makeUnique<ast::ArrayIndexSetExpression>(
           indexExpr.releaseArray(), indexExpr.releaseIndex(),
           assignExpression(), op, previous);
-    } else {
-      errorHandler->errorAt(previous, "Invalid assignment target.");
     }
+
+    return makeUnique<ast::AssignExpression>(std::move(expr),
+                                             assignExpression(), op, previous);
   }
 
   return expr;
