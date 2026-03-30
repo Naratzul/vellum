@@ -29,5 +29,9 @@ class StatementVisitor {
   virtual void visitBlockStatement(BlockStatement& statement) = 0;
 };
 
+class StatementCompiler {
+
+};
+
 }  // namespace ast
 }  // namespace vellum

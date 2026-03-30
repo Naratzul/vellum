@@ -39,6 +39,8 @@ class Expression {
   virtual VellumType getType() const { return type; }
   virtual void setType(VellumType type_) { type = type_; }
 
+  bool hasResolvedType() const { return type.isResolved(); }
+
   Token getLocation() const { return location; }
 
   virtual void accept(ExpressionVisitor& visitor) { (void)visitor; }
@@ -71,14 +73,12 @@ bool operator!=(const Expression& lhs, const Expression& rhs);
 class LiteralExpression : public Expression {
  public:
   explicit LiteralExpression(VellumLiteral literal, Token location = Token{})
-      : Expression(location), literal(literal) {}
+      : Expression(location), literal(literal) {
+    setType(VellumType::literal(literal.getType()));
+  }
 
   VellumLiteral getLiteral() const { return literal; }
   bool equals(const Expression& other) const override;
-
-  VellumType getType() const override {
-    return VellumType::literal(literal.getType());
-  }
 
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
 
@@ -186,7 +186,10 @@ class AssignExpression : public Expression {
   AssignExpression(Unique<Expression> name, Unique<Expression> value,
                    AssignOperator op = AssignOperator::Assign,
                    Token location = Token{})
-      : Expression(location), name(std::move(name)), value(std::move(value)), op(op) {}
+      : Expression(location),
+        name(std::move(name)),
+        value(std::move(value)),
+        op(op) {}
 
   bool equals(const Expression& other) const override;
 

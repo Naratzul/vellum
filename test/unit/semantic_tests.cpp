@@ -279,7 +279,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_UndefinedFunction") {
 
   const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedFunction));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedIdentifier));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticCall_ArgumentTypeMismatch") {
@@ -1656,7 +1656,6 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   const auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hadError());
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedFunction));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,

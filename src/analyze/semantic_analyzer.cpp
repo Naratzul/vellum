@@ -179,6 +179,10 @@ void SemanticAnalyzer::visitIfStatement(ast::IfStatement& statement) {
   auto& condition = statement.getCondition();
   condition->accept(*this);
 
+  if (!condition->hasResolvedType()) {
+    return;
+  }
+
   if (!condition->getType().isBool()) {
     errorHandler->errorAt(
         statement.getCondition()->getLocation(),
@@ -203,42 +207,55 @@ void SemanticAnalyzer::visitLocalVariableStatement(
   Opt<VellumType> annotatedType;
   if (auto type = statement.getType()) {
     Token typeLocation = statement.getTypeLocation().value_or(Token());
-    annotatedType = resolver->resolveType(type.value(), typeLocation);
-    statement.setType(annotatedType.value());
-    if (annotatedType && annotatedType->isNone()) {
+    auto resolvedType = resolver->resolveType(type.value(), typeLocation);
+    statement.setType(resolvedType);
+    if (resolvedType.isNone()) {
       errorHandler->errorAt(typeLocation, CompilerErrorKind::NoneNotValidType,
                             "None is not a valid type for a variable.");
       return;
     }
+    annotatedType = resolvedType;
   }
 
   Opt<VellumType> deducedType;
   if (statement.getInitializer()) {
     statement.getInitializer()->accept(*this);
-    deducedType = statement.getInitializer()->getType();
-    if (!annotatedType) {
-      statement.setType(deducedType.value());
+    if (statement.getInitializer()->hasResolvedType()) {
+      deducedType = statement.getInitializer()->getType();
+      if (!annotatedType) {
+        statement.setType(*deducedType);
+      }
     }
   }
 
-  if (annotatedType && deducedType && statement.getInitializer()) {
+  if (annotatedType && deducedType && annotatedType->isResolved() &&
+      deducedType->isResolved()) {
     auto result =
         checker.check(statement.getInitializer(), annotatedType.value(),
                       TypeChecker::Context::Initialization);
     if (!result.compatible) {
       errorHandler->errorAt(statement.getInitializer()->getLocation(),
                             result.errorKind, result.errorMessage);
-      return;
     }
   }
 
-  VellumVariable var(statement.getName(), statement.getType().value());
-  Token varLocation = statement.getNameLocation();
-  resolver->pushLocalVar(var, varLocation);
+  if (auto type = statement.getType()) {
+    VellumVariable var(statement.getName(), *type);
+    Token varLocation = statement.getNameLocation();
+    resolver->pushLocalVar(var, varLocation);
+  }
 }
 
 void SemanticAnalyzer::visitWhileStatement(ast::WhileStatement& statement) {
   statement.getCondition()->accept(*this);
+  if (statement.getCondition()->hasResolvedType() &&
+      !statement.getCondition()->getType().isBool()) {
+    errorHandler->errorAt(
+        statement.getCondition()->getLocation(),
+        "Condition expression must have 'Bool' type. Given type is '{}'.",
+        statement.getCondition()->getType().toString());
+  }
+
   loopDepth++;
   statement.getBody()->accept(*this);
   loopDepth--;
@@ -264,6 +281,10 @@ void SemanticAnalyzer::visitContinueStatement(
 void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
   auto& arrayExpr = statement.getArray();
   arrayExpr->accept(*this);
+
+  if (!arrayExpr->hasResolvedType()) {
+    return;
+  }
 
   if (!arrayExpr->getType().isArray()) {
     errorHandler->errorAt(statement.getArrayLocation(), "Array type expected.");
@@ -345,6 +366,10 @@ void SemanticAnalyzer::visitIdentifierExpression(
 
 void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   expr.getCallee()->accept(*this);
+  if (!expr.getCallee()->hasResolvedType()) {
+    return;
+  }
+
   const auto& callee = expr.getCallee();
 
   if (callee->isIdentifierExpression()) {
@@ -353,13 +378,6 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
         callee->asIdentifier().getIdentifier()));
   } else if (callee->isPropertyGetExpression()) {
     if (callee->asPropertyGet().getObject()->isSuperExpression()) {
-      if (!resolver->getParentType()) {
-        errorHandler->errorAt(expr.getCallee()->getLocation(),
-                              CompilerErrorKind::UndefinedFunction,
-                              "super can only be used in a script that extends "
-                              "another script.");
-        return;
-      }
       expr.setFunctionCall(VellumFunctionCall::parentCall(
           *resolver->getParentType(), callee->asPropertyGet().getProperty()));
     } else {
@@ -518,6 +536,9 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
 void SemanticAnalyzer::visitPropertyGetExpression(
     ast::PropertyGetExpression& expr) {
   expr.getObject()->accept(*this);
+  if (!expr.getObject()->hasResolvedType()) {
+    return;
+  }
 
   if (inStaticContext) {
     if (expr.getObject()->isSuperExpression()) {
@@ -538,12 +559,6 @@ void SemanticAnalyzer::visitPropertyGetExpression(
 
   Opt<VellumValue> property;
   if (expr.getObject()->isSuperExpression()) {
-    if (!resolver->getParentType()) {
-      errorHandler->errorAt(
-          expr.getLocation(), CompilerErrorKind::UndefinedProperty,
-          "super can only be used in a script that extends another script.");
-      return;
-    }
     if (auto func = resolver->resolveParentFunction(expr.getProperty())) {
       expr.setType(func->getReturnType());
       expr.setIdentifierType(VellumValueType::Function);
@@ -599,6 +614,9 @@ void SemanticAnalyzer::visitPropertyGetExpression(
 void SemanticAnalyzer::visitPropertySetExpression(
     ast::PropertySetExpression& expr) {
   expr.getObject()->accept(*this);
+  if (!expr.getObject()->hasResolvedType()) {
+    return;
+  }
 
   if (inStaticContext) {
     if (expr.getObject()->isSuperExpression()) {
@@ -619,12 +637,6 @@ void SemanticAnalyzer::visitPropertySetExpression(
 
   Opt<VellumValue> property;
   if (expr.getObject()->isSuperExpression()) {
-    if (!resolver->getParentType()) {
-      errorHandler->errorAt(
-          expr.getLocation(), CompilerErrorKind::UndefinedProperty,
-          "super can only be used in a script that extends another script.");
-      return;
-    }
     property = resolver->resolveParentProperty(expr.getProperty());
   } else {
     property = resolver->resolveProperty(expr.getObject()->getType(),
@@ -692,8 +704,13 @@ void SemanticAnalyzer::visitPropertySetExpression(
 void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
   expr.getName()->accept(*this);
 
+  if (!expr.getName()->hasResolvedType()) {
+    return;
+  }
+
   if (!expr.getName()->isIdentifierExpression()) {
-    errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::NotAssignable,
+    errorHandler->errorAt(expr.getName()->getLocation(),
+                          CompilerErrorKind::NotAssignable,
                           "Invalid assignment target.");
     return;
   }
@@ -759,6 +776,11 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
 void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
   expr.getLeft()->accept(*this);
   expr.getRight()->accept(*this);
+
+  if (!expr.getLeft()->hasResolvedType() ||
+      !expr.getRight()->hasResolvedType()) {
+    return;
+  }
 
   // Check if operands are valid values (not function/script type identifiers)
   auto leftResult = checker.checkValidValue(
@@ -847,6 +869,9 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
 
 void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
   expr.getOperand()->accept(*this);
+  if (!expr.getOperand()->hasResolvedType()) {
+    return;
+  }
 
   std::string operatorName;
   switch (expr.getOperator()) {
@@ -893,6 +918,9 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
 
 void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
   expr.getExpression()->accept(*this);
+  if (!expr.getExpression()->hasResolvedType()) {
+    return;
+  }
 
   if (!expr.getTargetType().isResolved()) {
     expr.setTargetType(
@@ -920,9 +948,9 @@ void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
 }
 
 void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
-  if (const auto& subtype = expr.getSubtype(); subtype.has_value()) {
+  if (const auto& subtype = expr.getSubtype()) {
     VellumType resolvedSubtype =
-        resolver->resolveType(subtype.value(), expr.getLocation());
+        resolver->resolveType(*subtype, expr.getLocation());
     expr.setSubtype(resolvedSubtype);
     expr.setType(VellumType::array(resolvedSubtype));
   }
@@ -965,11 +993,26 @@ void SemanticAnalyzer::visitSuperExpression(ast::SuperExpression& expr) {
                           "super is not allowed in a static function.");
     return;
   }
+
+  auto parentType = resolver->getParentType();
+  if (!parentType) {
+    errorHandler->errorAt(expr.getLocation(),
+                          CompilerErrorKind::UnknownParentScript,
+                          "super can only be used in a script that extends "
+                          "another script.");
+    return;
+  }
+
+  expr.setType(*parentType);
 }
 
 void SemanticAnalyzer::visitArrayIndexExpression(
     ast::ArrayIndexExpression& expr) {
   expr.getArray()->accept(*this);
+  if (!expr.getArray()->hasResolvedType()) {
+    return;
+  }
+
   const VellumType arrayType = expr.getArray()->getType();
 
   if (!arrayType.isArray()) {
@@ -980,6 +1023,10 @@ void SemanticAnalyzer::visitArrayIndexExpression(
   }
 
   expr.getIndex()->accept(*this);
+  if (!expr.getIndex()->hasResolvedType()) {
+    return;
+  }
+
   const VellumType indexType = expr.getIndex()->getType();
 
   if (!indexType.isInt()) {
@@ -998,6 +1045,10 @@ void SemanticAnalyzer::visitArrayIndexExpression(
 void SemanticAnalyzer::visitArrayIndexSetExpression(
     ast::ArrayIndexSetExpression& expr) {
   expr.getArray()->accept(*this);
+  if (!expr.getArray()->hasResolvedType()) {
+    return;
+  }
+
   const VellumType arrayType = expr.getArray()->getType();
 
   if (!arrayType.isArray()) {
@@ -1008,6 +1059,10 @@ void SemanticAnalyzer::visitArrayIndexSetExpression(
   }
 
   expr.getIndex()->accept(*this);
+  if (!expr.getIndex()->hasResolvedType()) {
+    return;
+  }
+
   const VellumType indexType = expr.getIndex()->getType();
 
   if (!indexType.isInt()) {
@@ -1044,22 +1099,31 @@ void SemanticAnalyzer::visitArrayIndexSetExpression(
 
 void SemanticAnalyzer::visitTernaryExpression(ast::TernaryExpression& expr) {
   expr.getCondition()->accept(*this);
-  if (!expr.getCondition()->getType().isBool()) {
+
+  if (expr.getCondition()->hasResolvedType() &&
+      !expr.getCondition()->getType().isBool()) {
     errorHandler->errorAt(
         expr.getCondition()->getLocation(),
         "Condition expression must have 'Bool' type. Given type is '{}'.",
         expr.getCondition()->getType().toString());
-    return;
   }
 
   expr.getLeft()->accept(*this);
   expr.getRight()->accept(*this);
+
+  if (!expr.getLeft()->hasResolvedType()) {
+    return;
+  }
 
   auto leftValid = checker.checkValidValue(expr.getLeft(),
                                            TypeChecker::Context::TernaryBranch);
   if (!leftValid.compatible) {
     errorHandler->errorAt(expr.getLeft()->getLocation(), leftValid.errorKind,
                           leftValid.errorMessage);
+    return;
+  }
+
+  if (!expr.getRight()->hasResolvedType()) {
     return;
   }
 
