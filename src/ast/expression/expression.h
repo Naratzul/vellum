@@ -238,12 +238,13 @@ class PropertySetExpression : public Expression {
   PropertySetExpression(Unique<Expression> object, VellumIdentifier property,
                         Unique<Expression> value,
                         AssignOperator op = AssignOperator::Assign,
+                        Token propertyLocation = Token{},
                         Token location = Token{})
       : Expression(location),
         object(std::move(object)),
         property(property),
         value(std::move(value)),
-        op(op) {}
+        op(op), propertyLocation(propertyLocation) {}
 
   const Unique<Expression>& getObject() const { return object; }
   VellumIdentifier getProperty() const { return property; }
@@ -257,11 +258,14 @@ class PropertySetExpression : public Expression {
 
   bool isPropertyGetExpression() const override { return true; }
 
+  Token getPropertyLocation() const { return propertyLocation; }
+
  private:
   Unique<Expression> object;
   VellumIdentifier property;
   Unique<Expression> value;
   AssignOperator op;
+  Token propertyLocation;
 };
 
 class ArrayIndexExpression : public Expression {

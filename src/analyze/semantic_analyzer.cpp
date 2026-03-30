@@ -328,7 +328,7 @@ void SemanticAnalyzer::visitIdentifierExpression(
   if (!value) {
     errorHandler->errorAt(
         expr.getLocation(), CompilerErrorKind::UndefinedIdentifier,
-        "Undefined identifier '{}'", expr.getIdentifier().toString());
+        "Undefined identifier '{}'.", expr.getIdentifier().toString());
     return;
   }
 
@@ -646,11 +646,11 @@ void SemanticAnalyzer::visitPropertySetExpression(
   if (!property) {
     if (expr.getObject()->isSuperExpression()) {
       errorHandler->errorAt(
-          expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+          expr.getPropertyLocation(), CompilerErrorKind::UndefinedProperty,
           "Parent has no member '{}'.", expr.getProperty().toString());
     } else {
       errorHandler->errorAt(
-          expr.getLocation(), CompilerErrorKind::UndefinedProperty,
+          expr.getPropertyLocation(), CompilerErrorKind::UndefinedProperty,
           "Undefined property '{}'.", expr.getProperty().toString());
     }
     return;

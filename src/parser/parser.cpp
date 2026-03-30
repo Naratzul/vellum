@@ -556,9 +556,10 @@ Unique<ast::Expression> Parser::assignExpression() {
     }
     if (expr->isPropertyGetExpression()) {
       ast::PropertyGetExpression& getExpr = expr->asPropertyGet();
+      Token location = previous;
       return makeUnique<ast::PropertySetExpression>(
           getExpr.releaseObject(), getExpr.getProperty(), assignExpression(),
-          op, previous);
+          op, getExpr.getLocation(), location);
     } else if (expr->isArrayIndexExpression()) {
       ast::ArrayIndexExpression& indexExpr = expr->asArrayIndex();
       return makeUnique<ast::ArrayIndexSetExpression>(
