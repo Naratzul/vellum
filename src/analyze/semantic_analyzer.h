@@ -16,6 +16,7 @@
 namespace vellum {
 using common::Map;
 using common::Opt;
+using common::Set;
 using common::Shared;
 using common::Unique;
 using common::Vec;
@@ -86,9 +87,10 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   bool inStaticContext{false};
   int loopDepth{0};
   int loopCount{0};
+  int autoStateCount{0};
+  Set<VellumIdentifier> visitedStates;
 
   Opt<VellumState> state;
-  Map<VellumIdentifier, VellumFunction> stateFunc;
 
   bool validateComposedAssignTypes(ast::AssignOperator op,
                                    const VellumType& lhsType,

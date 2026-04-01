@@ -9,9 +9,12 @@ using common::Vec;
 
 class VellumState {
  public:
-  explicit VellumState(VellumIdentifier name) : name(name) {}
+  VellumState(VellumIdentifier name) : name(name) {}
 
   VellumIdentifier getName() const { return name; }
+
+  bool isAuto() const { return isAuto_; }
+  void setIsAuto(bool isAuto) { isAuto_ = isAuto; }
 
   const Vec<VellumFunction>& getFunctions() const { return functions; }
   void addFunction(const VellumFunction& func) { functions.push_back(func); }
@@ -28,5 +31,6 @@ class VellumState {
  private:
   VellumIdentifier name;
   Vec<VellumFunction> functions;
+  bool isAuto_{false};
 };
 }  // namespace vellum

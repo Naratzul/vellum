@@ -44,6 +44,8 @@ void PexObjectCompiler::visitScriptDeclaration(
   object.setName(file.getString(declaration.getScriptName().toString()));
   object.setParentName(
       file.getString(declaration.getParentScriptName().toString()));
+
+  // TODO: support doc string
   object.setDocumentationString(file.getString(""));
   object.setAutoStateName(file.getString(""));
 
@@ -54,10 +56,22 @@ void PexObjectCompiler::visitScriptDeclaration(
 
 void PexObjectCompiler::visitStateDeclaration(
     ast::StateDeclaration& declaration) {
-  currentStateIndex = object.getStates().size();
-
   auto stateName = file.getString(declaration.getStateName());
-  object.getStates().emplace_back(stateName);
+
+  int found = -1;
+  for (int i = 0; i < object.getStates().size(); ++i) {
+    if (object.getStates()[i].getName() == stateName) {
+      found = i;
+      break;
+    }
+  }
+
+  if (found == -1) {
+    currentStateIndex = object.getStates().size();
+    object.getStates().emplace_back(stateName);
+  } else {
+    currentStateIndex = found;
+  }
 
   if (declaration.getIsAuto()) {
     object.setAutoStateName(stateName);
@@ -96,8 +110,7 @@ void PexObjectCompiler::visitFunctionDeclaration(
         declaration.getName().has_value()
             ? file.getString(declaration.getName().value())
             : file.getString("");
-    debugFuncInfoStorage.functionType =
-        pex::PexDebugFunctionType::Normal;
+    debugFuncInfoStorage.functionType = pex::PexDebugFunctionType::Normal;
     debugFuncInfo = &debugFuncInfoStorage;
   }
   pex::PexFunction function = compiler.compile(declaration, debugFuncInfo);
@@ -147,8 +160,8 @@ void PexObjectCompiler::visitPropertyDeclaration(
       getterDebugInfoStorage.functionType = pex::PexDebugFunctionType::Getter;
       getterDebugInfo = &getterDebugInfoStorage;
     }
-    getAccessorFunc =
-        PexFunctionCompiler(errorHandler, file).compile(funcDecl, getterDebugInfo);
+    getAccessorFunc = PexFunctionCompiler(errorHandler, file)
+                          .compile(funcDecl, getterDebugInfo);
     if (file.hasDebugInfo()) {
       file.debugInfo()->functions.push_back(std::move(getterDebugInfoStorage));
     }
@@ -172,8 +185,8 @@ void PexObjectCompiler::visitPropertyDeclaration(
     auto getBlock = declaration.releaseGetAccessor().value();
     ast::FunctionDeclaration getFuncDecl({}, {}, VellumType::none(),
                                          std::move(getBlock), false);
-    getAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(
-        getFuncDecl, getterDebugInfo);
+    getAccessorFunc = PexFunctionCompiler(errorHandler, file)
+                          .compile(getFuncDecl, getterDebugInfo);
     if (file.hasDebugInfo()) {
       file.debugInfo()->functions.push_back(std::move(getterDebugInfoStorage));
     }
@@ -181,8 +194,8 @@ void PexObjectCompiler::visitPropertyDeclaration(
     auto setBlock = declaration.releaseSetAccessor().value();
     ast::FunctionDeclaration setFuncDecl({}, {}, VellumType::none(),
                                          std::move(setBlock), false);
-    setAccessorFunc = PexFunctionCompiler(errorHandler, file).compile(
-        setFuncDecl, setterDebugInfo);
+    setAccessorFunc = PexFunctionCompiler(errorHandler, file)
+                          .compile(setFuncDecl, setterDebugInfo);
     if (file.hasDebugInfo()) {
       file.debugInfo()->functions.push_back(std::move(setterDebugInfoStorage));
     }

@@ -24,7 +24,6 @@ class Statement;
 }  // namespace ast
 
 class CompilerErrorHandler;
-class Resolver;
 
 namespace pex {
 class PexFile;
@@ -47,7 +46,6 @@ class PexObjectCompiler : public ast::DeclarationVisitor {
 
  private:
   Shared<CompilerErrorHandler> errorHandler;
-  Shared<Resolver> resolver;
   pex::PexFile& file;
   pex::PexObject object;
   int currentStateIndex = 0;

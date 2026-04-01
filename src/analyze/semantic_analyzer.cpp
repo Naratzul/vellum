@@ -60,8 +60,18 @@ void SemanticAnalyzer::visitStateDeclaration(
   state = resolver->getState(stateName);
   assert(state);
 
-  for (const auto& func : state->getFunctions()) {
-    stateFunc.emplace(func.getName(), func);
+  if (state->isAuto() && !visitedStates.contains(state->getName())) {
+    autoStateCount++;
+  }
+
+  visitedStates.insert(state->getName());
+
+  if (autoStateCount > 1) {
+    errorHandler->errorAt(declaration.getStateNameLocation(),
+                          CompilerErrorKind::MultipleAutoStates,
+                          "Only one auto state is allowed.");
+    state = std::nullopt;
+    return;
   }
 
   for (const auto& memberDecl : declaration.getMemberDecls()) {
@@ -70,7 +80,6 @@ void SemanticAnalyzer::visitStateDeclaration(
   }
 
   state = std::nullopt;
-  stateFunc.clear();
 }
 
 void SemanticAnalyzer::visitVariableDeclaration(

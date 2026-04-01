@@ -23,6 +23,10 @@ void DeclarationCollector::collect(
   for (auto& decl : declarations) {
     decl->accept(*this);
   }
+
+  for (auto [_, state] : states) {
+    resolver->addState(state);
+  }
 }
 
 void DeclarationCollector::visitImportDeclaration(
@@ -109,18 +113,17 @@ void DeclarationCollector::visitScriptDeclaration(
 
 void DeclarationCollector::visitStateDeclaration(
     ast::StateDeclaration& declaration) {
+  auto stateName = VellumIdentifier(declaration.getStateName());
+
+  if (!states.contains(stateName)) {
+    states.emplace(stateName, VellumState(stateName));
+  }
+
+  state = &states.find(stateName)->second;
+
   if (declaration.getIsAuto()) {
-    autoStateCount++;
+    state->setIsAuto(true);
   }
-
-  if (autoStateCount > 1) {
-    errorHandler->errorAt(declaration.getStateNameLocation(),
-                          CompilerErrorKind::MultipleAutoStates,
-                          "Only one auto state is allowed.");
-  }
-
-  // TODO: add name case collision check
-  state = VellumState(VellumIdentifier(declaration.getStateName()));
 
   auto& members = declaration.getMemberDecls();
   for (const auto& member : members) {
@@ -131,13 +134,12 @@ void DeclarationCollector::visitStateDeclaration(
     return decl->getOrder() != ast::DeclarationOrder::Function;
   });
 
-  resolver->addState(state.value());
-  state = std::nullopt;
+  state = nullptr;
 }
 
 void DeclarationCollector::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& declaration) {
-  if (state.has_value()) {
+  if (state) {
     errorHandler->errorAt(
         declaration.getNameLocation().value_or(Token()),
         CompilerErrorKind::ExpectDeclaration,
@@ -187,21 +189,28 @@ void DeclarationCollector::visitVariableDeclaration(
       std::string(common::normalizeToLower(varName.toString()));
 
   if (normalizedVariableNames.contains(normalized)) {
-    auto it = normalizedToOriginal.find(normalized);
-    if (it != normalizedToOriginal.end() && it->second != varName) {
+    auto it = normalizedVarNameToOriginal.find(normalized);
+    if (it != normalizedVarNameToOriginal.end()) {
       Token varLocation = declaration.getNameLocation().value_or(Token());
-      errorHandler->errorAt(
-          varLocation, CompilerErrorKind::CaseConflict,
-          "Variable '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
-          "format), these names are case-insensitive and would create a "
-          "duplicate.",
-          varName.toString(), it->second.toString());
+      if (it->second == varName) {
+        errorHandler->errorAt(
+            varLocation, CompilerErrorKind::VariableRedefinition,
+            "Variable '{}' is already defined in this script.",
+            varName.toString());
+      } else {
+        errorHandler->errorAt(
+            varLocation, CompilerErrorKind::CaseConflict,
+            "Variable '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
+            "format), these names are case-insensitive and would create a "
+            "duplicate.",
+            varName.toString(), it->second.toString());
+      }
       return;
     }
   }
 
   normalizedVariableNames.insert(normalized);
-  normalizedToOriginal.emplace(normalized, varName);
+  normalizedVarNameToOriginal.emplace(normalized, varName);
 
   resolver->addVariable(
       VellumVariable(varName, declaration.typeName().value()));
@@ -276,15 +285,24 @@ void DeclarationCollector::visitFunctionDeclaration(
       std::string(common::normalizeToLower(funcName.toString()));
   Token funcLocation = declaration.getNameLocation().value_or(Token());
 
-  if (normalizedFunctionNames.contains(normalized)) {
-    auto it = normalizedToOriginal.find(normalized);
-    if (it != normalizedToOriginal.end() && it->second != funcName) {
-      errorHandler->errorAt(
-          funcLocation, CompilerErrorKind::CaseConflict,
-          "Function '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
-          "format), these names are case-insensitive and would create a "
-          "duplicate.",
-          funcName.toString(), it->second.toString());
+  auto stateName = state ? std::string((state->getName().toString())) : "";
+
+  if (normalizedFunctionNames[stateName].contains(normalized)) {
+    auto it = normalizedFunctionNameToOriginal[stateName].find(normalized);
+    if (it != normalizedFunctionNameToOriginal[stateName].end()) {
+      if (it->second == funcName) {
+        errorHandler->errorAt(
+            funcLocation, CompilerErrorKind::FunctionRedefinition,
+            "Function '{}' is already defined in this script.",
+            funcName.toString());
+      } else {
+        errorHandler->errorAt(
+            funcLocation, CompilerErrorKind::CaseConflict,
+            "Function '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
+            "format), these names are case-insensitive and would create a "
+            "duplicate.",
+            funcName.toString(), it->second.toString());
+      }
       return;
     }
   }
@@ -323,13 +341,13 @@ void DeclarationCollector::visitFunctionDeclaration(
     }
   }
 
-  normalizedFunctionNames.insert(normalized);
-  normalizedToOriginal.emplace(normalized, funcName);
+  normalizedFunctionNames[stateName].insert(normalized);
+  normalizedFunctionNameToOriginal[stateName].emplace(normalized, funcName);
 
   VellumFunction func(funcName, declaration.getReturnTypeName(),
                       std::move(parameters), declaration.isStatic());
 
-  if (state.has_value()) {
+  if (state) {
     state->addFunction(func);
   } else {
     resolver->addFunction(func);
@@ -338,7 +356,7 @@ void DeclarationCollector::visitFunctionDeclaration(
 
 void DeclarationCollector::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
-  if (state.has_value()) {
+  if (state) {
     errorHandler->errorAt(
         declaration.getNameLocation(), CompilerErrorKind::ExpectDeclaration,
         "Property '{}' is not allowed inside states. Only functions and events "
@@ -364,14 +382,21 @@ void DeclarationCollector::visitPropertyDeclaration(
   Token propLocation = declaration.getNameLocation();
 
   if (normalizedPropertyNames.contains(normalized)) {
-    auto it = normalizedToOriginal.find(normalized);
-    if (it != normalizedToOriginal.end() && it->second != propName) {
-      errorHandler->errorAt(
-          propLocation, CompilerErrorKind::CaseConflict,
-          "Property '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
-          "format), these names are case-insensitive and would create a "
-          "duplicate.",
-          propName.toString(), it->second.toString());
+    auto it = normalizedPropertyNameToOriginal.find(normalized);
+    if (it != normalizedPropertyNameToOriginal.end()) {
+      if (it->second == propName) {
+        errorHandler->errorAt(
+            propLocation, CompilerErrorKind::PropertyRedefinition,
+            "Property '{}' is already defined in this script.",
+            propName.toString());
+      } else {
+        errorHandler->errorAt(
+            propLocation, CompilerErrorKind::CaseConflict,
+            "Property '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
+            "format), these names are case-insensitive and would create a "
+            "duplicate.",
+            propName.toString(), it->second.toString());
+      }
       return;
     }
   }
@@ -386,7 +411,7 @@ void DeclarationCollector::visitPropertyDeclaration(
   }
 
   normalizedPropertyNames.insert(normalized);
-  normalizedToOriginal.emplace(normalized, propName);
+  normalizedPropertyNameToOriginal.emplace(normalized, propName);
 
   resolver->addProperty(VellumProperty(propName, declaration.getTypeName(),
                                        declaration.isReadonly()));

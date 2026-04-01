@@ -16,6 +16,7 @@
 #include "compiler/compiler_error_handler.h"
 #include "analyze/import_resolver.h"
 #include "compiler/resolver.h"
+#include "lexer/token.h"
 #include "pex/pex_debug_info.h"
 #include "pex/pex_file.h"
 #include "pex/pex_function.h"
@@ -131,6 +132,107 @@ TEST_CASE("CompileFunctionCallTest") {
 
   const auto& instruction = pex_test_func.getInstructions()[0];
   CHECK(instruction.getOpCode() == pex::PexOpCode::CallStatic);
+}
+
+TEST_CASE("CompileStateReopen_MergesIntoSinglePexState") {
+  auto makeIntFunc = [](std::string_view name, int line) {
+    return makeUnique<ast::FunctionDeclaration>(
+        name, Vec<ast::FunctionParameter>{},
+        VellumType::literal(VellumLiteralType::Int),
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+        makeToken(TokenType::IDENTIFIER, line, name));
+  };
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeIntFunc("rootFunc", 1));
+  scriptMembers.emplace_back(makeIntFunc("funcA", 1));
+  scriptMembers.emplace_back(makeIntFunc("funcB", 1));
+  scriptMembers.emplace_back(makeIntFunc("funcC", 1));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> mergedFirst;
+  mergedFirst.emplace_back(makeIntFunc("funcA", 2));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), false,
+      std::move(mergedFirst)));
+
+  Vec<Unique<ast::Declaration>> mergedSecond;
+  mergedSecond.emplace_back(makeIntFunc("funcB", 3));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), false,
+      std::move(mergedSecond)));
+
+  Vec<Unique<ast::Declaration>> otherMembers;
+  otherMembers.emplace_back(makeIntFunc("funcC", 4));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Other", makeToken(TokenType::IDENTIFIER, 4, "Other"), false,
+      std::move(otherMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(file.objects().size() == 1);
+  const auto& obj = file.objects()[0];
+  REQUIRE(obj.getStates().size() == 3);
+
+  const pex::PexString rootName = file.getString("");
+  const pex::PexString mergedName = file.getString("Merged");
+  const pex::PexString otherName = file.getString("Other");
+  CHECK(obj.getStates()[0].getName() == rootName);
+  CHECK(obj.getStates()[1].getName() == mergedName);
+  CHECK(obj.getStates()[2].getName() == otherName);
+
+  REQUIRE(obj.getStates()[0].getFunctions().size() == 4);
+  const auto& mergedState = obj.getStates()[1];
+  REQUIRE(mergedState.getFunctions().size() == 2);
+  REQUIRE(mergedState.getFunctions()[0].getName() == file.getString("funcA"));
+  REQUIRE(mergedState.getFunctions()[1].getName() == file.getString("funcB"));
+  REQUIRE(obj.getStates()[2].getFunctions().size() == 1);
+  REQUIRE(obj.getStates()[2].getFunctions()[0].getName() ==
+          file.getString("funcC"));
+}
+
+TEST_CASE("CompileStateReopen_SetsAutoStateNameFromLaterFragment") {
+  auto makeIntFunc = [](std::string_view name, int line) {
+    return makeUnique<ast::FunctionDeclaration>(
+        name, Vec<ast::FunctionParameter>{},
+        VellumType::literal(VellumLiteralType::Int),
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+        makeToken(TokenType::IDENTIFIER, line, name));
+  };
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeIntFunc("myFunc", 1));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> first;
+  first.emplace_back(makeIntFunc("myFunc", 2));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "S", makeToken(TokenType::IDENTIFIER, 2, "S"), false,
+      std::move(first)));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "S", makeToken(TokenType::IDENTIFIER, 3, "S"), true,
+      Vec<Unique<ast::Declaration>>{}));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  CHECK(file.objects()[0].getAutoStateName() == file.getString("S"));
 }
 
 TEST_CASE("CompileArrayIndexGetTest") {

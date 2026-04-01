@@ -1773,6 +1773,130 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 }
 
 // ============================================================================
+// Member redefinition (PEX-compatible unique names per script)
+// ============================================================================
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "DeclarationCollector_FunctionRedefinition_SameSpelling") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Bool"),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::FunctionRedefinition));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "DeclarationCollector_Function_CaseConflict") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Bool"),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "Foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::CaseConflict));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "DeclarationCollector_VariableRedefinition_SameSpelling") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "counter", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+  members.push_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "counter", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::VariableRedefinition));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "DeclarationCollector_Variable_CaseConflict") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "counter", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+  members.push_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "Counter", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::CaseConflict));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "DeclarationCollector_PropertyRedefinition_SameSpelling") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "MyProp", VellumType::unresolved("Int"), "", std::nullopt, std::nullopt,
+      std::nullopt));
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "MyProp", VellumType::unresolved("String"), "", std::nullopt,
+      std::nullopt, std::nullopt));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::PropertyRedefinition));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "DeclarationCollector_Property_CaseConflict") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "MyProp", VellumType::unresolved("Int"), "", std::nullopt, std::nullopt,
+      std::nullopt));
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "myprop", VellumType::unresolved("Int"), "", std::nullopt, std::nullopt,
+      std::nullopt));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::CaseConflict));
+}
+
+// ============================================================================
 // State Tests
 // ============================================================================
 
@@ -1790,6 +1914,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_OnlyOneAutoState") {
       Vec<Unique<ast::Declaration>>{}));
 
   collector->collect(ast);
+  analyzer->analyze(std::move(ast));
 
   REQUIRE(errorHandler->hadError());
   REQUIRE(errorHandler->hasError(CompilerErrorKind::MultipleAutoStates));
@@ -2253,6 +2378,162 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_MultipleFunctionsInState") {
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_Reopen_MergesFunctionsAcrossFragments") {
+  auto intFunc = [](std::string_view name, int line) {
+    return makeUnique<ast::FunctionDeclaration>(
+        name, Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+        makeToken(TokenType::IDENTIFIER, line, name));
+  };
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(intFunc("rootFunc", 1));
+  scriptMembers.emplace_back(intFunc("funcA", 1));
+  scriptMembers.emplace_back(intFunc("funcB", 1));
+  scriptMembers.emplace_back(intFunc("funcC", 1));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> mergedFirst;
+  mergedFirst.emplace_back(intFunc("funcA", 2));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), false,
+      std::move(mergedFirst)));
+
+  Vec<Unique<ast::Declaration>> mergedSecond;
+  mergedSecond.emplace_back(intFunc("funcB", 3));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), false,
+      std::move(mergedSecond)));
+
+  Vec<Unique<ast::Declaration>> otherMembers;
+  otherMembers.emplace_back(intFunc("funcC", 4));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Other", makeToken(TokenType::IDENTIFIER, 4, "Other"), false,
+      std::move(otherMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 4);
+  auto merged = resolver->getState(VellumIdentifier("Merged"));
+  REQUIRE(merged.has_value());
+  REQUIRE(merged->getFunctions().size() == 2);
+  REQUIRE(merged->getFunctions()[0].getName().toString() == "funcA");
+  REQUIRE(merged->getFunctions()[1].getName().toString() == "funcB");
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_Reopen_DuplicateFunction_Error") {
+  auto intFunc = [](std::string_view name, int line) {
+    return makeUnique<ast::FunctionDeclaration>(
+        name, Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+        makeToken(TokenType::IDENTIFIER, line, name));
+  };
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(intFunc("foo", 1));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> s1;
+  s1.emplace_back(intFunc("foo", 2));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), false,
+      std::move(s1)));
+
+  Vec<Unique<ast::Declaration>> s2;
+  s2.emplace_back(intFunc("foo", 3));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), false,
+      std::move(s2)));
+
+  collector->collect(ast);
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::FunctionRedefinition));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_Reopen_FunctionCaseConflict_Error") {
+  auto intFunc = [](std::string_view name, int line) {
+    return makeUnique<ast::FunctionDeclaration>(
+        name, Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+        makeToken(TokenType::IDENTIFIER, line, name));
+  };
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(intFunc("foo", 1));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> s1;
+  s1.emplace_back(intFunc("foo", 2));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), false,
+      std::move(s1)));
+
+  Vec<Unique<ast::Declaration>> s2;
+  s2.emplace_back(intFunc("Foo", 3));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), false,
+      std::move(s2)));
+
+  collector->collect(ast);
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::CaseConflict));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_Reopen_LaterFragmentSetsAutoFlag") {
+  auto intFunc = [](std::string_view name, int line) {
+    return makeUnique<ast::FunctionDeclaration>(
+        name, Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+        makeToken(TokenType::IDENTIFIER, line, name));
+  };
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(intFunc("myFunc", 1));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> first;
+  first.emplace_back(intFunc("myFunc", 2));
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "S", makeToken(TokenType::IDENTIFIER, 2, "S"), false,
+      std::move(first)));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "S", makeToken(TokenType::IDENTIFIER, 3, "S"), true,
+      Vec<Unique<ast::Declaration>>{}));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto st = resolver->getState(VellumIdentifier("S"));
+  REQUIRE(st.has_value());
+  CHECK(st->isAuto());
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLength_Valid") {

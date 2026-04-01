@@ -44,13 +44,19 @@ class DeclarationCollector : public ast::DeclarationVisitor {
   Shared<CompilerErrorHandler> errorHandler;
   Shared<Resolver> resolver;
   std::string_view scriptFilename;
-  int scriptDeclCount = 0;
-  int autoStateCount = 0;
-  Opt<VellumState> state;
+  int scriptDeclCount{0};
+  VellumState* state{nullptr};
+  Map<VellumIdentifier, VellumState> states;
 
-  Set<std::string> normalizedFunctionNames;
+  Map<std::string, VellumIdentifier> normalizedVarNameToOriginal;
+  Map<std::string, VellumIdentifier> normalizedPropertyNameToOriginal;
+
+  // state name -> functions
+  Map<std::string, Set<std::string>> normalizedFunctionNames;
+  // state name -> function name -> original function name
+  Map<std::string, Map<std::string, VellumIdentifier>> normalizedFunctionNameToOriginal;
+
   Set<std::string> normalizedPropertyNames;
   Set<std::string> normalizedVariableNames;
-  Map<std::string, VellumIdentifier> normalizedToOriginal;
 };
 }  // namespace vellum

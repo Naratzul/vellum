@@ -89,7 +89,11 @@ enum class CompilerErrorKind {
   ContinueOutsideLoop,
 
   InvalidCast,
-  NoneNotValidType
+  NoneNotValidType,
+
+  FunctionRedefinition,
+  PropertyRedefinition,
+  VariableRedefinition,
 };
 
 enum class CompilerWarningKind {};
