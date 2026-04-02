@@ -3,17 +3,20 @@
 
 #include <cstdlib>
 #include <cxxopts.hpp>
+#include <filesystem>
 #include <iostream>
 
+#include "common/fs.h"
+#include "common/sentry_report.h"
 #include "common/types.h"
 #include "vellum/vellum.h"
 
 #define SENTRY_BUILD_STATIC 1
 #include <sentry.h>
 
-int main(int argc, char *argv[]) {
-  using vellum::common::Vec;
+using vellum::common::Vec;
 
+int main(int argc, char *argv[]) {
   cxxopts::Options options("vellum", "Vellum Compiler");
   options.add_options()("h,help", "Print help")("v,version", "Print version")(
       "f,file", "Input file", cxxopts::value<std::string>())(
@@ -24,9 +27,9 @@ int main(int argc, char *argv[]) {
       cxxopts::value<bool>()->default_value("false"));
 
   auto result = options.parse(argc, argv);
-
-  if (!result["disable-crash-reporting"].as_optional<bool>()) {
-    sentry_options_t *sentry_opts = sentry_options_new();
+  sentry_options_t *sentry_opts = nullptr;
+  if (!result["disable-crash-reporting"].as<bool>()) {
+    sentry_opts = sentry_options_new();
 #ifdef VELLUM_SENTRY_DSN
     sentry_options_set_dsn(sentry_opts, VELLUM_SENTRY_DSN);
 #else
@@ -39,12 +42,21 @@ int main(int argc, char *argv[]) {
         sentry_opts, vellum::common::getSentryDatabasePath("vellum").c_str());
     const char *env = std::getenv("SENTRY_ENVIRONMENT");
     sentry_options_set_environment(sentry_opts,
-                                    env && env[0] ? env : "development");
+                                   env && env[0] ? env : "development");
 #ifndef NDEBUG
     sentry_options_set_debug(sentry_opts, 1);
 #endif
-    sentry_init(sentry_opts);
+    if (sentry_init(sentry_opts) == 0) {
+      vellum::common::setSentryManualCaptureEnabled(true);
+    }
   }
+
+  struct SentryShutdown {
+    ~SentryShutdown() {
+      vellum::common::setSentryManualCaptureEnabled(false);
+      sentry_close();
+    }
+  } sentryShutdown;
 
   if (result.count("help")) {
     std::cout << options.help() << std::endl;
@@ -71,17 +83,27 @@ int main(int argc, char *argv[]) {
   }
 
   const auto inputFile = result["file"].as<std::string>();
+
+  importPaths.insert(importPaths.begin(),
+                     std::filesystem::path(inputFile).parent_path().string());
+  importPaths.insert(importPaths.begin(),
+                     std::filesystem::current_path().string());
+
+  importPaths = vellum::common::dedupePathsPreserveOrder(importPaths);
+
   const bool emitDebugInfo = result["debug-info"].as<bool>();
   std::cout << "Compiling " << inputFile << std::endl;
 
+  bool runResult = false;
   try {
-    vellum::Vellum().run(inputFile, importPaths, emitDebugInfo);
+    runResult = vellum::Vellum().run(inputFile, importPaths, emitDebugInfo);
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
-    return EXIT_FAILURE;
+    vellum::common::captureSentryException(e, "main");
+  } catch (...) {
+    std::cerr << "Non-std exception" << std::endl;
+    vellum::common::captureSentryUnknown("main");
   }
 
-  sentry_close();
-
-  return EXIT_SUCCESS;
+  return runResult ? EXIT_SUCCESS : EXIT_FAILURE;
 }

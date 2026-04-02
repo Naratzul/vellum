@@ -44,4 +44,6 @@ out/
 
 papyrus scripts/
 local/
-# Note: scripts/ is tracked; local/ holds sensitive config (DSN, auth) and is gitignored
+
+CMakeSettings.json
+releases/

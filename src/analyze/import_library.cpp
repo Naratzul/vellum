@@ -24,6 +24,10 @@ void ImportLibrary::scanImportPaths(const Vec<std::string>& importPaths) {
         auto filename = entry.path().stem().string();
         auto extension = entry.path().extension().string();
 
+        if (extension != ".vel" && extension != ".psc") {
+          continue;
+        }
+
         VellumIdentifier name(StringSet::insert(filename));
         if (importNameToModule.contains(name)) {
           throw std::runtime_error(

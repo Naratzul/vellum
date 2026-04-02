@@ -63,9 +63,10 @@ target_compile_options(vellum_compiler PRIVATE
 
 target_include_directories(vellum_compiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(vellum main.cpp)
+add_executable(vellum main.cpp common/sentry_report.cpp)
 target_link_libraries(vellum PRIVATE vellum_compiler sentry)
-target_include_directories(vellum PRIVATE ${cxxopts_SOURCE_DIR}/include)
+target_include_directories(vellum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+                                          ${cxxopts_SOURCE_DIR}/include)
 target_compile_definitions(vellum PRIVATE SENTRY_BUILD_STATIC=1)
 if(DEFINED VELLUM_SENTRY_DSN AND NOT VELLUM_SENTRY_DSN STREQUAL "")
   target_compile_definitions(vellum PRIVATE

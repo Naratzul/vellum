@@ -24,7 +24,7 @@ using common::makeShared;
 using common::makeUnique;
 using common::Unique;
 
-void Vellum::run(const fs::path& inputFile,
+bool Vellum::run(const fs::path& inputFile,
                  const Vec<std::string>& importPaths,
                  bool emitDebugInfo) {
   const std::string& sourceCode = common::readFileContent(inputFile);
@@ -44,7 +44,7 @@ void Vellum::run(const fs::path& inputFile,
 
   if (errorHandler->hadError()) {
     errorHandler->printErrors();
-    return;
+    return false;
   }
 
   TypeCollector typeCollector;
@@ -57,7 +57,7 @@ void Vellum::run(const fs::path& inputFile,
 
   if (errorHandler->hadError()) {
     errorHandler->printErrors();
-    return;
+    return false;
   }
 
   SemanticAnalyzer semantic(errorHandler, resolver, filename);
@@ -65,7 +65,7 @@ void Vellum::run(const fs::path& inputFile,
       semantic.analyze(std::move(parseResult.declarations));
   if (errorHandler->hadError()) {
     errorHandler->printErrors();
-    return;
+    return false;
   }
 
   ScriptMetadata metadata;
@@ -82,12 +82,14 @@ void Vellum::run(const fs::path& inputFile,
 
   if (errorHandler->hadError()) {
     errorHandler->printErrors();
-    return;
+    return false;
   }
 
   auto outputFile = inputFile;
   outputFile.replace_extension(fs::path(".pex"));
 
   pexFile.writeToFile(outputFile.string());
+
+  return true;
 }
 }  // namespace vellum
