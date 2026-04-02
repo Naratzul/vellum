@@ -14,6 +14,13 @@
 #define SENTRY_BUILD_STATIC 1
 #include <sentry.h>
 
+#ifndef VELLUM_VERSION
+#error VELLUM_VERSION must be defined by CMake (project VERSION)
+#endif
+#ifndef VELLUM_SENTRY_RELEASE
+#error VELLUM_SENTRY_RELEASE must be defined by CMake
+#endif
+
 using vellum::common::Vec;
 
 int main(int argc, char *argv[]) {
@@ -37,12 +44,16 @@ int main(int argc, char *argv[]) {
       sentry_options_set_dsn(sentry_opts, dsn);
     }
 #endif
-    sentry_options_set_release(sentry_opts, "vellum@0.1.0");
+    sentry_options_set_release(sentry_opts, VELLUM_SENTRY_RELEASE);
     sentry_options_set_database_path(
         sentry_opts, vellum::common::getSentryDatabasePath("vellum").c_str());
+#ifdef VELLUM_SENTRY_ENVIRONMENT
+    sentry_options_set_environment(sentry_opts, VELLUM_SENTRY_ENVIRONMENT);
+#else
     const char *env = std::getenv("SENTRY_ENVIRONMENT");
     sentry_options_set_environment(sentry_opts,
                                    env && env[0] ? env : "development");
+#endif
 #ifndef NDEBUG
     sentry_options_set_debug(sentry_opts, 1);
 #endif
@@ -64,7 +75,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (result.count("version")) {
-    std::cout << "Vellum Compiler v0.1.0" << std::endl;
+    std::cout << "Vellum Compiler v" << VELLUM_VERSION << std::endl;
     return EXIT_SUCCESS;
   }
 
