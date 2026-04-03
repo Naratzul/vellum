@@ -2,6 +2,7 @@
 #include <catch2/matchers/catch_matchers_all.hpp>
 #include <fstream>
 #include <filesystem>
+#include <optional>
 
 #include "analyze/declaration_collector.h"
 #include "analyze/import_library.h"
@@ -1159,6 +1160,94 @@ TEST_CASE("CompileCastAndIntFloatArithmetic") {
     if (instr.getOpCode() == pex::PexOpCode::Cast) hasCast = true;
   }
   CHECK(hasCast);
+}
+
+TEST_CASE("CompileComparison_IntFloat_EmitsCastBeforeCmpEq") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
+                                                    "testscript");
+  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
+                                               "testscript");
+
+  auto cmpExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1.0f)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(1))));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("eq"), std::nullopt, std::move(cmpExpr)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  size_t cmpIdx = 0;
+  for (; cmpIdx < instructions.size(); ++cmpIdx) {
+    if (instructions[cmpIdx].getOpCode() == pex::PexOpCode::CmpEq) break;
+  }
+  REQUIRE(cmpIdx < instructions.size());
+  bool castBeforeCmp = false;
+  for (size_t j = 0; j < cmpIdx; ++j) {
+    if (instructions[j].getOpCode() == pex::PexOpCode::Cast) {
+      castBeforeCmp = true;
+      break;
+    }
+  }
+  CHECK(castBeforeCmp);
+}
+
+TEST_CASE("CompileComparison_IntInt_NoCastOpcode") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
+                                                    "testscript");
+  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
+                                               "testscript");
+
+  auto cmpExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(2))),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(3))));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("eq"), std::nullopt, std::move(cmpExpr)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  for (const auto& instr : instructions) {
+    CHECK(instr.getOpCode() != pex::PexOpCode::Cast);
+  }
 }
 
 TEST_CASE("CompileForIn_OpcodePatternAndMangledLocals") {

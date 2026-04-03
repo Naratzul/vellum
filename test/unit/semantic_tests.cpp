@@ -1227,6 +1227,165 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       CompilerErrorKind::ArithmeticOperationTypeMismatch));
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "ComparisonCommonType_IntFloat_UnifiedFloatOnExpr") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1.0f)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(2))));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  auto& stmt = dynamic_cast<ast::LocalVariableStatement&>(
+      *fn.getBody()->getStatements()[0]);
+  auto& bin = dynamic_cast<ast::BinaryExpression&>(*stmt.getInitializer());
+  REQUIRE(bin.getComparisonOperandType().has_value());
+  CHECK(bin.getComparisonOperandType()->isFloat());
+  CHECK(bin.getType().isBool());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "ComparisonCommonType_IntInt_UnifiedIntOnExpr") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(1))),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(2))));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  auto& stmt = dynamic_cast<ast::LocalVariableStatement&>(
+      *fn.getBody()->getStatements()[0]);
+  auto& bin = dynamic_cast<ast::BinaryExpression&>(*stmt.getInitializer());
+  REQUIRE(bin.getComparisonOperandType().has_value());
+  CHECK(bin.getComparisonOperandType()->isInt());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Comparison_StringInt_Equal_BinaryOperatorTypeMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("a"))),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(1))));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::BinaryOperatorTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Comparison_IntString_NotEqual_BinaryOperatorTypeMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::NotEqual,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(0))),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view(""))));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::BinaryOperatorTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Comparison_StringFloat_GreaterEqual_BinaryOperatorTypeMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::GreaterThanEqual,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("x"))),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1.0f)));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::BinaryOperatorTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Comparison_BoolInt_LessThan_BinaryOperatorTypeMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::LessThan,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(1))));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::BinaryOperatorTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Comparison_StringBool_CmpEq_BinaryOperatorTypeMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal,
+      makeUnique<ast::LiteralExpression>(
+          VellumLiteral(std::string_view("true"))),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(false)));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::BinaryOperatorTypeMismatch));
+}
+
 // Unary operator type checking tests
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticUnaryOp_FunctionAsOperand_Error") {

@@ -15,6 +15,7 @@
 
 namespace vellum {
 using common::makeUnique;
+using common::Opt;
 using common::Vec;
 
 namespace {
@@ -729,16 +730,22 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
     pex::PexValue leftVal = expr.getLeft()->compile(*this);
     pex::PexValue rightVal = expr.getRight()->compile(*this);
 
-    if (expr.getType().isFloat()) {
+    Opt<VellumType> promoteType;
+    if (expr.getComparisonOperandType().has_value()) {
+      promoteType = expr.getComparisonOperandType();
+    } else if (expr.getType().isFloat()) {
+      promoteType = expr.getType();
+    }
+    if (promoteType.has_value() && promoteType->isFloat()) {
       if (expr.getLeft()->getType().isInt()) {
-        pex::PexValue floatTemp = makeTempVarId(expr.getType());
+        pex::PexValue floatTemp = makeTempVarId(*promoteType);
         setCurrentLocation(expr.getLeft()->getLocation());
         Vec<pex::PexValue> castArgs = {floatTemp, leftVal};
         emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
         leftVal = floatTemp;
       }
       if (expr.getRight()->getType().isInt()) {
-        pex::PexValue floatTemp = makeTempVarId(expr.getType());
+        pex::PexValue floatTemp = makeTempVarId(*promoteType);
         setCurrentLocation(expr.getRight()->getLocation());
         Vec<pex::PexValue> castArgs = {floatTemp, rightVal};
         emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));

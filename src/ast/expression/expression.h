@@ -352,6 +352,13 @@ class BinaryExpression : public Expression {
   const Unique<Expression>& getLeft() const { return left; }
   const Unique<Expression>& getRight() const { return right; }
 
+  Opt<VellumType> getComparisonOperandType() const {
+    return comparisonOperandType;
+  }
+  void setComparisonOperandType(VellumType unified) {
+    comparisonOperandType = std::move(unified);
+  }
+
   bool equals(const Expression& other) const override;
 
   void accept(ExpressionVisitor& visitor) override;
@@ -361,6 +368,7 @@ class BinaryExpression : public Expression {
   Operator op;
   Unique<Expression> left;
   Unique<Expression> right;
+  Opt<VellumType> comparisonOperandType;
 };
 
 class UnaryExpression : public Expression {

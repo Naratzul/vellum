@@ -831,9 +831,19 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
       expr.getOperator() == ast::BinaryExpression::Operator::LessThan ||
       expr.getOperator() == ast::BinaryExpression::Operator::LessThanEqual ||
       expr.getOperator() == ast::BinaryExpression::Operator::GreaterThan ||
-      expr.getOperator() == ast::BinaryExpression::Operator::GreaterThanEqual ||
-      expr.getOperator() == ast::BinaryExpression::Operator::And ||
-      expr.getOperator() == ast::BinaryExpression::Operator::Or) {
+      expr.getOperator() == ast::BinaryExpression::Operator::GreaterThanEqual) {
+    auto commonType = checker.commonTernaryBranchType(
+        expr.getLeft()->getType(), expr.getRight()->getType());
+    if (!commonType) {
+      errorHandler->errorAt(
+          expr.getLocation(), CompilerErrorKind::BinaryOperatorTypeMismatch,
+          "Cannot perform comparison operation on types '{}' and '{}'.",
+          expr.getLeft()->getType().toString(),
+          expr.getRight()->getType().toString());
+      return;
+    }
+
+    expr.setComparisonOperandType(*commonType);
     expr.setType(VellumType::literal(VellumLiteralType::Bool));
     return;
   }
@@ -859,7 +869,7 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
       errorHandler->errorAt(
           expr.getLocation(),
           CompilerErrorKind::ArithmeticOperationTypeMismatch,
-          "Cannot perform arithmetic operation on types: '{}' and '{}'.",
+          "Cannot perform arithmetic operation on types '{}' and '{}'.",
           leftType.toString(), rightType.toString());
       return;
     }

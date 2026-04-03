@@ -165,7 +165,8 @@ pex::PexValue PropertySetExpression::compile(
 bool BinaryExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const BinaryExpression&>(other_);
   return op == other.op && left->equals(*other.left) &&
-         right->equals(*other.right);
+         right->equals(*other.right) &&
+         comparisonOperandType == other.comparisonOperandType;
 }
 
 void BinaryExpression::accept(ExpressionVisitor& visitor) {
