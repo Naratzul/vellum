@@ -186,22 +186,29 @@ void PexObjectCompiler::visitPropertyDeclaration(
       setterDebugInfoStorage.functionType = pex::PexDebugFunctionType::Setter;
       setterDebugInfo = &setterDebugInfoStorage;
     }
-    auto getBlock = declaration.releaseGetAccessor().value();
-    ast::FunctionDeclaration getFuncDecl({}, {}, VellumType::none(),
-                                         std::move(getBlock), false);
-    getAccessorFunc = PexFunctionCompiler(errorHandler, file)
-                          .compile(getFuncDecl, getterDebugInfo);
-    if (file.hasDebugInfo()) {
-      file.debugInfo()->functions.push_back(std::move(getterDebugInfoStorage));
+
+    if (declaration.getGetAccessor()) {
+      auto getBlock = declaration.releaseGetAccessor().value();
+      ast::FunctionDeclaration getFuncDecl({}, {}, VellumType::none(),
+                                           std::move(getBlock), false);
+      getAccessorFunc = PexFunctionCompiler(errorHandler, file)
+                            .compile(getFuncDecl, getterDebugInfo);
+      if (file.hasDebugInfo()) {
+        file.debugInfo()->functions.push_back(
+            std::move(getterDebugInfoStorage));
+      }
     }
 
-    auto setBlock = declaration.releaseSetAccessor().value();
-    ast::FunctionDeclaration setFuncDecl({}, {}, VellumType::none(),
-                                         std::move(setBlock), false);
-    setAccessorFunc = PexFunctionCompiler(errorHandler, file)
-                          .compile(setFuncDecl, setterDebugInfo);
-    if (file.hasDebugInfo()) {
-      file.debugInfo()->functions.push_back(std::move(setterDebugInfoStorage));
+    if (declaration.getSetAccessor()) {
+      auto setBlock = declaration.releaseSetAccessor().value();
+      ast::FunctionDeclaration setFuncDecl({}, {}, VellumType::none(),
+                                           std::move(setBlock), false);
+      setAccessorFunc = PexFunctionCompiler(errorHandler, file)
+                            .compile(setFuncDecl, setterDebugInfo);
+      if (file.hasDebugInfo()) {
+        file.debugInfo()->functions.push_back(
+            std::move(setterDebugInfoStorage));
+      }
     }
   }
 
