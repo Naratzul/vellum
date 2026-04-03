@@ -1386,6 +1386,92 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       CompilerErrorKind::BinaryOperatorTypeMismatch));
 }
 
+TEST_CASE_METHOD(
+    SemanticTestsFixture,
+    "Comparison_Relative_SelfGreaterEqualNone_BinaryOperatorTypeMismatch") {
+  auto selfExpr = makeUnique<ast::SelfExpression>(Token());
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::GreaterThanEqual, std::move(selfExpr),
+      makeUnique<ast::LiteralExpression>(VellumLiteral()));
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::BinaryOperatorTypeMismatch));
+}
+
+TEST_CASE_METHOD(
+    SemanticTestsFixture,
+    "Comparison_Relative_NoneLessThanIntArray_BinaryOperatorTypeMismatch") {
+  auto arr = makeUnique<ast::NewArrayExpression>(
+      VellumType::literal(VellumLiteralType::Int), VellumLiteral(int32_t(2)),
+      Token{});
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::LessThan,
+      makeUnique<ast::LiteralExpression>(VellumLiteral()), std::move(arr));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::BinaryOperatorTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Comparison_Equality_SelfEqualNone_AllowsAndSetsCommonType") {
+  auto selfExpr = makeUnique<ast::SelfExpression>(Token());
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal, std::move(selfExpr),
+      makeUnique<ast::LiteralExpression>(VellumLiteral()));
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& script = dynamic_cast<ast::ScriptDeclaration&>(*result.declarations[0]);
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*script.getMemberDecls()[0]);
+  auto& stmt = dynamic_cast<ast::LocalVariableStatement&>(
+      *fn.getBody()->getStatements()[0]);
+  auto& bin = dynamic_cast<ast::BinaryExpression&>(*stmt.getInitializer());
+  REQUIRE(bin.getComparisonOperandType().has_value());
+  CHECK(bin.getComparisonOperandType()->asIdentifier().toString() == "testscript");
+  CHECK(bin.getType().isBool());
+}
+
 // Unary operator type checking tests
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticUnaryOp_FunctionAsOperand_Error") {

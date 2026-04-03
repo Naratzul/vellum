@@ -843,6 +843,16 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
       return;
     }
 
+    if (expr.getOperator() != ast::BinaryExpression::Operator::Equal &&
+        expr.getOperator() != ast::BinaryExpression::Operator::NotEqual) {
+      if (leftType.isNone() || rightType.isNone()) {
+        errorHandler->errorAt(expr.getLocation(),
+                              CompilerErrorKind::BinaryOperatorTypeMismatch,
+                              "Cannot relatively compare to none.");
+        return;
+      }
+    }
+
     expr.setComparisonOperandType(*commonType);
     expr.setType(VellumType::literal(VellumLiteralType::Bool));
     return;
