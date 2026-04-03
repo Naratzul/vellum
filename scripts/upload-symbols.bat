@@ -17,24 +17,10 @@ setlocal enabledelayedexpansion
 set "SCRIPT_DIR=%~dp0"
 set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 set "PROJECT_ROOT=%SCRIPT_DIR%\.."
-set "BUILD_SRC=%PROJECT_ROOT%\build\src"
+set "BUILD_SRC=%PROJECT_ROOT%\releases\v0.1.0"
 set "CONFIG_FILE=%PROJECT_ROOT%\local\sentry-upload"
 
 if "%~1"=="" (set "UPLOAD_PATH=%BUILD_SRC%") else (set "UPLOAD_PATH=%~1")
-
-REM Check sentry-cli
-where sentry-cli >nul 2>&1
-if errorlevel 1 (
-  echo Error: sentry-cli not found. Install from https://docs.sentry.io/cli/
-  exit /b 1
-)
-
-REM Auth token required
-if not defined SENTRY_AUTH_TOKEN (
-  echo Error: SENTRY_AUTH_TOKEN is not set.
-  echo Create a token at sentry.io ^> Settings ^> Auth Tokens
-  exit /b 1
-)
 
 REM Read org/project from config
 if exist "%CONFIG_FILE%" (
