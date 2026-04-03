@@ -28,8 +28,9 @@ int main(int argc, char *argv[]) {
   options.add_options()("h,help", "Print help")("v,version", "Print version")(
       "f,file", "Input file", cxxopts::value<std::string>())(
       "i,import", "Import directory paths", cxxopts::value<Vec<std::string>>())(
-      "g,debug-info", "Emit PEX debug info (source line mapping)",
-      cxxopts::value<bool>()->default_value("true"))(
+      "r,release",
+      "Omit PEX source line mapping (default: emit line mapping like Papyrus)",
+      cxxopts::value<bool>()->default_value("false"))(
       "disable-crash-reporting", "Disable automatic crash reporting",
       cxxopts::value<bool>()->default_value("false"));
 
@@ -102,7 +103,7 @@ int main(int argc, char *argv[]) {
 
   importPaths = vellum::common::dedupePathsPreserveOrder(importPaths);
 
-  const bool emitDebugInfo = result["debug-info"].as<bool>();
+  const bool emitDebugInfo = !result["release"].as<bool>();
   std::cout << "Compiling " << inputFile << std::endl;
 
   bool runResult = false;
