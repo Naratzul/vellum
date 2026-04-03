@@ -42,8 +42,12 @@ pex::PexObject PexObjectCompiler::compile(
 void PexObjectCompiler::visitScriptDeclaration(
     ast::ScriptDeclaration& declaration) {
   object.setName(file.getString(declaration.getScriptName().toString()));
-  object.setParentName(
-      file.getString(declaration.getParentScriptName().toString()));
+  if (declaration.getParentScriptName().isNone()) {
+    object.setParentName(file.getString(""));
+  } else {
+    object.setParentName(
+        file.getString(declaration.getParentScriptName().toString()));
+  }
 
   // TODO: support doc string
   object.setDocumentationString(file.getString(""));
