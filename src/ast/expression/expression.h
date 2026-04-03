@@ -396,10 +396,9 @@ class GroupingExpression : public Expression {
     return expr->equals(other);
   }
 
-  VellumType getType() const override { return expr->getType(); }
-
   void accept(ExpressionVisitor& visitor) override {
-    return expr->accept(visitor);
+    expr->accept(visitor);
+    setType(expr->getType());
   }
 
   pex::PexValue compile(ExpressionCompiler& compiler) const override {
@@ -420,8 +419,6 @@ class CastExpression : public Expression {
 
   VellumType getTargetType() const { return targetType; }
   void setTargetType(VellumType type) { targetType = type; }
-
-  VellumType getType() const override { return targetType; }
 
   bool equals(const Expression& other) const override;
 
