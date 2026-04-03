@@ -6,6 +6,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(cxxopts)
 
+set(CPPTRACE_BUILD_SHARED OFF CACHE BOOL "Build cpptrace as a shared library (OFF recommended for vellum)" FORCE)
+FetchContent_Declare(
+  cpptrace
+  GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+  GIT_TAG        v1.0.4
+)
+FetchContent_MakeAvailable(cpptrace)
+
 add_library(vellum_compiler STATIC
     analyze/declaration_collector.cpp
     analyze/import_library.cpp
@@ -64,7 +72,7 @@ target_compile_options(vellum_compiler PRIVATE
 target_include_directories(vellum_compiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(vellum main.cpp common/sentry_report.cpp)
-target_link_libraries(vellum PRIVATE vellum_compiler sentry)
+target_link_libraries(vellum PRIVATE vellum_compiler sentry cpptrace::cpptrace)
 target_include_directories(vellum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                           ${cxxopts_SOURCE_DIR}/include)
 target_compile_definitions(

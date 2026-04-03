@@ -2,6 +2,7 @@
 #define CXXOPTS_VECTOR_DELIMITER ';'
 
 #include <cstdlib>
+#include <cpptrace/from_current.hpp>
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
@@ -107,15 +108,20 @@ int main(int argc, char *argv[]) {
   std::cout << "Compiling " << inputFile << std::endl;
 
   bool runResult = false;
-  try {
-    runResult = vellum::Vellum().run(inputFile, importPaths, emitDebugInfo);
-  } catch (const std::exception &e) {
-    std::cerr << e.what() << std::endl;
-    vellum::common::captureSentryException(e, "main");
-  } catch (...) {
-    std::cerr << "Non-std exception" << std::endl;
-    vellum::common::captureSentryUnknown("main");
-  }
+
+  cpptrace::try_catch(
+      [&] {
+        runResult =
+            vellum::Vellum().run(inputFile, importPaths, emitDebugInfo);
+      },
+      [&](const std::exception &e) {
+        std::cerr << e.what() << std::endl;
+        vellum::common::captureSentryException(e, "main");
+      },
+      [&] {
+        std::cerr << "Non-std exception" << std::endl;
+        vellum::common::captureSentryUnknown("main");
+      });
 
   return runResult ? EXIT_SUCCESS : EXIT_FAILURE;
 }
