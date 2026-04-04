@@ -54,6 +54,20 @@ class SemanticTestsFixture {
     resolver->importObject(name);
   }
 
+  void addTestObjectWithParent(const VellumObject& object,
+                               VellumIdentifier parentScriptName) {
+    VellumIdentifier name = object.getType().asIdentifier();
+    auto module =
+        makeShared<ImportModule>(name, ImportModuleType::Vellum, fs::path(""));
+    auto builtinFunctions = makeShared<BuiltinFunctions>();
+    auto objectResolver = makeShared<Resolver>(object, errorHandler,
+                                               importLibrary, builtinFunctions);
+    objectResolver->setParentType(VellumType::identifier(parentScriptName));
+    module->setResolver(objectResolver);
+    importLibrary->addTestModule(module);
+    resolver->importObject(name);
+  }
+
  protected:
   Shared<CompilerErrorHandler> errorHandler;
   Shared<ImportLibrary> importLibrary;
@@ -1470,6 +1484,71 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(bin.getComparisonOperandType().has_value());
   CHECK(bin.getComparisonOperandType()->asIdentifier().toString() == "testscript");
   CHECK(bin.getType().isBool());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Comparison_ScriptSubtype_Equal_UnifiesToAncestorType") {
+  addTestObject(VellumObject(VellumType::identifier("ParentSubtypeTest")));
+  addTestObjectWithParent(VellumObject(VellumType::identifier("ChildSubtypeTest")),
+                          VellumIdentifier("ParentSubtypeTest"));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("c", VellumType::unresolved("ChildSubtypeTest"));
+  params.emplace_back("p", VellumType::unresolved("ParentSubtypeTest"));
+
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal,
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{}),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("p"), Token{}));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  auto& stmt = dynamic_cast<ast::LocalVariableStatement&>(
+      *fn.getBody()->getStatements()[0]);
+  auto& bin = dynamic_cast<ast::BinaryExpression&>(*stmt.getInitializer());
+  REQUIRE(bin.getComparisonOperandType().has_value());
+  CHECK(bin.getComparisonOperandType()->asIdentifier().toString() ==
+        "ParentSubtypeTest");
+  CHECK(bin.getType().isBool());
+}
+
+TEST_CASE_METHOD(
+    SemanticTestsFixture,
+    "Comparison_UnrelatedScriptTypes_Relational_BinaryOperatorTypeMismatch") {
+  addTestObject(VellumObject(VellumType::identifier("QuestLikeScript")));
+  addTestObject(VellumObject(VellumType::identifier("ObjectRefLikeScript")));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("q", VellumType::unresolved("QuestLikeScript"));
+  params.emplace_back("o", VellumType::unresolved("ObjectRefLikeScript"));
+
+  auto cmp = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::LessThan,
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("q"), Token{}),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("o"), Token{}));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("r"), std::nullopt, std::move(cmp)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::BinaryOperatorTypeMismatch));
 }
 
 // Unary operator type checking tests

@@ -751,6 +751,26 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
         emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
         rightVal = floatTemp;
       }
+    } else if (promoteType.has_value() &&
+               promoteType->getState() == VellumTypeState::Identifier) {
+      if (expr.getLeft()->getType().getState() ==
+              VellumTypeState::Identifier &&
+          expr.getLeft()->getType() != *promoteType) {
+        pex::PexValue objTemp = makeTempVarId(*promoteType);
+        setCurrentLocation(expr.getLeft()->getLocation());
+        Vec<pex::PexValue> castArgs = {objTemp, leftVal};
+        emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
+        leftVal = objTemp;
+      }
+      if (expr.getRight()->getType().getState() ==
+              VellumTypeState::Identifier &&
+          expr.getRight()->getType() != *promoteType) {
+        pex::PexValue objTemp = makeTempVarId(*promoteType);
+        setCurrentLocation(expr.getRight()->getLocation());
+        Vec<pex::PexValue> castArgs = {objTemp, rightVal};
+        emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
+        rightVal = objTemp;
+      }
     }
 
     pex::PexOpCode code = getBinaryOpCode(expr.getOperator(), expr.getType());

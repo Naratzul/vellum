@@ -97,6 +97,12 @@ class Resolver {
 
   VellumType resolveType(VellumType unresolvedType, Token location) const;
 
+  const Resolver* findScriptResolver(VellumIdentifier scriptName) const;
+
+  /// True if script `derived` is `base` or extends `base` (transitive).
+  bool isScriptSubtypeOf(VellumIdentifier derived,
+                         VellumIdentifier base) const;
+
  private:
   VellumObject object;
   Shared<CompilerErrorHandler> errorHandler;

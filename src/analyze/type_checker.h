@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <string>
 
 #include "common/types.h"
@@ -15,8 +14,12 @@ class Expression;
 
 using common::Unique;
 
+class Resolver;
+
 class TypeChecker {
  public:
+  explicit TypeChecker(const Shared<Resolver>& resolver) : resolver(resolver) {}
+
   enum class Context {
     Argument,       // function call argument
     Assignment,     // var x = value, property = value
@@ -58,12 +61,18 @@ class TypeChecker {
   // Skyrim-first: casting *to* an Array type is not allowed.
   bool canExplicitlyCast(VellumType src, VellumType dest) const;
 
+  bool canImplicitlyCast(VellumType src, VellumType dest) const;
+
   // Unified result type for `cond ? a : b` when branches are compatible
   // (including Int+Float → Float and None with object/array).
   std::optional<VellumType> commonTernaryBranchType(VellumType left,
                                                     VellumType right) const;
 
+  std::optional<VellumType> commonComparisonType(VellumType left,
+                                                 VellumType right) const;
+
  private:
+  Shared<Resolver> resolver;
   // Check if expression is a valid value (not function/script type identifier)
   Result checkValidValueExpression(const Unique<ast::Expression>& expr,
                                    Context context,

@@ -8,9 +8,11 @@
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_identifier.h"
 #include "vellum/vellum_property.h"
+#include "vellum/vellum_type.h"
 
 namespace vellum {
 using common::Opt;
+using common::Set;
 using common::Vec;
 
 void Resolver::startFunction(const VellumFunction& func) {
@@ -342,4 +344,70 @@ VellumType Resolver::resolveObjectType(std::string_view rawType,
 
   return VellumType::unresolved(rawType);
 }
+
+const Resolver* Resolver::findScriptResolver(
+    VellumIdentifier scriptName) const {
+  if (object.getType().getState() == VellumTypeState::Identifier) {
+    if (object.getType().asIdentifier() == scriptName) {
+      return this;
+    }
+  }
+
+  for (const auto& importedObject : importedObjects) {
+    if (importedObject == scriptName) {
+      if (auto module = importLibrary->findModule(importedObject)) {
+        if (auto res = module->getResolver()) {
+          return res.get();
+        }
+      }
+    }
+    if (auto module = importLibrary->findModule(importedObject)) {
+      if (module->getType() == ImportModuleType::Papyrus &&
+          equalsCaseInsensitive(importedObject, scriptName)) {
+        if (auto res = module->getResolver()) {
+          return res.get();
+        }
+      }
+    }
+  }
+
+  if (auto module = importLibrary->findModule(scriptName)) {
+    if (auto res = module->getResolver()) {
+      return res.get();
+    }
+  }
+
+  return nullptr;
+}
+
+bool Resolver::isScriptSubtypeOf(VellumIdentifier derived,
+                                 VellumIdentifier base) const {
+  if (derived == base) {
+    return true;
+  }
+
+  Set<VellumIdentifier> visited;
+  VellumIdentifier cur = derived;
+  for (int depth = 0; depth < 64; ++depth) {
+    if (visited.count(cur)) {
+      return false;
+    }
+    visited.insert(cur);
+
+    const Resolver* r = findScriptResolver(cur);
+    if (!r) {
+      return false;
+    }
+    Opt<VellumType> p = r->getParentType();
+    if (!p || p->getState() != VellumTypeState::Identifier) {
+      return false;
+    }
+    cur = p->asIdentifier();
+    if (cur == base) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace vellum

@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "ast/expression/expression.h"
+#include "compiler/resolver.h"
+#include "vellum/vellum_type.h"
 
 namespace vellum {
 using namespace ast;
@@ -154,6 +156,35 @@ std::optional<VellumType> TypeChecker::commonTernaryBranchType(
   return std::nullopt;
 }
 
+std::optional<VellumType> TypeChecker::commonComparisonType(
+    VellumType left, VellumType right) const {
+  if (left == right) {
+    return left;
+  }
+
+  const bool leftNumeric = left.isInt() || left.isFloat();
+  const bool rightNumeric = right.isInt() || right.isFloat();
+  if (leftNumeric && rightNumeric) {
+    if (left.isFloat() || right.isFloat()) {
+      return VellumType::literal(VellumLiteralType::Float);
+    }
+    return VellumType::literal(VellumLiteralType::Int);
+  }
+
+  if (left.getState() == VellumTypeState::Identifier &&
+      right.getState() == VellumTypeState::Identifier) {
+    if (canImplicitlyCast(right, left)) {
+      return left;
+    }
+    if (canImplicitlyCast(left, right)) {
+      return right;
+    }
+    return std::nullopt;
+  }
+
+  return commonTernaryBranchType(left, right);
+}
+
 bool TypeChecker::canExplicitlyCast(VellumType src, VellumType dest) const {
   // If types aren't resolved yet, defer validation to later passes.
   if (!src.isResolved() || !dest.isResolved()) return true;
@@ -196,6 +227,27 @@ bool TypeChecker::canExplicitlyCast(VellumType src, VellumType dest) const {
   // (common \"None\" object). Disallow None to numeric by default.
   if (src.isNone() && dest.getState() == VellumTypeState::Identifier) {
     return true;
+  }
+
+  return false;
+}
+
+bool TypeChecker::canImplicitlyCast(VellumType src, VellumType dest) const {
+  if (src == dest) {
+    return true;
+  }
+
+  if (src.isInt() && dest.isFloat()) {
+    return true;
+  }
+
+  if (src.isNone() && dest.getState() == VellumTypeState::Identifier) {
+    return true;
+  }
+
+  if (src.getState() == VellumTypeState::Identifier &&
+      dest.getState() == VellumTypeState::Identifier) {
+    return resolver->isScriptSubtypeOf(src.asIdentifier(), dest.asIdentifier());
   }
 
   return false;
@@ -336,8 +388,7 @@ std::string TypeChecker::getTypeMismatchErrorMessage(
     }
 
     case Context::TernaryBranch: {
-      const std::string branch =
-          contextInfo.empty() ? "branch" : contextInfo;
+      const std::string branch = contextInfo.empty() ? "branch" : contextInfo;
       return std::format(
           "Ternary {} branch must be compatible with type '{}', but got type "
           "'{}'.",

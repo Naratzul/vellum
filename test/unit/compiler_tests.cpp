@@ -31,6 +31,7 @@ namespace fs = std::filesystem;
 using namespace vellum;
 using common::makeShared;
 using common::makeUnique;
+using common::Opt;
 using common::Shared;
 using common::Unique;
 using common::Vec;
@@ -1184,6 +1185,78 @@ TEST_CASE("CompileComparison_IntFloat_EmitsCastBeforeCmpEq") {
   Vec<Unique<ast::Declaration>> ast;
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body)), false));
+
+  collector->collect(ast);
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  size_t cmpIdx = 0;
+  for (; cmpIdx < instructions.size(); ++cmpIdx) {
+    if (instructions[cmpIdx].getOpCode() == pex::PexOpCode::CmpEq) break;
+  }
+  REQUIRE(cmpIdx < instructions.size());
+  bool castBeforeCmp = false;
+  for (size_t j = 0; j < cmpIdx; ++j) {
+    if (instructions[j].getOpCode() == pex::PexOpCode::Cast) {
+      castBeforeCmp = true;
+      break;
+    }
+  }
+  CHECK(castBeforeCmp);
+}
+
+TEST_CASE("CompileComparison_ScriptSubtype_EmitsCastBeforeCmpEq") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+
+  auto addModule = [&](const VellumObject& obj, Opt<VellumType> parent) {
+    VellumIdentifier name = obj.getType().asIdentifier();
+    auto module =
+        makeShared<ImportModule>(name, ImportModuleType::Vellum, fs::path(""));
+    auto modResolver =
+        makeShared<Resolver>(obj, errorHandler, importLibrary, builtinFunctions);
+    if (parent.has_value()) {
+      modResolver->setParentType(std::move(*parent));
+    }
+    module->setResolver(modResolver);
+    importLibrary->addTestModule(module);
+    resolver->importObject(name);
+  };
+
+  addModule(VellumObject(VellumType::identifier("ParentPexCmp")), std::nullopt);
+  addModule(VellumObject(VellumType::identifier("ChildPexCmp")),
+            VellumType::identifier("ParentPexCmp"));
+
+  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
+                                                    "testscript");
+  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
+                                               "testscript");
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("c", VellumType::unresolved("ChildPexCmp"));
+  params.emplace_back("p", VellumType::unresolved("ParentPexCmp"));
+
+  auto cmpExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::Equal,
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{}),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("p"), Token{}));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("eq"), std::nullopt, std::move(cmpExpr)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
       makeUnique<ast::BlockStatement>(std::move(body)), false));
 
   collector->collect(ast);

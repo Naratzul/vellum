@@ -22,13 +22,12 @@ using common::Unique;
 using common::Vec;
 
 SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
-                                   Shared<Resolver> resolver,
+                                   const Shared<Resolver>& resolver,
                                    std::string_view scriptFilename)
-    : errorHandler(errorHandler),
+    : errorHandler(std::move(errorHandler)),
       resolver(resolver),
-      scriptFilename(std::move(scriptFilename)) {
-  assert(resolver);
-}
+      scriptFilename(std::move(scriptFilename)),
+      checker(resolver) {}
 
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
     Vec<Unique<ast::Declaration>>&& declarations) {
@@ -825,21 +824,20 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
     return;
   }
 
-  // For comparison operators, result is always boolean
   if (expr.getOperator() == ast::BinaryExpression::Operator::Equal ||
       expr.getOperator() == ast::BinaryExpression::Operator::NotEqual ||
       expr.getOperator() == ast::BinaryExpression::Operator::LessThan ||
       expr.getOperator() == ast::BinaryExpression::Operator::LessThanEqual ||
       expr.getOperator() == ast::BinaryExpression::Operator::GreaterThan ||
       expr.getOperator() == ast::BinaryExpression::Operator::GreaterThanEqual) {
-    auto commonType = checker.commonTernaryBranchType(
-        expr.getLeft()->getType(), expr.getRight()->getType());
+    Opt<VellumType> commonType =
+        checker.commonComparisonType(leftType, rightType);
     if (!commonType) {
-      errorHandler->errorAt(
-          expr.getLocation(), CompilerErrorKind::BinaryOperatorTypeMismatch,
-          "Cannot perform comparison operation on types '{}' and '{}'.",
-          expr.getLeft()->getType().toString(),
-          expr.getRight()->getType().toString());
+      errorHandler->errorAt(expr.getLocation(),
+                            CompilerErrorKind::BinaryOperatorTypeMismatch,
+                            "Cannot perform comparison operation on types '{}' "
+                            "and '{}'. Cast is missing or types are unrelated.",
+                            leftType.toString(), rightType.toString());
       return;
     }
 
