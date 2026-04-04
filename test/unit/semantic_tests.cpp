@@ -2305,6 +2305,170 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionMustBeInEmptyState") {
       errorHandler->hasError(CompilerErrorKind::StateFunctionNotInEmptyState));
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_OnBeginState_OnlyInNamedState_ValidSignature_Ok") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onBeginState", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+      makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_OnEndState_CaseInsensitiveName_OnlyInState_Ok") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "OnEndState", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+      makeToken(TokenType::IDENTIFIER, 2, "OnEndState")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_OnBeginState_WithParameter_StateLifecycleHookError") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onBeginState",
+      Vec<ast::FunctionParameter>{
+          ast::FunctionParameter{"x", VellumType::unresolved("Int")}},
+      VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+      makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateLifecycleHookSignatureMismatch));
+}
+
+TEST_CASE_METHOD(
+    SemanticTestsFixture,
+    "State_OnBeginState_NonNoneReturn_StateLifecycleHookError") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onBeginState", Vec<ast::FunctionParameter>{},
+      VellumType::unresolved("Int"),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+      makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateLifecycleHookSignatureMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Root_OnBeginState_InvalidReturn_StateLifecycleHookError") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onBeginState", Vec<ast::FunctionParameter>{},
+      VellumType::unresolved("Int"),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+      makeToken(TokenType::IDENTIFIER, 1, "onBeginState")));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateLifecycleHookSignatureMismatch));
+}
+
+TEST_CASE_METHOD(
+    SemanticTestsFixture,
+    "State_OnBeginState_MustMatchRootWhenRootDeclares_StateSigMismatch") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onBeginState", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+      makeToken(TokenType::IDENTIFIER, 1, "onBeginState")));
+
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onBeginState", Vec<ast::FunctionParameter>{},
+      VellumType::unresolved("Bool"),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false,
+      makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), false,
+      std::move(stateMembers)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateFunctionSignatureMismatch));
+}
+
 TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionSignatureMustMatch") {
   Vec<Unique<ast::Declaration>> ast;
 

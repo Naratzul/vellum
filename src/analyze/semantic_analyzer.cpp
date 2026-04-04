@@ -7,6 +7,7 @@
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
 #include "common/string_set.h"
+#include "common/string_utils.h"
 #include "common/types.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
@@ -20,6 +21,20 @@ using common::Opt;
 using common::Shared;
 using common::Unique;
 using common::Vec;
+
+namespace {
+
+bool isStateLifecycleHookName(const VellumIdentifier& name) {
+  const auto n = common::normalizeToLower(name.toString());
+  return n == "onbeginstate" || n == "onendstate";
+}
+
+bool isValidStateLifecycleHookSignature(const VellumFunction& func) {
+  return !func.isStatic() && func.getParameters().empty() &&
+         func.getReturnType().isNone();
+}
+
+}  // namespace
 
 SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
                                    const Shared<Resolver>& resolver,
@@ -100,31 +115,57 @@ void SemanticAnalyzer::visitFunctionDeclaration(
 
   assert(func.has_value());
 
+  Opt<VellumFunction> rootFunc;
   if (state.has_value()) {
-    auto rootFunc = resolver->getFunction(funcName);
-    if (!rootFunc) {
+    rootFunc = resolver->getFunction(funcName);
+  }
+
+  if (isStateLifecycleHookName(funcName)) {
+    const bool enforceIntrinsicLifecycleShape =
+        !state.has_value() || !rootFunc.has_value();
+    if (enforceIntrinsicLifecycleShape &&
+        !isValidStateLifecycleHookSignature(*func)) {
       auto nameLocation = declaration.getNameLocation();
       assert(nameLocation.has_value());
-
-      errorHandler->errorAt(
-          nameLocation.value(), CompilerErrorKind::StateFunctionNotInEmptyState,
-          "Function '{}' cannot be defined in state '{}' without also being "
-          "defined in the empty state.",
-          funcName.toString(), state->getName().toString());
-      return;
-    }
-
-    if (!func->matchSignature(rootFunc.value())) {
-      auto nameLocation = declaration.getNameLocation();
-      assert(nameLocation.has_value());
-
       errorHandler->errorAt(
           nameLocation.value(),
-          CompilerErrorKind::StateFunctionSignatureMismatch,
-          "The signature of function '{}' in state '{}' doesn't match the "
-          "signature in the root state.",
-          funcName.toString(), state->getName().toString());
+          CompilerErrorKind::StateLifecycleHookSignatureMismatch,
+          "'{}' must take no parameters, return none, and must not be static.",
+          funcName.toString());
       return;
+    }
+  }
+
+  if (state.has_value()) {
+    if (!rootFunc) {
+      if (isStateLifecycleHookName(funcName)) {
+        // Allowed in named state without empty-state declaration; signature
+        // checked above.
+      } else {
+        auto nameLocation = declaration.getNameLocation();
+        assert(nameLocation.has_value());
+
+        errorHandler->errorAt(
+            nameLocation.value(),
+            CompilerErrorKind::StateFunctionNotInEmptyState,
+            "Function '{}' cannot be defined in state '{}' without also being "
+            "defined in the empty state.",
+            funcName.toString(), state->getName().toString());
+        return;
+      }
+    } else {
+      if (!func->matchSignature(*rootFunc)) {
+        auto nameLocation = declaration.getNameLocation();
+        assert(nameLocation.has_value());
+
+        errorHandler->errorAt(
+            nameLocation.value(),
+            CompilerErrorKind::StateFunctionSignatureMismatch,
+            "The signature of function '{}' in state '{}' doesn't match the "
+            "signature in the root state.",
+            funcName.toString(), state->getName().toString());
+        return;
+      }
     }
   }
 

@@ -83,6 +83,7 @@ enum class CompilerErrorKind {
   MultipleAutoStates,
   StateFunctionNotInEmptyState,
   StateFunctionSignatureMismatch,
+  StateLifecycleHookSignatureMismatch,
 
   InstanceMemberInStaticContext,
 
