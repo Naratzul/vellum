@@ -143,7 +143,7 @@ state MyState {
 
 If you want your script to start in a particular state, put the `auto` keyword before `state`:
 
-```swift title="MyScript.vel"
+```swift
 script MyScript {
 
 }
