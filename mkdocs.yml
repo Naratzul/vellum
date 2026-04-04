@@ -1,4 +1,5 @@
 site_name: Vellum
+site_url: https://naratzul.github.io/Vellum/
 theme:
   name: mkdocs
   locale: en
