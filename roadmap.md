@@ -44,23 +44,6 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 - `src/ast/decl/declaration.h` - Add `hidden`, `conditional` (or flags enum) to script, variable, property declarations
 - `src/compiler/pex_object_compiler.cpp` - Set PEX user flags for Hidden/Conditional when emitting objects, variables, properties
 
-#### Comparison operand coercion (autocast)
-
-**Status**: Not implemented. Comparison operands are not unified to a common reference type, so valid Papyrus patterns (e.g. `ObjectReference == Game.GetPlayer()`, where `GetPlayer()` is `Actor`) may compile in Vellum but fail at runtime with errors such as “Cannot compare non-identical types”.
-
-**Implementation needed**:
-
-- For `==`, `!=`, and ordering operators on resolved object types, align both sides to the same static type before bytecode generation—matching official Papyrus behavior (implicit cast along inheritance).
-- Pick coercion direction like Caprica’s `coerceToSameType`: when one type is a parent of the other in the imported script graph, wrap the derived side in an implicit cast to the ancestor type (emit PEX `cast` before `CmpEq` / compare opcodes).
-- Extend type/metadata resolution so parent relationships are available for imported/builtin scripts (see Caprica’s `canImplicitlyCoerce` + `isObjectSomeParentOf` for `ResolvedObject`).
-
-**Files to modify**:
-
-- `src/analyze/semantic_analyzer.cpp` (`visitBinaryExpression`) — comparison typing / coercion decisions
-- `src/analyze/type_checker.cpp` — helpers for coercible reference pairs or common comparison type
-- `src/compiler/pex_function_compiler.cpp` — emit `Cast` on one operand when types differ but coercion is allowed
-- Resolver / import pipeline as needed for script inheritance metadata
-
 ### Vellum New Features (Priority: Medium)
 
 #### String Format
@@ -134,6 +117,7 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 ### Expressions
 
 - **Binary operations** - All arithmetic (`+`, `-`, `*`, `/`, `%`) and comparison (`==`, `!=`, `<`, `<=`, `>`, `>=`) operators
+- **Comparison operand coercion (autocast)** — `commonComparisonType` / `canImplicitlyCast` in `TypeChecker` (Int↔Float → `Float`; script types → common ancestor via `Resolver::isScriptSubtypeOf`); `comparisonOperandType` on comparisons; PEX `Cast` before `Cmp`* when reference operands must unify; tests in `semantic_tests` / `compiler_tests`
 - **Logical operations** - Logical AND (`&&`) and OR (`||`)
 - **Ternary operator** - `condition ? trueExpr : falseExpr` (`QUES` token); binds looser than `||`/`&&` (C-style: `a || b ? c : d` → `(a || b) ? c : d`), right-associative; bool condition; branch compatibility via `TypeChecker` (`commonTernaryBranchType`, `TernaryBranch` context, Int→Float promotion, `TernaryTypeMismatch`); PEX `JmpF`/`Jmp` and `Cast` when unifying to Float; parse `consume()` errors retain kinds (e.g. `ExpectColon`); tests in `test/unit/` (lexer, parser, semantic, compiler)
 - **Unary operations** - Negation (`-`) and logical NOT (`!`)
