@@ -1,0 +1,29 @@
+// Pair with CountActorsEntered. Player activation
+// opens a message box with how many actors entered the trigger and lists each one.
+script ShowActorsCount : ObjectReference {
+
+	var actorsCounter : CountActorsEntered {get set}
+
+	event onActivate(who: ObjectReference) {
+		if who != Game.GetPlayer() {
+			return
+		}
+
+		var count = actorsCounter.count
+		var message = "Entered actors: " + count as String
+
+		if (actorsCounter.count > 0) {
+			message += " | "
+		}
+
+		var i = 0
+		var actors = actorsCounter.actorsEntered
+		while i < count {
+			message += (actors.GetAt(i) as Actor) as String
+			message += " | "
+			i += 1
+		}
+
+		Debug.MessageBox(message)
+	}
+}

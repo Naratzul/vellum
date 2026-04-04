@@ -1,0 +1,70 @@
+// Archery practice dummy: when the player hits with a bow, advances Marksman with
+// randomized critical and mastery-based gain helpers (see MathEx.chance).
+script TrainingMannequin : ObjectReference {
+	var itemTypeBow = 7
+	var skillMarksman = "Marksman"
+	var skillGainRanged = 15.0
+	
+	var criticalBonusChange = 9
+	var criticalBonusMult = 2.2
+
+	var masteryNoviceMult = 2.0
+	var masteryApprenticeMult = 1.8
+	var masteryExpertMult = 1.4
+	var masteryMasterMult = 1.0
+
+	event onHit(aggressor: ObjectReference, source: Form, p: Projectile,
+	 			pa: Bool, sa: Bool, ba: Bool, hb: Bool) {
+        var player = Game.GetPlayer()
+
+		if aggressor != player {
+			return
+		}
+
+		GoToState("Busy")
+
+		var itemType = player.GetEquippedItemType(1)
+
+		if (source as Weapon) as Bool && itemType == itemTypeBow {
+			advanceSkill(skillMarksman, skillGainRanged)
+		}
+
+		GoToState("")
+	}
+
+	fun advanceSkill(skill: String, gain: Float) {
+		gain = advanceSkillStable(skill, gain)
+		if gain > 0.0 {
+			Game.AdvanceSkill(skill, gain)
+			Debug.Notification("Advancing skill " + skill + " by " + gain as String + " gain.")
+		}
+	}
+
+	fun advanceSkillStable(skill: String, gain: Float) -> Float {
+		return skillGainFormular(skill, gain)
+	}
+
+	fun skillGainFormular(skill: String, gain: Float) -> Float {
+		var out = gain
+
+		if MathEx.chance(criticalBonusChange) == 1 {
+			out *= criticalBonusMult
+			Debug.Notification("Critical Hit!")
+		}
+
+		var mastery = Game.GetPlayer().GetActorValuePercentage(skill)
+		if mastery > 0.75 {
+			out += gain * masteryMasterMult
+		} else if mastery > 0.5 {
+			out += gain * masteryExpertMult
+		} else if mastery > 0.25 {
+			out += gain * masteryApprenticeMult
+		} else {
+			out += gain * masteryNoviceMult
+		}
+
+		return out
+	}
+}
+
+state Busy {}

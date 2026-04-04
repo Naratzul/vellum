@@ -1,0 +1,17 @@
+// Item reference script: when the player equips this object, adds a configured spell;
+// removes it again on unequip.
+script SpellOnEquip : ObjectReference {
+  var spell: Spell {get set}
+
+  event onEquipped(actor: Actor) {
+    if actor == Game.GetPlayer() {
+      actor.AddSpell(spell)
+    }
+  }
+
+  event onUnequipped(actor: Actor) {
+    if actor == Game.GetPlayer() {
+      actor.RemoveSpell(spell)
+    }
+  }
+}

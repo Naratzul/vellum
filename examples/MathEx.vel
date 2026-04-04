@@ -1,0 +1,8 @@
+// Small utility script: static chance(percent) returns 1.0 or 0.0 from a 0–99 roll.
+// Used by examples such as TrainingMannequin.
+script MathEx {
+	static fun chance(percent: Int) -> Float {
+		var roll = Utility.RandomInt(0, 99)
+    	return (roll < percent) ? 1.0 : 0.0
+	}
+}

@@ -1,0 +1,22 @@
+// Trigger script: tracks distinct non-player actors who enter (FormList) and exposes
+// count via a computed property. Use with ShowActorsCount or other readers of this form.
+script CountActorsEntered : ObjectReference {
+
+	// auto property
+	var actorsEntered: FormList {get set}
+
+	// readonly property
+	var count: Int { 
+		get { return actorsEntered.GetSize() }
+	}
+
+	event onTriggerEnter(actor: ObjectReference) {
+		if actor == Game.GetPlayer() {
+			return
+		}
+
+		if !actorsEntered.HasForm(actor as Form) {
+			actorsEntered.AddForm(actor as Form)
+		}
+	}
+}
