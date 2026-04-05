@@ -1,6 +1,6 @@
 # Home
 
-Latest version: v0.1.0
+Latest version: [v0.1.0](https://github.com/Naratzul/vellum/releases/tag/v0.1.0)
 
 Vellum is a scripting language for Creation Kit-era games. It compiles to **PEX**. It offers modern syntax and better compiler errors.
 
