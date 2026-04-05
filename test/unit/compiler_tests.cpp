@@ -24,6 +24,7 @@
 #include "pex/pex_instruction.h"
 #include "pex/pex_value.h"
 #include "utils.h"
+#include "vellum/vellum_identifier.h"
 #include "vellum/vellum_object.h"
 
 namespace fs = std::filesystem;
@@ -917,6 +918,81 @@ TEST_CASE("CompileAutoProperty_WithInitializer") {
   REQUIRE(vars.size() == 1);
   REQUIRE(vars[0].defaultValue().getType() == pex::PexValueType::Integer);
   CHECK(vars[0].defaultValue().asInt() == 42);
+}
+
+TEST_CASE("CompileFullProperty_CustomGetSet_PexAccessors") {
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "myValue_", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+
+  ast::FunctionBody getBody;
+  getBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("myValue_"),
+                                            Token{})));
+
+  ast::FunctionBody setBody;
+  setBody.emplace_back(makeUnique<ast::ExpressionStatement>(
+      makeUnique<ast::AssignExpression>(
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("myValue_"),
+                                                Token{}),
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("newValue"),
+                                                Token{}))));
+
+  scriptMembers.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "myProp", VellumType::unresolved("Int"), "",
+      makeUnique<ast::BlockStatement>(std::move(getBody)),
+      makeUnique<ast::BlockStatement>(std::move(setBody)), std::nullopt));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importResolver =
+      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver = makeShared<Resolver>(
+      VellumObject(VellumType::identifier("testscript")), errorHandler,
+      importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  DeclarationCollector collector(errorHandler, resolver, "testscript");
+  collector.collect(ast);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  REQUIRE(file.objects().size() == 1);
+  REQUIRE(file.objects()[0].getProperties().size() == 1);
+  const auto& property = file.objects()[0].getProperties()[0];
+
+  const auto getterOpt = property.getGetAccessor();
+  REQUIRE(getterOpt.has_value());
+  const auto& getter = getterOpt.value();
+  CHECK(getter.getReturnTypeName() == file.getString("Int"));
+  CHECK(getter.getParameters().empty());
+
+  const auto setterOpt = property.getSetAccessor();
+  REQUIRE(setterOpt.has_value());
+  const auto& setter = setterOpt.value();
+  CHECK(setter.getReturnTypeName() == file.getString("None"));
+  REQUIRE(setter.getParameters().size() == 1);
+  CHECK(setter.getParameters()[0].getName() == file.getString("newValue"));
+  CHECK(setter.getParameters()[0].getType() == file.getString("Int"));
+
+  REQUIRE_FALSE(property.getBackedVariableName().has_value());
 }
 
 TEST_CASE("DebugInfo_WhenDisabled_FileHasNoDebugInfo") {

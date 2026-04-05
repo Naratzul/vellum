@@ -15,6 +15,7 @@
 #include "lexer/token.h"
 #include "utils.h"
 #include "vellum/vellum_function.h"
+#include "vellum/vellum_identifier.h"
 #include "vellum/vellum_object.h"
 #include "vellum/vellum_property.h"
 #include "vellum/vellum_type.h"
@@ -179,6 +180,87 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(prop != nullptr);
   REQUIRE(prop->isReadonly());
   REQUIRE_FALSE(prop->getDefaultValue().has_value());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticFullProperty_GetSet_ResolvesNewValue") {
+  Vec<Unique<ast::Declaration>> members;
+  members.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "myValue_", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+
+  ast::FunctionBody getBody;
+  getBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("myValue_"),
+                                            Token{})));
+
+  ast::FunctionBody setBody;
+  setBody.emplace_back(makeUnique<ast::ExpressionStatement>(
+      makeUnique<ast::AssignExpression>(
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("myValue_"),
+                                                Token{}),
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("newValue"),
+                                                Token{}))));
+
+  members.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "myProp", VellumType::unresolved("Int"), "",
+      makeUnique<ast::BlockStatement>(std::move(getBody)),
+      makeUnique<ast::BlockStatement>(std::move(setBody)), std::nullopt));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* script = dynamic_cast<const ast::ScriptDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(script != nullptr);
+  const auto* prop = dynamic_cast<const ast::PropertyDeclaration*>(
+      script->getMemberDecls()[1].get());
+  REQUIRE(prop != nullptr);
+  REQUIRE_FALSE(prop->isAutoProperty());
+  REQUIRE(prop->getGetAccessor().has_value());
+  REQUIRE(prop->getSetAccessor().has_value());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticFullProperty_SetterWrongImplicitName_Errors") {
+  Vec<Unique<ast::Declaration>> members;
+  members.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "myValue_", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+
+  ast::FunctionBody getBody;
+  getBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("myValue_"),
+                                            Token{})));
+
+  ast::FunctionBody setBody;
+  setBody.emplace_back(makeUnique<ast::ExpressionStatement>(
+      makeUnique<ast::AssignExpression>(
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("myValue_"),
+                                                Token{}),
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("value"),
+                                                Token{}))));
+
+  members.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "myProp", VellumType::unresolved("Int"), "",
+      makeUnique<ast::BlockStatement>(std::move(getBody)),
+      makeUnique<ast::BlockStatement>(std::move(setBody)), std::nullopt));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  collector->collect(ast);
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::UndefinedIdentifier));
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture, "SemanticFunctionTest") {

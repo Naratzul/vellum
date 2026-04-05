@@ -189,7 +189,7 @@ void PexObjectCompiler::visitPropertyDeclaration(
 
     if (declaration.getGetAccessor()) {
       auto getBlock = declaration.releaseGetAccessor().value();
-      ast::FunctionDeclaration getFuncDecl({}, {}, VellumType::none(),
+      ast::FunctionDeclaration getFuncDecl({}, {}, declaration.getTypeName(),
                                            std::move(getBlock), false);
       getAccessorFunc = PexFunctionCompiler(errorHandler, file)
                             .compile(getFuncDecl, getterDebugInfo);
@@ -201,7 +201,10 @@ void PexObjectCompiler::visitPropertyDeclaration(
 
     if (declaration.getSetAccessor()) {
       auto setBlock = declaration.releaseSetAccessor().value();
-      ast::FunctionDeclaration setFuncDecl({}, {}, VellumType::none(),
+      ast::FunctionParameter newValue{"newValue", declaration.getTypeName(),
+                                      declaration.getNameLocation(),
+                                      declaration.getTypeLocation()};
+      ast::FunctionDeclaration setFuncDecl({}, {newValue}, VellumType::none(),
                                            std::move(setBlock), false);
       setAccessorFunc = PexFunctionCompiler(errorHandler, file)
                             .compile(setFuncDecl, setterDebugInfo);

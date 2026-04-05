@@ -179,16 +179,20 @@ void SemanticAnalyzer::visitFunctionDeclaration(
 
 void SemanticAnalyzer::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
-  VellumFunction dummyFunc(VellumIdentifier(declaration.getName()),
-                           declaration.getTypeName(), {}, false);
-
   if (auto& getBlock = declaration.getGetAccessor()) {
+    VellumFunction dummyFunc(VellumIdentifier(declaration.getName()),
+                             declaration.getTypeName(), {}, false);
     resolver->startFunction(dummyFunc);
     getBlock.value()->accept(*this);
     resolver->endFunction();
   }
 
   if (auto& setBlock = declaration.getSetAccessor()) {
+    VellumVariable newValue{VellumIdentifier{"newValue"},
+                            declaration.getTypeName(), std::nullopt,
+                            declaration.getNameLocation()};
+    VellumFunction dummyFunc(VellumIdentifier(declaration.getName()),
+                             VellumType::none(), {newValue}, false);
     resolver->startFunction(dummyFunc);
     setBlock.value()->accept(*this);
     resolver->endFunction();
