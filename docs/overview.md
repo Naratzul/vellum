@@ -1,12 +1,14 @@
 # Overview
 
-Vellum is a scripting language created for Creation Kit. It's a rethinking of what Papyrus was. This is the basic overview of the language and its features.
+Vellum is a scripting language created for the Creation Kit. Vellum keeps compatibility with the Papyrus ecosystem and offers clearer syntax and tooling.
+
+For now, only the Skyrim PEX subset is supported. Support for Fallout 4 and Starfield is planned.
 
 ## Script declaration
 
 See [Inheritance](inheritance.md) for extending base scripts and script attachment.
 
-Put your script inside a .vel file. Classic hello world example in Vellum:
+Put your script inside a **`.vel`** file. Classic hello world example in Vellum:
 
 ```swift
 script HelloWorld : ObjectReference {
@@ -20,7 +22,7 @@ script HelloWorld : ObjectReference {
 
 See [Functions](functions.md).
 
-You can define a function using the `fun` keyword. A function that takes 2 `Int` parameters and returns an `Int`:
+You can define a function using the `fun` keyword. A function that takes two `Int` parameters and returns an `Int`:
 
 ```swift
 fun sum(a: Int, b: Int) -> Int {
@@ -126,9 +128,9 @@ See [Control flow](control_flow.md).
 // assume value is set
 var x: Int
 if value > 10 {
-  x = 1
+    x = 1
 } else {
-  x = 0
+    x = 0
 }
 ```
 
