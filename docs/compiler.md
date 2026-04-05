@@ -1,4 +1,4 @@
-# Compiler
+# Using the compiler
 
 You can download the latest compiler from the [Download](download.md) page.
 

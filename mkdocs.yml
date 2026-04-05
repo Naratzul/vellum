@@ -20,10 +20,10 @@ theme:
 
 nav:
   - Home: index.md
-  - Examples: https://github.com/Naratzul/vellum/tree/main/examples
   - Download: download.md
-  - Compiler: compiler.md
+  - Usage: compiler.md
   - Overview: overview.md
+  - Examples: examples.md
   - Variables: variables.md
   - Properties: properties.md
   - Functions: functions.md
