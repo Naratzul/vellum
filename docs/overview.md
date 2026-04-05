@@ -1,18 +1,24 @@
-Vellum is a scripting language created for Creation Kit. It's a rethinking of what Papyrus was. This is the basic overview of the language and its features
+# Overview
+
+Vellum is a scripting language created for Creation Kit. It's a rethinking of what Papyrus was. This is the basic overview of the language and its features.
 
 ## Script declaration
+
+See [Inheritance](inheritance.md) for extending base scripts and script attachment.
 
 Put your script inside a .vel file. Classic hello world example in Vellum:
 
 ```swift
 script HelloWorld : ObjectReference {
-    event OnActivate(actionRef: ObjectReference) {
+    event onActivate(actionRef: ObjectReference) {
         Debug.MessageBox("Hello, World!")
     }
 }
 ```
 
 ## Functions and events
+
+See [Functions](functions.md).
 
 You can define a function using the `fun` keyword. A function that takes 2 `Int` parameters and returns an `Int`:
 
@@ -31,6 +37,9 @@ event OnActivate(activator: ObjectReference) {
 ```
 
 ## Variables
+
+See [Variables](variables.md).
+
 In Vellum, you declare a variable using the `var` keyword followed by the name of the variable:
 
 ```swift
@@ -45,6 +54,9 @@ var x = 4 // type `Int` is inferred
 ```
 
 ## Properties
+
+See [Properties](properties.md).
+
 Properties are defined using the `var` keyword followed by name, type, and accessors:
 
 ```swift
@@ -54,6 +66,9 @@ var anotherProperty: Float {get} // defines readonly property anotherProperty wi
 ```
 
 ## Arrays
+
+See [Arrays](arrays.md).
+
 Arrays can hold multiple items of the same type:
 
 ```swift
@@ -71,6 +86,9 @@ var numbersCount = numbers.length
 ```
 
 ## For loop
+
+See [Control flow](control_flow.md).
+
 Use a `for` loop to iterate over an array:
 
 ```swift
@@ -86,6 +104,9 @@ for message in messages {
 ```
 
 ## While loop
+
+See [Control flow](control_flow.md).
+
 A `while` loop runs the code inside the loop body continuously while the condition is satisfied:
 
 ```swift
@@ -95,7 +116,11 @@ while x < 10 {
 }
 ```
 
+You can use `break` and `continue` statements to control the flow of loops (like `for` and `while`).
+
 ## If statement
+
+See [Control flow](control_flow.md).
 
 ```swift
 // assume value is set
@@ -108,6 +133,9 @@ if value > 10 {
 ```
 
 ## Ternary conditional operator
+
+See [Control flow](control_flow.md).
+
 In some cases you can shorten your if statement:
 
 ```swift
@@ -124,6 +152,8 @@ fun max(a: Int, b: Int) -> Int {
 ```
 
 ## States
+
+See [States](states.md).
 
 ```swift
 script MyScript {
@@ -152,3 +182,9 @@ auto state InitialState {
 
 }
 ```
+
+## Casts
+
+See [Casts](casts.md).
+
+Write **`expression as Type`** when the compiler allows that conversion, for example `obj as Actor` to narrow a reference.

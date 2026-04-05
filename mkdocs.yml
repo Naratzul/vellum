@@ -1,6 +1,39 @@
 site_name: Vellum
 site_url: https://naratzul.github.io/Vellum/
+
 theme:
-  name: mkdocs
-  locale: en
-  user_color_mode_toggle: true
+  name: material
+  palette:
+    # optional: light/dark like your old toggle
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant      # optional, snappy nav
+    - navigation.tracking      # optional, URL updates with TOC scroll
+    # Do NOT add: navigation.tabs
+
+nav:
+  - Home: index.md
+  - Examples: https://github.com/Naratzul/vellum/tree/main/examples
+  - Download: download.md
+  - Compiler: compiler.md
+  - Overview: overview.md
+  - Variables: variables.md
+  - Properties: properties.md
+  - Functions: functions.md
+  - Control flow: control_flow.md
+  - Arrays: arrays.md
+  - Inheritance: inheritance.md
+  - States: states.md
+  - Casts: casts.md
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
