@@ -9,6 +9,7 @@
 
 #include "common/fs.h"
 #include "common/sentry_report.h"
+#include "common/string_utils.h"
 #include "common/types.h"
 #include "vellum/vellum.h"
 
@@ -25,6 +26,19 @@
 using vellum::common::Vec;
 
 namespace {
+fs::path sanitizeCliPath(const fs::path &path) {
+  using namespace vellum::common;
+
+  auto raw = pathToUtf8(path);
+  trim(raw);
+
+  while (!raw.empty() && (raw.back() == '\'' || raw.back() == '"')) {
+    raw.pop_back();
+  }
+
+  return fs::path(raw);
+}
+
 int entryPoint(int argc, char *argv[]) {
   cxxopts::Options options("vellum", "Vellum Compiler");
   options.add_options()("h,help", "Print help")("v,version", "Print version")(
@@ -95,24 +109,26 @@ int entryPoint(int argc, char *argv[]) {
   Vec<fs::path> importPaths;
   if (result.count("import")) {
     importPaths = result["import"].as<Vec<fs::path>>();
+
+    for (auto &path : importPaths) {
+      path = sanitizeCliPath(path);
+    }
+
     std::cout << "Import paths: ";
     for (const auto &path : importPaths) {
       std::cout << "- " << path << std::endl;
     }
   }
 
-  const auto inputFile = result["file"].as<fs::path>();
+  const auto inputFile = sanitizeCliPath(result["file"].as<fs::path>());
 
-  // TODO: handle trailing '/'
-  importPaths.insert(importPaths.begin(),
-                     inputFile.parent_path());
-  importPaths.insert(importPaths.begin(),
-                     std::filesystem::current_path());
+  importPaths.insert(importPaths.begin(), inputFile.parent_path());
+  importPaths.insert(importPaths.begin(), fs::current_path());
 
   importPaths = vellum::common::dedupePathsPreserveOrder(importPaths);
 
   const bool emitDebugInfo = !result["release"].as<bool>();
-  std::cout << "Compiling " << inputFile << std::endl;
+  std::cout << "Compiling " << inputFile.relative_path() << std::endl;
 
   bool runResult = false;
 
