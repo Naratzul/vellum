@@ -8,6 +8,7 @@ FetchContent_Declare(
   sentry-native
   GIT_REPOSITORY https://github.com/getsentry/sentry-native.git
   GIT_TAG        0.13.3
+  GIT_SUBMODULES ""
 )
 set(SENTRY_BACKEND inproc CACHE STRING "" FORCE)
 set(SENTRY_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
