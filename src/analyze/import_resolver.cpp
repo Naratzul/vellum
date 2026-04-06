@@ -6,6 +6,7 @@
 #include "analyze/declaration_collector.h"
 #include "analyze/type_collector.h"
 #include "common/fs.h"
+#include "common/os.h"
 #include "compiler/builtin_functions.h"
 #include "compiler/resolver.h"
 #include "lexer/lexer.h"
@@ -76,7 +77,7 @@ void ImportResolver::doResolveAllModules() {
       continue;
     }
 
-    const auto filename = module->getFilePath().stem().string();
+    const auto filename = pathToUtf8(module->getFilePath().stem());
 
     auto builtinFunctions = makeShared<BuiltinFunctions>();
     auto resolver =

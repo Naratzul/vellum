@@ -1,8 +1,7 @@
 #include <cassert>
 #include <cstdlib>
-#include <filesystem>
-
-#ifdef WIN32
+#include <string>
+#ifdef _WIN32
 #include <Windows.h>
 #include <debugapi.h>
 #include <lmcons.h>
@@ -18,9 +17,14 @@
 namespace vellum {
 namespace common {
 
-namespace fs = std::filesystem;
+std::string pathToUtf8(const fs::path& p) {
+  const std::u8string u8 = p.u8string();
+  return std::string(reinterpret_cast<const char*>(u8.data()), u8.size());
+}
 
-#ifdef WIN32
+std::string unicodeToUtf8(const wchar_t* p) { return pathToUtf8(fs::path(p)); }
+
+#ifdef _WIN32
 std::string getUserName() {
   static char buf[UNLEN + 1] = "";
   if (buf[0] == 0) {
@@ -41,24 +45,29 @@ std::string getComputerName() {
 void debugBreak() { DebugBreak(); }
 bool isDebuggerPresent() { return IsDebuggerPresent(); }
 
-std::string getSentryDatabasePath(std::string_view appName) {
+std::wstring getSentryDatabasePathW(std::wstring_view appName) {
   wchar_t* localAppData = nullptr;
   if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr,
                                      &localAppData))) {
-    std::string result =
-        (fs::path(localAppData) / "Vellum" / appName / ".sentry-native")
-            .string();
+    std::wstring result =
+        (fs::path(localAppData) / L"Vellum" / appName / L".sentry-native")
+            .wstring();
     CoTaskMemFree(localAppData);
     return result;
   }
 
   if (const wchar_t* userProfile = _wgetenv(L"USERPROFILE")) {
-    return (fs::path(userProfile) / "AppData" / "Local" / "Vellum" / appName /
-            ".sentry-native")
-        .string();
+    return (fs::path(userProfile) / L"AppData" / L"Local" / L"Vellum" /
+            appName / L".sentry-native")
+        .wstring();
   }
 
-  return (fs::path(".") / ".sentry-native").string();
+  return (fs::path(L".") / L".sentry-native").wstring();
+}
+
+std::string getSentryDatabasePath(std::string_view appName) {
+  return pathToUtf8(
+      fs::path(getSentryDatabasePathW(fs::path(appName).wstring())));
 }
 
 #elif defined __APPLE__
@@ -98,11 +107,10 @@ bool isDebuggerPresent() {
 
 std::string getSentryDatabasePath(std::string_view appName) {
   if (const char* home = getenv("HOME")) {
-    return (fs::path(home) / "Library" / "Caches" / "Vellum" / appName /
-            ".sentry-native")
-        .string();
+    return pathToUtf8(fs::path(home) / "Library" / "Caches" / "Vellum" /
+                      appName / ".sentry-native");
   }
-  return (fs::path(".") / ".sentry-native").string();
+  return pathToUtf8(fs::path(".") / ".sentry-native");
 }
 
 #else

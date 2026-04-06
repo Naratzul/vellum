@@ -516,7 +516,7 @@ TEST_CASE("CompileDefaultArgs_EndToEnd") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver =
       makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
@@ -579,7 +579,7 @@ TEST_CASE("CompileReturn_BareReturn_EmitsReturnWithNoneVar") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver =
       makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
@@ -651,7 +651,7 @@ TEST_CASE("CompileReturn_WithValue_EmitsReturnWithValue") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver =
       makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
@@ -728,7 +728,7 @@ TEST_CASE("CompileSelfExpression_CallMethodUsesSelf") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver =
       makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
@@ -806,7 +806,7 @@ TEST_CASE("CompileNegativeDefaultArgs_EndToEnd") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver =
       makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
@@ -888,7 +888,7 @@ TEST_CASE("CompileAutoProperty_WithInitializer") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver =
       makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
@@ -950,7 +950,7 @@ TEST_CASE("CompileFullProperty_CustomGetSet_PexAccessors") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver =
       makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
@@ -1086,7 +1086,7 @@ TEST_CASE("DebugInfo_Property_GetterSetterHaveDebugEntries") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver =
       makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
@@ -1188,7 +1188,7 @@ TEST_CASE("DebugInfo_WriteToFile_OutputDiffersWithAndWithoutDebug") {
 
 TEST_CASE("CompileCastAndIntFloatArithmetic") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver = makeShared<Resolver>(
       VellumObject(VellumType::identifier("testscript")), errorHandler,
@@ -1241,7 +1241,7 @@ TEST_CASE("CompileCastAndIntFloatArithmetic") {
 
 TEST_CASE("CompileComparison_IntFloat_EmitsCastBeforeCmpEq") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver = makeShared<Resolver>(
       VellumObject(VellumType::identifier("testscript")), errorHandler,
@@ -1290,7 +1290,7 @@ TEST_CASE("CompileComparison_IntFloat_EmitsCastBeforeCmpEq") {
 
 TEST_CASE("CompileComparison_ScriptSubtype_EmitsCastBeforeCmpEq") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver = makeShared<Resolver>(
       VellumObject(VellumType::identifier("testscript")), errorHandler,
@@ -1362,7 +1362,7 @@ TEST_CASE("CompileComparison_ScriptSubtype_EmitsCastBeforeCmpEq") {
 
 TEST_CASE("CompileComparison_IntInt_NoCastOpcode") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver = makeShared<Resolver>(
       VellumObject(VellumType::identifier("testscript")), errorHandler,
@@ -1427,7 +1427,7 @@ TEST_CASE("CompileForIn_OpcodePatternAndMangledLocals") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver = makeShared<Resolver>(
@@ -1524,7 +1524,7 @@ TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
       std::nullopt, std::move(scriptMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver = makeShared<Resolver>(
@@ -1576,7 +1576,7 @@ TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
 
 TEST_CASE("CompileTernary_IntInt_JmpPattern_NoCast") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver = makeShared<Resolver>(
       VellumObject(VellumType::identifier("testscript")), errorHandler,
@@ -1623,7 +1623,7 @@ TEST_CASE("CompileTernary_IntInt_JmpPattern_NoCast") {
 
 TEST_CASE("CompileTernary_IntFloat_Promotion_HasCast") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver = makeShared<Resolver>(
       VellumObject(VellumType::identifier("testscript")), errorHandler,

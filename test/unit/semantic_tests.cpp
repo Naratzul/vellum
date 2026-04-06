@@ -32,7 +32,7 @@ class SemanticTestsFixture {
  public:
   SemanticTestsFixture() {
     errorHandler = makeShared<CompilerErrorHandler>();
-    importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+    importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
     auto builtinFunctions = makeShared<BuiltinFunctions>();
     resolver =
         makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),

@@ -2,27 +2,28 @@
 
 #include <format>
 
+#include "common/os.h"
 #include "common/string_set.h"
 #include "vellum/vellum_identifier.h"
 
 namespace vellum {
 using namespace common;
 
-ImportLibrary::ImportLibrary(const Vec<std::string>& importPaths) {
+ImportLibrary::ImportLibrary(const Vec<fs::path>& importPaths) {
   scanImportPaths(importPaths);
 }
 
-void ImportLibrary::scanImportPaths(const Vec<std::string>& importPaths) {
-  for (const auto& importPath : importPaths) {
-    fs::path path(importPath);
+void ImportLibrary::scanImportPaths(const Vec<fs::path>& importPaths) {
+  for (const auto& path : importPaths) {
     if (!fs::is_directory(path)) {
-      throw std::runtime_error("Import path is not a directory: " + importPath);
+      throw std::runtime_error("Import path is not a directory: " +
+                               pathToUtf8(path));
     }
 
     for (const auto& entry : fs::recursive_directory_iterator(path)) {
       if (fs::is_regular_file(entry.path())) {
-        auto filename = entry.path().stem().string();
-        auto extension = entry.path().extension().string();
+        auto filename = pathToUtf8(entry.path().stem());
+        auto extension = pathToUtf8(entry.path().extension());
 
         if (extension != ".vel" && extension != ".psc") {
           continue;
@@ -32,7 +33,7 @@ void ImportLibrary::scanImportPaths(const Vec<std::string>& importPaths) {
         if (importNameToModule.contains(name)) {
           throw std::runtime_error(
               std::format("Duplicate import name detected: {} in {}",
-                          name.toString(), entry.path().string()));
+                          name.toString(), pathToUtf8(entry.path())));
         }
 
         if (extension == ".vel") {

@@ -8,7 +8,7 @@
 
 namespace vellum {
 namespace pex {
-void PexFile::writeToFile(std::string_view path) const {
+void PexFile::writeToFile(const fs::path& path) const {
   std::ostringstream stream(std::ios::binary);
   PexWriter writer(stream, getEndianness());
 

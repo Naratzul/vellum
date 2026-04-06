@@ -15,6 +15,7 @@
 
 namespace vellum {
 namespace pex {
+namespace fs = std::filesystem;
 using common::Vec;
 
 constexpr uint32_t PEX_MAGIC_NUM = 0xFA57C0DE;
@@ -62,7 +63,7 @@ class PexFile {
     debugInfo_ = std::move(info);
   }
 
-  void writeToFile(std::string_view path) const;
+  void writeToFile(const fs::path& path) const;
 
   PexString getString(std::string_view str) {
     return stringTable().lookup(str);

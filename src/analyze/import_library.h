@@ -58,7 +58,7 @@ using ImportModulePtr = Shared<ImportModule>;
 
 class ImportLibrary {
  public:
-  ImportLibrary(const Vec<std::string>& importPaths);
+  ImportLibrary(const Vec<fs::path>& importPaths);
 
   ImportModulePtr findModule(VellumIdentifier name) const;
   bool hasModule(VellumIdentifier name) const;
@@ -72,7 +72,7 @@ class ImportLibrary {
  private:
   Map<VellumIdentifier, ImportModulePtr> importNameToModule;
 
-  void scanImportPaths(const Vec<std::string>& importPaths);
+  void scanImportPaths(const Vec<fs::path>& importPaths);
 };
 
 }  // namespace vellum

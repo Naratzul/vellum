@@ -19,7 +19,7 @@ Vec<DiagnosticMessage> StaticAnalyze::analyze(std::string_view filename,
                                               std::string_view sourceCode) {
   auto lexer = makeUnique<Lexer>(sourceCode);
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<std::string>{});
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver =

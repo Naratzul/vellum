@@ -1,8 +1,8 @@
 #include "common/os.h"
 #define CXXOPTS_VECTOR_DELIMITER ';'
 
-#include <cstdlib>
 #include <cpptrace/from_current.hpp>
+#include <cstdlib>
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
@@ -24,11 +24,12 @@
 
 using vellum::common::Vec;
 
-int main(int argc, char *argv[]) {
+namespace {
+int entryPoint(int argc, char *argv[]) {
   cxxopts::Options options("vellum", "Vellum Compiler");
   options.add_options()("h,help", "Print help")("v,version", "Print version")(
-      "f,file", "Input file", cxxopts::value<std::string>())(
-      "i,import", "Import directory paths", cxxopts::value<Vec<std::string>>())(
+      "f,file", "Input file", cxxopts::value<fs::path>())(
+      "i,import", "Import directory paths", cxxopts::value<Vec<fs::path>>())(
       "r,release",
       "Omit PEX source line mapping (default: emit line mapping like Papyrus)",
       cxxopts::value<bool>()->default_value("false"))(
@@ -47,8 +48,13 @@ int main(int argc, char *argv[]) {
     }
 #endif
     sentry_options_set_release(sentry_opts, VELLUM_SENTRY_RELEASE);
+#ifdef _WIN32
+    sentry_options_set_database_pathw(
+        sentry_opts, vellum::common::getSentryDatabasePathW(L"vellum").c_str());
+#else
     sentry_options_set_database_path(
         sentry_opts, vellum::common::getSentryDatabasePath("vellum").c_str());
+#endif
 #ifdef VELLUM_SENTRY_ENVIRONMENT
     sentry_options_set_environment(sentry_opts, VELLUM_SENTRY_ENVIRONMENT);
 #else
@@ -86,21 +92,22 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  Vec<std::string> importPaths;
+  Vec<fs::path> importPaths;
   if (result.count("import")) {
-    importPaths = result["import"].as<Vec<std::string>>();
+    importPaths = result["import"].as<Vec<fs::path>>();
     std::cout << "Import paths: ";
     for (const auto &path : importPaths) {
       std::cout << "- " << path << std::endl;
     }
   }
 
-  const auto inputFile = result["file"].as<std::string>();
+  const auto inputFile = result["file"].as<fs::path>();
 
+  // TODO: handle trailing '/'
   importPaths.insert(importPaths.begin(),
-                     std::filesystem::path(inputFile).parent_path().string());
+                     inputFile.parent_path());
   importPaths.insert(importPaths.begin(),
-                     std::filesystem::current_path().string());
+                     std::filesystem::current_path());
 
   importPaths = vellum::common::dedupePathsPreserveOrder(importPaths);
 
@@ -111,8 +118,7 @@ int main(int argc, char *argv[]) {
 
   cpptrace::try_catch(
       [&] {
-        runResult =
-            vellum::Vellum().run(inputFile, importPaths, emitDebugInfo);
+        runResult = vellum::Vellum().run(inputFile, importPaths, emitDebugInfo);
       },
       [&](const std::exception &e) {
         std::cerr << e.what() << std::endl;
@@ -125,3 +131,30 @@ int main(int argc, char *argv[]) {
 
   return runResult ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+}  // namespace
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t *argv[]) {
+  Vec<std::string> argsUtf8;
+  argsUtf8.reserve(argc);
+
+  for (int i = 0; i < argc; ++i) {
+    if (argv[i]) {
+      argsUtf8.push_back(vellum::common::unicodeToUtf8(argv[i]));
+    } else {
+      argsUtf8.emplace_back();
+    }
+  }
+
+  Vec<char *> argsUtf8Ptr;
+  argsUtf8Ptr.reserve(argsUtf8.size());
+
+  for (auto &str : argsUtf8) {
+    argsUtf8Ptr.push_back(str.data());
+  }
+
+  return entryPoint(argsUtf8Ptr.size(), argsUtf8Ptr.data());
+}
+#else
+int main(int argc, char *argv[]) { return entryPoint(argc, argv); }
+#endif

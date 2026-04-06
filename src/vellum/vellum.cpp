@@ -25,10 +25,10 @@ using common::makeUnique;
 using common::Unique;
 
 bool Vellum::run(const fs::path& inputFile,
-                 const Vec<std::string>& importPaths,
+                 const Vec<fs::path>& importPaths,
                  bool emitDebugInfo) {
   const std::string& sourceCode = common::readFileContent(inputFile);
-  const auto filename = inputFile.stem().string();
+  const auto filename = common::pathToUtf8(inputFile.stem());
 
   auto lexer = makeUnique<Lexer>(sourceCode);
   auto errorHandler = makeShared<CompilerErrorHandler>();
@@ -71,7 +71,7 @@ bool Vellum::run(const fs::path& inputFile,
   ScriptMetadata metadata;
   metadata.gameID = game::GameID::Skyrim;
   metadata.compilationTime = std::time(nullptr);
-  metadata.sourceFile = fs::canonical(inputFile).string();
+  metadata.sourceFile = common::pathToUtf8(fs::canonical(inputFile));
   metadata.userName = common::getUserName();
   metadata.computerName = common::getComputerName();
   metadata.emitDebugInfo = emitDebugInfo;
@@ -88,7 +88,7 @@ bool Vellum::run(const fs::path& inputFile,
   auto outputFile = inputFile;
   outputFile.replace_extension(fs::path(".pex"));
 
-  pexFile.writeToFile(outputFile.string());
+  pexFile.writeToFile(outputFile);
 
   return true;
 }
