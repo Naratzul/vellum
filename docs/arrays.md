@@ -10,7 +10,7 @@ To retrieve the number of elements, use the `length` property.
 
 For example:
 
-```swift
+```vellum
 script MyScript {
 
     var elements: [Int] // default-initialized to none
@@ -44,7 +44,7 @@ Arrays can be searched for specific items using `find` and `rfind` methods.
 
 Both methods have an optional second parameter for the start index.
 
-```swift
+```vellum
 script MyScript {
 
     fun foo() {

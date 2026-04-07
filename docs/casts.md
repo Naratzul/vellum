@@ -10,7 +10,7 @@ Casting from a **parent** type to a **child** type may fail at runtime: if the v
 
 Syntax: **`value as DerivedType`**.
 
-```swift
+```vellum
 script MyScript : ObjectReference {
 
     event onActivate(obj: ObjectReference) {
@@ -30,7 +30,7 @@ Many types can be cast **explicitly** to **`String`**. That's useful for debuggi
 
 You can also cast suitable values to **`Bool`** when you want a **boolean** for **`if` / `while`** conditions (or to pass into something that expects `Bool`).
 
-```swift
+```vellum
 script MyScript {
 
     fun print(nums: [Int]) {
@@ -58,7 +58,7 @@ An expression of type `Int` can be promoted to `Float` in contexts where a `Floa
 
 Another case is objects related by **inheritance**. The compiler applies automatic upcast in comparison operators:
 
-```swift
+```vellum
 script MyScript : ObjectReference {
 
     event onActivate(obj: ObjectReference) {

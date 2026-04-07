@@ -4,7 +4,7 @@ As with [variables](variables.md) properties hold a value. They provide a mechan
 
 To declare a property, use the `var` keyword followed by name, type annotation and accessors. Optionally you can specify an initial value (literals only), otherwise the property will be default-initialized (same defaults as in [variables](variables.md)).
 
-```swift
+```vellum
 script GreetingsHelper {
     // default-initialized (to empty string) auto property
     var greetings: String {get set}
@@ -21,7 +21,7 @@ script GreetingsHelper {
 
 Another script can access our properties:
 
-```swift
+```vellum
 script AnotherScript : Quest {
     var greetingsHelper: GreetingsHelper {get set}
 
@@ -33,7 +33,7 @@ script AnotherScript : Quest {
 
 You can create a full property, specifying both accessors. In the setter, `newValue` is implicit (you don't declare it); it is the value being assigned.
 
-```swift
+```vellum
 script MyScript {
 
     var myValue_: Int // private backed variable

@@ -14,7 +14,7 @@ To declare a variable, use the `var` keyword. You also can specify the type expl
 
 But if you omit an initializer, you have to specify the type; the variable gets a default value for its type: numeric types `0`, Bool `false`, String `""`, and object and array types default to `none`.
 
-```swift
+```vellum
 script MyScript {
 
     var myVariable = 42 // Int type will be inferred automatically
@@ -32,7 +32,7 @@ Local variables are those declared inside functions or loops and have a shorter 
 
 In addition to literals, you can declare a variable of any available object type. 
 
-```swift
+```vellum
 script MyQuestScript: Quest {
 
     var player: Actor // initialized to none (same as other object and array types)

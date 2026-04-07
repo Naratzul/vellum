@@ -6,7 +6,7 @@ To declare a function in Vellum:
 - Specify parameters in `()`
 - Include the return type if needed
 
-```swift
+```vellum
 script MyScript {
     fun foo(i: Int) -> Int {
         return i * 5
@@ -18,7 +18,7 @@ script MyScript {
 
 Use `Name: Type` syntax to specify function parameters, for example:
 
-```swift
+```vellum
 script MyScript {
     fun foo(i: Int, f: Float, s: String, actor: Actor) {
         // do something
@@ -30,7 +30,7 @@ script MyScript {
 
 Function parameters can have default values (literal values or none for objects and arrays):
 
-```swift
+```vellum
 script MyScript {
     fun bar(s: String, i: Int = 10) {
 
@@ -46,7 +46,7 @@ script MyScript {
 
 To return a specific value from a function, you have to specify the function's return type using `->` followed by the type name, and use a `return` statement:
 
-```swift
+```vellum
 script MyScript {
     fun concat(a: String, b: String) -> String {
         return a + b
@@ -64,7 +64,7 @@ If you omit the return type, then the function will have `None` as its return ty
 
 You can mark a function as `static` to indicate that it can be called without an instance, on the script type itself. Special variable `self` (see below) is not available in static context:
 
-```swift
+```vellum
 script MyUtility {
     static fun getRandomInt() -> Int {
         return 4
@@ -83,7 +83,7 @@ script MyScript {
 
 You can use `self` expression to refer to the current script instance. The `self` keyword is not available inside `static` functions:
 
-```swift
+```vellum
 script MyScript {
 
     var f: Float {get set} = 2.72
@@ -106,7 +106,7 @@ script MyScript {
 
 Events are a special kind of function. You don't call them directly, it's done by the game engine. Events don't have an explicit return type (their implicit return type is `None`). Usually you override events from base scripts using the keyword `event`. For example:
 
-```swift
+```vellum
 script MyScript : ObjectReference {
 
     event onActivate(obj: ObjectReference) {

@@ -18,6 +18,9 @@ theme:
     - navigation.tracking      # optional, URL updates with TOC scroll
     # Do NOT add: navigation.tabs
 
+extra_css:
+  - stylesheets/vellum-code.css
+
 nav:
   - Home: index.md
   - Download: download.md

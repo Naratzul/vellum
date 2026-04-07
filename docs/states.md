@@ -10,7 +10,7 @@ The empty state is the default state. All members inside the `script` block are 
 
 Only functions and events are allowed inside a `state` block. You can't declare variables and properties here. You can still access the script's variables and properties inside state functions.
 
-```swift
+```vellum
 script MyScript {
     var i = 42
     var x: String {get set} = "Some text"
@@ -39,7 +39,7 @@ Note: The functions and events must be defined in the empty state with the same 
 
 You can use `GetState` to get current state and `GoToState` to change the state:
 
-```swift
+```vellum
 script MyScript : ObjectReference {
     event onActivate(obj: ObjectReference) {
         GoToState("Busy")

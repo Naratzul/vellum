@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vellum-pygments"
+version = "0.1.0"
+description = "Pygments lexer for the Vellum language (MkDocs / docs)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["pygments>=2.14"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[project.entry-points."pygments.lexers"]
+vellum = "vellum_pygments.lexer:VellumLexer"

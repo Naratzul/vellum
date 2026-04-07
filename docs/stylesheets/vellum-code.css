@@ -1,0 +1,87 @@
+[data-md-color-scheme="default"] .md-typeset .highlight pre code {
+  color: rgb(0, 0, 0);
+}
+
+[data-md-color-scheme="default"] .md-typeset .highlight span.k {
+  color: rgb(173, 61, 164); /* --color-syntax-keywords */
+}
+
+[data-md-color-scheme="default"] .md-typeset .highlight span.kt,
+[data-md-color-scheme="default"] .md-typeset .highlight span.nc,
+[data-md-color-scheme="default"] .md-typeset .highlight span.nf {
+  color: rgb(112, 61, 170); /* --color-syntax-other-type-names */
+}
+
+[data-md-color-scheme="default"] .md-typeset .highlight span.c,
+[data-md-color-scheme="default"] .md-typeset .highlight span.c1,
+[data-md-color-scheme="default"] .md-typeset .highlight span.cm,
+[data-md-color-scheme="default"] .md-typeset .highlight span.ch {
+  color: rgb(112, 127, 140); /* --color-syntax-comments */
+}
+
+[data-md-color-scheme="default"] .md-typeset .highlight span.s,
+[data-md-color-scheme="default"] .md-typeset .highlight span.s1,
+[data-md-color-scheme="default"] .md-typeset .highlight span.s2 {
+  color: rgb(209, 47, 27); /* --color-syntax-strings */
+}
+
+[data-md-color-scheme="default"] .md-typeset .highlight span.m,
+[data-md-color-scheme="default"] .md-typeset .highlight span.mi,
+[data-md-color-scheme="default"] .md-typeset .highlight span.mf {
+  color: rgb(39, 42, 216); /* --color-syntax-numbers */
+}
+
+[data-md-color-scheme="default"] .md-typeset .highlight span.o {
+  color: rgb(64, 64, 64); /* --color-syntax-param-internal-name */
+}
+
+[data-md-color-scheme="default"] .md-typeset .highlight span.p {
+  color: rgb(0, 0, 0);
+}
+
+[data-md-color-scheme="default"] .md-typeset .highlight span.n {
+  color: rgb(0, 0, 0); /* --color-syntax-plain-text */
+}
+
+/* ----- Dark (Material "slate") — Swift DocC dark syntax ----- */
+[data-md-color-scheme="slate"] .md-typeset .highlight pre code {
+  color: rgb(255, 255, 255);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight span.k {
+  color: rgb(255, 122, 178);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight span.kt,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.nc,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.nf {
+  color: rgb(218, 186, 255);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight span.c,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.c1,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.cm,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.ch {
+  color: rgb(127, 140, 152);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight span.s,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.s1,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.s2 {
+  color: rgb(255, 129, 112);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight span.m,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.mi,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.mf {
+  color: rgb(217, 201, 124);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight span.o {
+  color: rgb(191, 191, 191);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight span.p,
+[data-md-color-scheme="slate"] .md-typeset .highlight span.n {
+  color: rgb(255, 255, 255);
+}

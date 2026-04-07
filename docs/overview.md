@@ -10,7 +10,7 @@ See [Inheritance](inheritance.md) for extending base scripts and script attachme
 
 Put your script inside a **`.vel`** file. Classic hello world example in Vellum:
 
-```swift
+```vellum
 script HelloWorld : ObjectReference {
     event onActivate(actionRef: ObjectReference) {
         Debug.MessageBox("Hello, World!")
@@ -24,7 +24,7 @@ See [Functions](functions.md).
 
 You can define a function using the `fun` keyword. A function that takes two `Int` parameters and returns an `Int`:
 
-```swift
+```vellum
 fun sum(a: Int, b: Int) -> Int {
     return a + b
 }
@@ -32,7 +32,7 @@ fun sum(a: Int, b: Int) -> Int {
 
 Event definitions start with the `event` keyword:
 
-```swift
+```vellum
 event OnActivate(activator: ObjectReference) {
   PlayAnimation("CoolStuff")
 }
@@ -44,14 +44,14 @@ See [Variables](variables.md).
 
 In Vellum, you declare a variable using the `var` keyword followed by the name of the variable:
 
-```swift
+```vellum
 var x: Int = 4
 var m: String = "Hello"
 ```
 
 Vellum supports type inference, so you can omit the type after the variable name:
 
-```swift
+```vellum
 var x = 4 // type `Int` is inferred
 ```
 
@@ -61,7 +61,7 @@ See [Properties](properties.md).
 
 Properties are defined using the `var` keyword followed by name, type, and accessors:
 
-```swift
+```vellum
 var myProperty: String {get set} // defines auto property myProperty with type String
 
 var anotherProperty: Float {get} // defines readonly property anotherProperty with type Float
@@ -73,7 +73,7 @@ See [Arrays](arrays.md).
 
 Arrays can hold multiple items of the same type:
 
-```swift
+```vellum
 var numbers = [Int; 10] // defines array of 10 Ints
 
 numbers[0] = 5 // assign 5 to the first element of array numbers
@@ -83,7 +83,7 @@ var x = numbers[9] // assign array last element value to new variable x
 
 You can use the `length` property to get the number of elements:
 
-```swift
+```vellum
 var numbersCount = numbers.length
 ```
 
@@ -93,7 +93,7 @@ See [Control flow](control_flow.md).
 
 Use a `for` loop to iterate over an array:
 
-```swift
+```vellum
 var messages = [String; 5] // array of 5 String objects
 
 // fill messages array somehow
@@ -111,7 +111,7 @@ See [Control flow](control_flow.md).
 
 A `while` loop runs the code inside the loop body continuously while the condition is satisfied:
 
-```swift
+```vellum
 var x = 0
 while x < 10 {
     x += 1
@@ -124,7 +124,7 @@ You can use `break` and `continue` statements to control the flow of loops (like
 
 See [Control flow](control_flow.md).
 
-```swift
+```vellum
 // assume value is set
 var x: Int
 if value > 10 {
@@ -140,14 +140,14 @@ See [Control flow](control_flow.md).
 
 In some cases you can shorten your if statement:
 
-```swift
+```vellum
 // assume value is set
 var x = value > 10 ? 1 : 0
 ```
 
 You can also use it in a return statement:
 
-```swift
+```vellum
 fun max(a: Int, b: Int) -> Int {
     return a > b ? a : b
 }
@@ -157,7 +157,7 @@ fun max(a: Int, b: Int) -> Int {
 
 See [States](states.md).
 
-```swift
+```vellum
 script MyScript {
 
 }
@@ -175,7 +175,7 @@ state MyState {
 
 If you want your script to start in a particular state, put the `auto` keyword before `state`:
 
-```swift
+```vellum
 script MyScript {
 
 }

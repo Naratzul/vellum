@@ -23,6 +23,8 @@ Today Vellum targets the Skyrim PEX subset only and has been tested with Skyrim.
 
 For language details see articles on the left sidebar.
 
+Code samples use the **`vellum`** fenced-code language tag so the docs site can apply Vellum-specific syntax highlighting.
+
 ## Interop with Papyrus
 
 Vellum is fully compatible with Skyrim Papyrus. They share the same runtime / PEX, same engine APIs. That means you can mix scripts in the same project and call Papyrus functions from Vellum scripts.

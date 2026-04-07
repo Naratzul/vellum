@@ -7,6 +7,7 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - "requirements-docs.txt"
+      - "tools/vellum-pygments/**"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 

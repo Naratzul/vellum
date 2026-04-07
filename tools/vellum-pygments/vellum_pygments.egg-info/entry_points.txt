@@ -1,0 +1,2 @@
+[pygments.lexers]
+vellum = vellum_pygments.lexer:VellumLexer

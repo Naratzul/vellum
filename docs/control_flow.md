@@ -6,7 +6,7 @@ Vellum gives you tools for controlling the flow of your scripts. Use an `if` sta
 
 You can use the `if` statement to branch your code logic depending on the condition specified in `()`:
 
-```swift
+```vellum
 script MyScript {
     fun foo() {
         bar(42)
@@ -34,7 +34,7 @@ script MyScript {
 
 Vellum supports the conditional ternary operator `?:` that you can use, for example, for conditional variable initialization:
 
-```swift
+```vellum
 script MyScript {
 
     fun foo() {
@@ -51,7 +51,7 @@ script MyScript {
 
 Use a `while` loop for loops with arbitrary condition:
 
-```swift
+```vellum
 script MyScript {
 
     fun foo() {
@@ -65,7 +65,7 @@ script MyScript {
 
 Use a `for` loop to iterate over an array:
 
-```swift
+```vellum
 script MyScript {
 
     fun foo(nums: [Int]) {
@@ -81,7 +81,7 @@ script MyScript {
 
 You can use a `return` statement for early returning from a function:
 
-```swift
+```vellum
 script MyScript : ObjectReference {
 
     event onActivate(obj: ObjectReference) {
@@ -99,7 +99,7 @@ Inside loops you can use `break` and `continue` statements.
 - `break` terminates the nearest enclosing loop
 - `continue` proceeds to the next step of the nearest enclosing loop
 
-```swift
+```vellum
 script MyScript : ObjectReference {
 
     fun foo() {

@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: vellum-pygments
+Version: 0.1.0
+Summary: Pygments lexer for the Vellum language (MkDocs / docs)
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pygments>=2.14
+
+# vellum-pygments
+
+A minimal [Pygments](https://pygments.org/) lexer for **Vellum** (`.vel`), used by this repo’s MkDocs site.
+
+Install with the main project’s `requirements-docs.txt` (`-e ./tools/vellum-pygments`).
+
+In Markdown, use fenced code with language tag `vellum` or `vel`.
