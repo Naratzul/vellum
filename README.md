@@ -6,7 +6,7 @@ For now, only the Skyrim PEX subset is supported and tested. Support for other C
 
 ## Documentation
 
-Full docs (language, usage, examples): https://naratzul.github.io/Vellum/
+Full docs (language, usage, examples): https://naratzul.github.io/vellum/
 
 ## Quick start
 
