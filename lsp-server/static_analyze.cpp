@@ -15,11 +15,11 @@ using common::makeShared;
 using common::makeUnique;
 using common::Vec;
 
-Vec<DiagnosticMessage> StaticAnalyze::analyze(std::string_view filename,
-                                              std::string_view sourceCode) {
+Vec<DiagnosticMessage> StaticAnalyze::analyze(
+    std::string_view filename, std::string_view sourceCode,
+    const Shared<ImportLibrary>& importLibrary) {
   auto lexer = makeUnique<Lexer>(sourceCode);
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver =

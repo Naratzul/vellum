@@ -1,10 +1,5 @@
-/* --------------------------------------------------------------------------------------------
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Licensed under the MIT License. See License.txt in the project root for license information.
- * ------------------------------------------------------------------------------------------ */
-
 import * as path from 'path';
-import { window, ExtensionContext } from 'vscode';
+import { window, workspace, WorkspaceFolder, ExtensionContext } from 'vscode';
 import * as process from 'process'
 
 import {
@@ -17,6 +12,11 @@ import { assert } from 'console';
 
 let client: LanguageClient;
 
+function expandWorkspaceFolder(input: string, wsFolder: WorkspaceFolder | undefined): string {
+	if (!wsFolder) return input;
+  	return input.replace(/\$\{workspaceFolder\}/g, wsFolder.uri.fsPath);
+}
+
 function getServerExecutableName() {
 	if (process.platform == "win32") {
 		return "vellum-lsp.exe";
@@ -27,7 +27,15 @@ function getServerExecutableName() {
 }
 
 export function activate(context: ExtensionContext) {
-	// The server is implemented in node
+	const wsFolder =
+		(window.activeTextEditor ? workspace.getWorkspaceFolder(window.activeTextEditor.document.uri) : undefined)
+		?? workspace.workspaceFolders?.[0];
+
+	const cfg = workspace.getConfiguration("vellum")
+	const importPaths = cfg.get<string[]>("importPaths", [])
+		.map(p => expandWorkspaceFolder(p, wsFolder))
+		.map(p => path.normalize(p))
+
 	const serverModule = context.asAbsolutePath(
 		path.join('..', 'bin', 'vellum-lsp', getServerExecutableName()),
 	);
@@ -50,13 +58,16 @@ export function activate(context: ExtensionContext) {
 	const clientOptions: LanguageClientOptions = {
 		// Register the server for plain text documents
 		documentSelector: [{ scheme: 'file', language: 'vellum' }],
+		initializationOptions: {
+			importPaths: importPaths
+		},
 		outputChannel: output
 	};
 
 	// Create the language client and start the client.
 	client = new LanguageClient(
-		'languageServerExample',
-		'Language Server Example',
+		'vellum',
+		'vellum',
 		serverOptions,
 		clientOptions
 	);

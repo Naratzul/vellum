@@ -6,15 +6,17 @@
 #include <format>
 #include <unordered_map>
 
+#include "analyze/import_library.h"
 #include "common/fs.h"
 #include "common/os.h"
 #include "common/types.h"
 #include "diagnostics.h"
 
+using namespace vellum::common;
+
+namespace {
 auto connection = lsp::Connection(lsp::io::standardIO());
 auto messageHandler = lsp::MessageHandler(connection);
-
-using namespace vellum::common;
 
 Map<std::string, std::string> documents;
 
@@ -45,11 +47,55 @@ void handleDocumentChange(
       changeEvent);
 }
 
+Vec<fs::path> parseImportPathsFromInit(const lsp::InitializeParams& params) {
+  Vec<fs::path> out;
+  if (!params.initializationOptions) {
+    logMsg("No init options");
+    return out;
+  }
+
+  const auto& any = *params.initializationOptions;
+  if (!any.isObject()) {
+    return out;
+  }
+
+  const auto& obj = any.object();
+  if (!obj.contains("importPaths")) {
+    return out;
+  }
+
+  const auto& pathsAny = obj.get("importPaths");
+  if (!pathsAny.isArray()) {
+    return out;
+  }
+
+  for (const auto& entry : pathsAny.array()) {
+    if (entry.isString()) {
+      out.push_back(fs::path(entry.string()));
+    }
+  }
+
+  return out;
+}
+}  // namespace
+
 int main() {
+  using namespace vellum;
+
+  Shared<ImportLibrary> importLibrary;
+
   messageHandler
       .add<lsp::requests::Initialize>(
-          [](lsp::requests::Initialize::Params&& params) {
+          [&](lsp::requests::Initialize::Params&& params) {
             logMsg("Received Initialize message");
+
+            auto importPaths = parseImportPathsFromInit(params);
+            logMsg("Import paths:");
+            for (const auto& p : importPaths) {
+              logMsg("- " + p.string());
+            }
+
+            importLibrary = makeShared<ImportLibrary>(std::move(importPaths));
 
             return lsp::requests::Initialize::Result{
                 .capabilities =
@@ -57,7 +103,7 @@ int main() {
                      .textDocumentSync = lsp::TextDocumentSyncKind::Full,
                      .diagnosticProvider = lsp::DiagnosticOptions{}},
                 .serverInfo = lsp::InitializeResultServerInfo{
-                    .name = "Language Server", .version = "1.0.0"}};
+                    .name = "Vellum Language Server", .version = "0.1.0"}};
           })
       .add<lsp::notifications::TextDocument_DidOpen>(
           [](lsp::notifications::TextDocument_DidOpen::Params&& params) {
@@ -76,7 +122,7 @@ int main() {
             }
           })
       .add<lsp::requests::TextDocument_Diagnostic>(
-          [](lsp::requests::TextDocument_Diagnostic::Params&& params) {
+          [&](lsp::requests::TextDocument_Diagnostic::Params&& params) {
             logMsg(std::format("Diagnostics request for: {}",
                                params.textDocument.uri.path()));
 
@@ -89,7 +135,7 @@ int main() {
             std::string path(params.textDocument.uri.path());
 
             return vellum::Diagnostics().getDiagnostics(
-                filenameWithoutExt(path), documents.at(path));
+                filenameWithoutExt(path), documents.at(path), importLibrary);
           });
 
   bool isShutdownRequested = false;

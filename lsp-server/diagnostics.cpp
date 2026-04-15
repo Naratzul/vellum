@@ -20,12 +20,15 @@ static lsp::Diagnostic convert(const DiagnosticMessage& message) {
 }
 
 lsp::requests::TextDocument_Diagnostic::Result Diagnostics::getDiagnostics(
-    std::string_view filename, std::string_view sourceCode) {
+    std::string_view filename, std::string_view sourceCode,
+    const Shared<ImportLibrary>& importLibrary) {
   StaticAnalyze analyzer;
   const std::vector<DiagnosticMessage> messages =
-      analyzer.analyze(filename, sourceCode);
+      analyzer.analyze(filename, sourceCode, importLibrary);
 
   lsp::RelatedFullDocumentDiagnosticReport result;
+  result.items.reserve(messages.size());
+
   for (const auto& message : messages) {
     result.items.push_back(convert(message));
   }
