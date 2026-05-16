@@ -70,6 +70,30 @@
 				"scopeName": "source.vellum",
 				"path": "./syntaxes/vellum.tmLanguage.json"
 			}
+		],
+		"semanticTokenScopes": [
+			{
+				"language": "vellum",
+				"scopes": {
+					"keyword": ["keyword.control.vellum"],
+					"string": ["string.quoted.double.vellum"],
+					"number": ["constant.numeric.vellum"],
+					"operator": ["keyword.operator.vellum"],
+					"variable": ["variable.other.vellum"],
+					"variable.declaration": ["variable.other.vellum"],
+					"class": ["entity.name.type.class.vellum"],
+					"class.declaration": ["entity.name.type.class.vellum"],
+					"type": ["storage.type.vellum"],
+					"function": ["entity.name.function.vellum"],
+					"function.declaration": ["entity.name.function.vellum"],
+					"function.static": ["entity.name.function.vellum"],
+					"property": ["variable.other.property.vellum"],
+					"property.declaration": ["variable.other.property.vellum"],
+					"property.readonly": ["variable.other.constant.property.vellum"],
+					"parameter": ["variable.parameter.vellum"],
+					"parameter.declaration": ["variable.parameter.vellum"]
+				}
+			}
 		]
 	},
 	"scripts": {
