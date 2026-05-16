@@ -244,7 +244,8 @@ class PropertySetExpression : public Expression {
         object(std::move(object)),
         property(property),
         value(std::move(value)),
-        op(op), propertyLocation(propertyLocation) {}
+        op(op),
+        propertyLocation(propertyLocation) {}
 
   const Unique<Expression>& getObject() const { return object; }
   VellumIdentifier getProperty() const { return property; }
@@ -419,14 +420,19 @@ class GroupingExpression : public Expression {
 
 class CastExpression : public Expression {
  public:
-  CastExpression(Unique<Expression> expr, VellumType targetType,
+  CastExpression(Unique<Expression> expr,
+                 Unique<IdentifierExpression> targetExpr,
                  Token location = Token{})
-      : Expression(location), expr(std::move(expr)), targetType(targetType) {}
+      : Expression(location),
+        expr(std::move(expr)),
+        targetExpr(std::move(targetExpr)) {}
 
   const Unique<Expression>& getExpression() const { return expr; }
+  const Unique<IdentifierExpression>& getTargetExpression() const {
+    return targetExpr;
+  }
 
-  VellumType getTargetType() const { return targetType; }
-  void setTargetType(VellumType type) { targetType = type; }
+  VellumType getTargetType() const { return targetExpr->getType(); }
 
   bool equals(const Expression& other) const override;
 
@@ -435,7 +441,7 @@ class CastExpression : public Expression {
 
  private:
   Unique<Expression> expr;
-  VellumType targetType;
+  Unique<IdentifierExpression> targetExpr;
 };
 
 class NewArrayExpression : public Expression {

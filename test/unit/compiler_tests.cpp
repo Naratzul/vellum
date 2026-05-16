@@ -1,11 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 
 #include "analyze/declaration_collector.h"
 #include "analyze/import_library.h"
+#include "analyze/import_resolver.h"
 #include "analyze/semantic_analyzer.h"
 #include "analyze/type_collector.h"
 #include "ast/decl/declaration.h"
@@ -15,7 +16,6 @@
 #include "compiler/builtin_functions.h"
 #include "compiler/compiler.h"
 #include "compiler/compiler_error_handler.h"
-#include "analyze/import_resolver.h"
 #include "compiler/resolver.h"
 #include "lexer/token.h"
 #include "pex/pex_debug_info.h"
@@ -109,8 +109,7 @@ TEST_CASE("CompileFunctionCallTest") {
 
   auto foo_func = makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
-      false);
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false);
 
   auto test_func = makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
@@ -223,8 +222,7 @@ TEST_CASE("CompileStateReopen_SetsAutoStateNameFromLaterFragment") {
   Vec<Unique<ast::Declaration>> first;
   first.emplace_back(makeIntFunc("myFunc", 2));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "S", makeToken(TokenType::IDENTIFIER, 2, "S"), false,
-      std::move(first)));
+      "S", makeToken(TokenType::IDENTIFIER, 2, "S"), false, std::move(first)));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
       "S", makeToken(TokenType::IDENTIFIER, 3, "S"), true,
@@ -517,12 +515,11 @@ TEST_CASE("CompileDefaultArgs_EndToEnd") {
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
-  auto importResolver =
-      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -537,7 +534,8 @@ TEST_CASE("CompileDefaultArgs_EndToEnd") {
   REQUIRE_FALSE(errorHandler->hadError());
 
   pex::PexFile file =
-      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
   REQUIRE_FALSE(errorHandler->hadError());
 
   REQUIRE(file.objects().size() == 1);
@@ -580,12 +578,11 @@ TEST_CASE("CompileReturn_BareReturn_EmitsReturnWithNoneVar") {
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
-  auto importResolver =
-      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -600,7 +597,8 @@ TEST_CASE("CompileReturn_BareReturn_EmitsReturnWithNoneVar") {
   REQUIRE_FALSE(errorHandler->hadError());
 
   pex::PexFile file =
-      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
   REQUIRE_FALSE(errorHandler->hadError());
 
   REQUIRE(file.objects().size() == 1);
@@ -626,9 +624,8 @@ TEST_CASE("CompileReturn_BareReturn_EmitsReturnWithNoneVar") {
       const auto& args = instr.getArgs();
       REQUIRE(args.size() == 1);
       REQUIRE(args[0].getType() == pex::PexValueType::Identifier);
-      CHECK(file.stringTable().valueByIndex(
-                static_cast<size_t>(args[0].asIdentifier().getValue().index())) ==
-            "::nonevar");
+      CHECK(file.stringTable().valueByIndex(static_cast<size_t>(
+                args[0].asIdentifier().getValue().index())) == "::nonevar");
       break;
     }
   }
@@ -652,12 +649,11 @@ TEST_CASE("CompileReturn_WithValue_EmitsReturnWithValue") {
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
-  auto importResolver =
-      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -672,7 +668,8 @@ TEST_CASE("CompileReturn_WithValue_EmitsReturnWithValue") {
   REQUIRE_FALSE(errorHandler->hadError());
 
   pex::PexFile file =
-      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
   REQUIRE_FALSE(errorHandler->hadError());
 
   REQUIRE(file.objects().size() == 1);
@@ -715,9 +712,9 @@ TEST_CASE("CompileSelfExpression_CallMethodUsesSelf") {
 
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
-      "foo", Vec<ast::FunctionParameter>{}, VellumType::literal(VellumLiteralType::Int),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
-      false));
+      "foo", Vec<ast::FunctionParameter>{},
+      VellumType::literal(VellumLiteralType::Int),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), false));
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       makeUnique<ast::BlockStatement>(std::move(testBody)), false));
@@ -729,12 +726,11 @@ TEST_CASE("CompileSelfExpression_CallMethodUsesSelf") {
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
-  auto importResolver =
-      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -748,8 +744,9 @@ TEST_CASE("CompileSelfExpression_CallMethodUsesSelf") {
   auto semanticResult = semantic.analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
 
-  pex::PexFile file = Compiler(errorHandler).compile(
-      ScriptMetadata(), semanticResult.declarations);
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
   REQUIRE_FALSE(errorHandler->hadError());
 
   REQUIRE(file.objects().size() == 1);
@@ -772,10 +769,8 @@ TEST_CASE("CompileSelfExpression_CallMethodUsesSelf") {
   CHECK(instr.getOpCode() == pex::PexOpCode::CallMethod);
   REQUIRE(instr.getArgs().size() >= 2);
   REQUIRE(instr.getArgs()[1].getType() == pex::PexValueType::Identifier);
-  CHECK(file.stringTable().valueByIndex(
-            static_cast<std::size_t>(
-                instr.getArgs()[1].asIdentifier().getValue().index())) ==
-        "self");
+  CHECK(file.stringTable().valueByIndex(static_cast<std::size_t>(
+            instr.getArgs()[1].asIdentifier().getValue().index())) == "self");
 }
 
 TEST_CASE("CompileNegativeDefaultArgs_EndToEnd") {
@@ -807,12 +802,11 @@ TEST_CASE("CompileNegativeDefaultArgs_EndToEnd") {
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
-  auto importResolver =
-      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -827,7 +821,8 @@ TEST_CASE("CompileNegativeDefaultArgs_EndToEnd") {
   REQUIRE_FALSE(errorHandler->hadError());
 
   pex::PexFile file =
-      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
   REQUIRE_FALSE(errorHandler->hadError());
 
   REQUIRE(file.objects().size() == 1);
@@ -889,12 +884,11 @@ TEST_CASE("CompileAutoProperty_WithInitializer") {
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
-  auto importResolver =
-      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -909,7 +903,8 @@ TEST_CASE("CompileAutoProperty_WithInitializer") {
   REQUIRE_FALSE(errorHandler->hadError());
 
   pex::PexFile file =
-      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
   REQUIRE_FALSE(errorHandler->hadError());
 
   REQUIRE(file.objects().size() == 1);
@@ -927,13 +922,13 @@ TEST_CASE("CompileFullProperty_CustomGetSet_PexAccessors") {
       makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
 
   ast::FunctionBody getBody;
-  getBody.emplace_back(makeUnique<ast::ReturnStatement>(
-      makeUnique<ast::IdentifierExpression>(VellumIdentifier("myValue_"),
-                                            Token{})));
+  getBody.emplace_back(
+      makeUnique<ast::ReturnStatement>(makeUnique<ast::IdentifierExpression>(
+          VellumIdentifier("myValue_"), Token{})));
 
   ast::FunctionBody setBody;
-  setBody.emplace_back(makeUnique<ast::ExpressionStatement>(
-      makeUnique<ast::AssignExpression>(
+  setBody.emplace_back(
+      makeUnique<ast::ExpressionStatement>(makeUnique<ast::AssignExpression>(
           makeUnique<ast::IdentifierExpression>(VellumIdentifier("myValue_"),
                                                 Token{}),
           makeUnique<ast::IdentifierExpression>(VellumIdentifier("newValue"),
@@ -951,12 +946,11 @@ TEST_CASE("CompileFullProperty_CustomGetSet_PexAccessors") {
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
-  auto importResolver =
-      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -971,7 +965,8 @@ TEST_CASE("CompileFullProperty_CustomGetSet_PexAccessors") {
   REQUIRE_FALSE(errorHandler->hadError());
 
   pex::PexFile file =
-      Compiler(errorHandler).compile(ScriptMetadata(), semanticResult.declarations);
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
   REQUIRE_FALSE(errorHandler->hadError());
 
   REQUIRE(file.objects().size() == 1);
@@ -1005,8 +1000,7 @@ TEST_CASE("DebugInfo_WhenDisabled_FileHasNoDebugInfo") {
   metadata.emitDebugInfo = false;
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  pex::PexFile file =
-      Compiler(errorHandler).compile(metadata, std::move(ast));
+  pex::PexFile file = Compiler(errorHandler).compile(metadata, std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE_FALSE(file.hasDebugInfo());
@@ -1038,10 +1032,12 @@ TEST_CASE("DebugInfo_WhenEnabled_FileHasDebugInfoAndFunctionLineMap") {
   REQUIRE(file.objects()[0].getStates().size() == 1);
   const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
   REQUIRE(funcs.size() == 1);
-  REQUIRE(debugFunc.instructionLineMap.size() == funcs[0].getInstructions().size());
+  REQUIRE(debugFunc.instructionLineMap.size() ==
+          funcs[0].getInstructions().size());
 
   for (size_t i = 1; i < debugFunc.instructionLineMap.size(); ++i) {
-    REQUIRE(debugFunc.instructionLineMap[i] >= debugFunc.instructionLineMap[i - 1]);
+    REQUIRE(debugFunc.instructionLineMap[i] >=
+            debugFunc.instructionLineMap[i - 1]);
   }
 }
 
@@ -1063,7 +1059,11 @@ TEST_CASE("DebugInfo_EmptyFunction_HasEmptyLineMap") {
   REQUIRE(file.hasDebugInfo());
   REQUIRE(file.debugInfo()->functions.size() == 1);
   REQUIRE(file.debugInfo()->functions[0].instructionLineMap.empty());
-  REQUIRE(file.objects()[0].getStates()[0].getFunctions()[0].getInstructions().empty());
+  REQUIRE(file.objects()[0]
+              .getStates()[0]
+              .getFunctions()[0]
+              .getInstructions()
+              .empty());
 }
 
 TEST_CASE("DebugInfo_Property_GetterSetterHaveDebugEntries") {
@@ -1087,12 +1087,11 @@ TEST_CASE("DebugInfo_Property_GetterSetterHaveDebugEntries") {
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
-  auto importResolver =
-      makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -1144,8 +1143,7 @@ TEST_CASE("DebugInfo_WriteToFile_OutputDiffersWithAndWithoutDebug") {
 
   ScriptMetadata metaNoDebug;
   metaNoDebug.emitDebugInfo = false;
-  pex::PexFile fileNoDebug =
-      Compiler(errorHandler).compile(metaNoDebug, ast);
+  pex::PexFile fileNoDebug = Compiler(errorHandler).compile(metaNoDebug, ast);
 
   ScriptMetadata metaWithDebug;
   metaWithDebug.emitDebugInfo = true;
@@ -1190,13 +1188,13 @@ TEST_CASE("CompileCastAndIntFloatArithmetic") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
-  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
-                                                    "testscript");
-  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
-                                               "testscript");
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  auto collector =
+      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
   auto divExpr = makeUnique<ast::BinaryExpression>(
       ast::BinaryExpression::Operator::Divide,
@@ -1204,7 +1202,7 @@ TEST_CASE("CompileCastAndIntFloatArithmetic") {
       makeUnique<ast::LiteralExpression>(VellumLiteral(10.0f)));
   auto castExpr = makeUnique<ast::CastExpression>(
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("b")),
-      VellumType::unresolved("Int"), Token{});
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("Int")), Token{});
   auto mulExpr = makeUnique<ast::BinaryExpression>(
       ast::BinaryExpression::Operator::Multiply, std::move(divExpr),
       std::move(castExpr));
@@ -1243,13 +1241,13 @@ TEST_CASE("CompileComparison_IntFloat_EmitsCastBeforeCmpEq") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
-  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
-                                                    "testscript");
-  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
-                                               "testscript");
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  auto collector =
+      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
   auto cmpExpr = makeUnique<ast::BinaryExpression>(
       ast::BinaryExpression::Operator::Equal,
@@ -1292,16 +1290,16 @@ TEST_CASE("CompileComparison_ScriptSubtype_EmitsCastBeforeCmpEq") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   auto addModule = [&](const VellumObject& obj, Opt<VellumType> parent) {
     VellumIdentifier name = obj.getType().asIdentifier();
     auto module =
         makeShared<ImportModule>(name, ImportModuleType::Vellum, fs::path(""));
-    auto modResolver =
-        makeShared<Resolver>(obj, errorHandler, importLibrary, builtinFunctions);
+    auto modResolver = makeShared<Resolver>(obj, errorHandler, importLibrary,
+                                            builtinFunctions);
     if (parent.has_value()) {
       modResolver->setParentType(std::move(*parent));
     }
@@ -1314,10 +1312,10 @@ TEST_CASE("CompileComparison_ScriptSubtype_EmitsCastBeforeCmpEq") {
   addModule(VellumObject(VellumType::identifier("ChildPexCmp")),
             VellumType::identifier("ParentPexCmp"));
 
-  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
-                                                    "testscript");
-  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
-                                               "testscript");
+  auto collector =
+      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
   Vec<ast::FunctionParameter> params;
   params.emplace_back("c", VellumType::unresolved("ChildPexCmp"));
@@ -1364,13 +1362,13 @@ TEST_CASE("CompileComparison_IntInt_NoCastOpcode") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
-  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
-                                                    "testscript");
-  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
-                                               "testscript");
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  auto collector =
+      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
   auto cmpExpr = makeUnique<ast::BinaryExpression>(
       ast::BinaryExpression::Operator::Equal,
@@ -1430,9 +1428,9 @@ TEST_CASE("CompileForIn_OpcodePatternAndMangledLocals") {
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -1446,16 +1444,16 @@ TEST_CASE("CompileForIn_OpcodePatternAndMangledLocals") {
   auto semanticResult = semantic.analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
 
-  pex::PexFile file = Compiler(errorHandler).compile(
-      ScriptMetadata(), semanticResult.declarations);
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
   REQUIRE_FALSE(errorHandler->hadError());
 
   const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
   const pex::PexFunction* testFunc = nullptr;
   for (const auto& f : funcs) {
-    if (f.getName() &&
-        file.stringTable().valueByIndex(
-            static_cast<size_t>(f.getName()->index())) == "test") {
+    if (f.getName() && file.stringTable().valueByIndex(static_cast<size_t>(
+                           f.getName()->index())) == "test") {
       testFunc = &f;
       break;
     }
@@ -1491,23 +1489,23 @@ TEST_CASE("CompileForIn_OpcodePatternAndMangledLocals") {
 
 TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
   auto makeArrBody = Vec<Unique<ast::Statement>>{};
-  makeArrBody.push_back(makeUnique<ast::ReturnStatement>(
-      makeUnique<ast::NewArrayExpression>(
+  makeArrBody.push_back(
+      makeUnique<ast::ReturnStatement>(makeUnique<ast::NewArrayExpression>(
           VellumType::literal(VellumLiteralType::Int), VellumLiteral(1),
           Token{})));
 
   Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
-  auto callMake = makeUnique<ast::CallExpression>(
-      makeUnique<ast::IdentifierExpression>(VellumIdentifier("makeArr"),
-                                            Token{}),
-      Vec<Unique<ast::Expression>>{}, Token{});
+  auto callMake =
+      makeUnique<ast::CallExpression>(makeUnique<ast::IdentifierExpression>(
+                                          VellumIdentifier("makeArr"), Token{}),
+                                      Vec<Unique<ast::Expression>>{}, Token{});
 
   Vec<Unique<ast::Statement>> forBody;
   ast::FunctionBody testBody;
   testBody.push_back(makeUnique<ast::ForStatement>(
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
-      std::move(callMake),
-      makeUnique<ast::BlockStatement>(std::move(forBody)), tokI, Token{}));
+      std::move(callMake), makeUnique<ast::BlockStatement>(std::move(forBody)),
+      tokI, Token{}));
 
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
@@ -1527,9 +1525,9 @@ TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
 
   TypeCollector typeCollector;
   typeCollector.collect(ast);
@@ -1543,16 +1541,16 @@ TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
   auto semanticResult = semantic.analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
 
-  pex::PexFile file = Compiler(errorHandler).compile(
-      ScriptMetadata(), semanticResult.declarations);
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
   REQUIRE_FALSE(errorHandler->hadError());
 
   const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
   const pex::PexFunction* testFunc = nullptr;
   for (const auto& f : funcs) {
-    if (f.getName() &&
-        file.stringTable().valueByIndex(
-            static_cast<size_t>(f.getName()->index())) == "test") {
+    if (f.getName() && file.stringTable().valueByIndex(static_cast<size_t>(
+                           f.getName()->index())) == "test") {
       testFunc = &f;
       break;
     }
@@ -1566,9 +1564,8 @@ TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
     const auto& args = i.getArgs();
     REQUIRE(args.size() >= 1);
     REQUIRE(args[0].getType() == pex::PexValueType::Identifier);
-    std::string_view name =
-        st.valueByIndex(static_cast<size_t>(
-            args[0].asIdentifier().getValue().index()));
+    std::string_view name = st.valueByIndex(
+        static_cast<size_t>(args[0].asIdentifier().getValue().index()));
     if (name == "makeArr") ++makeArrCalls;
   }
   CHECK(makeArrCalls == 1);
@@ -1578,13 +1575,13 @@ TEST_CASE("CompileTernary_IntInt_JmpPattern_NoCast") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
-  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
-                                                    "testscript");
-  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
-                                               "testscript");
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  auto collector =
+      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
   Token loc{};
   auto ternary = makeUnique<ast::TernaryExpression>(
@@ -1625,13 +1622,13 @@ TEST_CASE("CompileTernary_IntFloat_Promotion_HasCast") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
   auto builtinFunctions = makeShared<BuiltinFunctions>();
-  auto resolver = makeShared<Resolver>(
-      VellumObject(VellumType::identifier("testscript")), errorHandler,
-      importLibrary, builtinFunctions);
-  auto collector = makeShared<DeclarationCollector>(errorHandler, resolver,
-                                                    "testscript");
-  auto analyzer = makeShared<SemanticAnalyzer>(errorHandler, resolver,
-                                               "testscript");
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  auto collector =
+      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
   Token loc{};
   auto ternary = makeUnique<ast::TernaryExpression>(

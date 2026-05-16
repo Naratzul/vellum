@@ -189,8 +189,9 @@ void TypeCollector::visitUnaryExpression(ast::UnaryExpression& expr) {
 }
 
 void TypeCollector::visitCastExpression(ast::CastExpression& expr) {
-  collectTypeFromVellumType(expr.getTargetType());
   expr.getExpression()->accept(*this);
+  collectTypeFromVellumType(VellumType::unresolved(
+      expr.getTargetExpression()->getIdentifier().toString()));
 }
 
 void TypeCollector::visitNewArrayExpression(ast::NewArrayExpression& expr) {

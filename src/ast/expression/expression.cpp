@@ -192,7 +192,7 @@ pex::PexValue UnaryExpression::compile(ExpressionCompiler& compiler) const {
 
 bool CastExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const CastExpression&>(other_);
-  return getTargetType() == other.getTargetType() &&
+  return getTargetExpression()->equals(*other.getTargetExpression()) &&
          getExpression()->equals(*other.getExpression());
 }
 

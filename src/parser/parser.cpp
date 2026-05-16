@@ -698,7 +698,10 @@ Unique<ast::Expression> Parser::castExpression() {
     consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectCastTargetType,
             "Expect a target type for cast.");
     return makeUnique<ast::CastExpression>(
-        std::move(expr), VellumType::unresolved(previous.lexeme), op);
+        std::move(expr),
+        makeUnique<ast::IdentifierExpression>(VellumIdentifier(previous.lexeme),
+                                              previous),
+        op);
   }
 
   return expr;

@@ -994,22 +994,28 @@ void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
     return;
   }
 
-  if (!expr.getTargetType().isResolved()) {
-    expr.setTargetType(
-        resolver->resolveType(expr.getTargetType(), expr.getLocation()));
+  auto& target = *expr.getTargetExpression();
+  VellumType targetType = resolver->resolveType(
+      VellumType::unresolved(target.getIdentifier().toString()),
+      target.getLocation());
+
+  if (!targetType.isResolved()) {
+    return;
   }
 
+  target.setType(targetType);
+  target.setIdentifierType(VellumValueType::ScriptType);
+
   const VellumType innerType = expr.getExpression()->getType();
-  const VellumType targetType = expr.getTargetType();
 
   if (!checker.canExplicitlyCast(innerType, targetType)) {
     if (targetType.isArray()) {
       errorHandler->errorAt(
-          expr.getLocation(), CompilerErrorKind::InvalidCast,
+          target.getLocation(), CompilerErrorKind::InvalidCast,
           "Cannot cast to array type. (Skyrim: nothing can be "
           "cast to an array, including other arrays.)");
     } else {
-      errorHandler->errorAt(expr.getLocation(), CompilerErrorKind::InvalidCast,
+      errorHandler->errorAt(target.getLocation(), CompilerErrorKind::InvalidCast,
                             "Cannot cast from '{}' to '{}'.",
                             innerType.toString(), targetType.toString());
     }

@@ -189,7 +189,7 @@ bool TypeChecker::canExplicitlyCast(VellumType src, VellumType dest) const {
   // If types aren't resolved yet, defer validation to later passes.
   if (!src.isResolved() || !dest.isResolved()) return true;
 
-  // Skyrim: nothing can be cast to an array, including other arrays.
+  // Nothing can be cast to an array, including other arrays.
   if (dest.isArray()) return false;
 
   // Casting to None doesn't make sense (None is a literal).
