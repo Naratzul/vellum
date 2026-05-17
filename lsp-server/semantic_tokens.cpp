@@ -18,11 +18,11 @@ namespace vellum {
 namespace {
 
 struct SemanticTokenSpan {
-  unsigned int line;
-  unsigned int character;
-  unsigned int length;
-  unsigned int tokenType;
-  unsigned int tokenModifiers = 0;
+  int line;
+  int character;
+  int length;
+  int tokenType;
+  int tokenModifiers = 0;
 };
 
 bool isKeyword(TokenType type) {
@@ -110,63 +110,44 @@ bool isOperator(TokenType type) {
   }
 }
 
-common::Opt<unsigned int> mapLexerTokenType(TokenType type) {
+common::Opt<SemanticTokenLegendType> mapLexerTokenType(TokenType type) {
   if (isKeyword(type)) {
-    return static_cast<unsigned int>(SemanticTokenLegendType::Keyword);
+    return SemanticTokenLegendType::Keyword;
   }
   if (isOperator(type)) {
-    return static_cast<unsigned int>(SemanticTokenLegendType::Operator);
+    return SemanticTokenLegendType::Operator;
   }
 
   switch (type) {
     case TokenType::STRING:
-      return static_cast<unsigned int>(SemanticTokenLegendType::String);
+      return SemanticTokenLegendType::String;
     case TokenType::INT:
     case TokenType::FLOAT:
-      return static_cast<unsigned int>(SemanticTokenLegendType::Number);
-  default:
+      return SemanticTokenLegendType::Number;
+    default:
       return std::nullopt;
   }
 }
 
-unsigned int utf8LexemeLengthUtf16(std::string_view lexeme) {
-  return static_cast<unsigned int>(lexeme.size());
-}
-
-common::Opt<SemanticTokenSpan> spanFromToken(const Token& token,
-                                             SemanticTokenLegendType type,
-                                             unsigned int modifiers = 0) {
+common::Opt<SemanticTokenSpan> spanFromToken(
+    const Token& token, SemanticTokenLegendType type,
+    SemanticTokenLegendModifier modifiers = {}) {
   if (token.lexeme.empty()) {
     return std::nullopt;
   }
 
   return SemanticTokenSpan{
-      .line = static_cast<unsigned int>(token.location.start.line),
-      .character = static_cast<unsigned int>(token.location.start.position),
-      .length = utf8LexemeLengthUtf16(token.lexeme),
-      .tokenType = static_cast<unsigned int>(type),
-      .tokenModifiers = modifiers,
-  };
-}
-
-common::Opt<SemanticTokenSpan> spanFromToken(const Token& token,
-                                             unsigned int tokenType,
-                                             unsigned int modifiers = 0) {
-  if (token.lexeme.empty()) {
-    return std::nullopt;
-  }
-
-  return SemanticTokenSpan{
-      .line = static_cast<unsigned int>(token.location.start.line),
-      .character = static_cast<unsigned int>(token.location.start.position),
-      .length = utf8LexemeLengthUtf16(token.lexeme),
-      .tokenType = tokenType,
-      .tokenModifiers = modifiers,
+      .line = token.location.start.line,
+      .character = token.location.start.position,
+      .length = (int)token.lexeme.size(),
+      .tokenType = (int)type,
+      .tokenModifiers = (int)modifiers,
   };
 }
 
 void addSpan(common::Vec<SemanticTokenSpan>& spans, const Token& token,
-             SemanticTokenLegendType type, unsigned int modifiers = 0) {
+             SemanticTokenLegendType type,
+             SemanticTokenLegendModifier modifiers = {}) {
   if (const auto span = spanFromToken(token, type, modifiers)) {
     spans.push_back(*span);
   }
@@ -174,7 +155,7 @@ void addSpan(common::Vec<SemanticTokenSpan>& spans, const Token& token,
 
 void addSpan(common::Vec<SemanticTokenSpan>& spans,
              const common::Opt<Token>& token, SemanticTokenLegendType type,
-             unsigned int modifiers = 0) {
+             SemanticTokenLegendModifier modifiers = {}) {
   if (token) {
     addSpan(spans, *token, type, modifiers);
   }
@@ -199,11 +180,9 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
   }
 
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override {
-    const unsigned int declMod =
-        static_cast<unsigned int>(SemanticTokenLegendModifier::Declaration);
-
     addSpan(spans, declaration.getScriptNameLocation(),
-            SemanticTokenLegendType::Class, declMod);
+            SemanticTokenLegendType::Class,
+            SemanticTokenLegendModifierBits::Declaration);
 
     addSpan(spans, declaration.getParentScriptNameLocation(),
             SemanticTokenLegendType::Type);
@@ -214,11 +193,9 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
   }
 
   void visitStateDeclaration(ast::StateDeclaration& declaration) override {
-    const unsigned int declMod =
-        static_cast<unsigned int>(SemanticTokenLegendModifier::Declaration);
-
     addSpan(spans, declaration.getStateNameLocation(),
-            SemanticTokenLegendType::Class, declMod);
+            SemanticTokenLegendType::Class,
+            SemanticTokenLegendModifierBits::Declaration);
 
     for (const auto& memberDecl : declaration.getMemberDecls()) {
       memberDecl->accept(*this);
@@ -227,23 +204,23 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
 
   void visitVariableDeclaration(
       ast::GlobalVariableDeclaration& declaration) override {
-    const unsigned int declMod =
-        static_cast<unsigned int>(SemanticTokenLegendModifier::Declaration);
-
     addSpan(spans, declaration.getNameLocation(),
-            SemanticTokenLegendType::Variable, declMod);
-    addSpan(spans, declaration.getTypeLocation(), SemanticTokenLegendType::Type);
+            SemanticTokenLegendType::Variable,
+            SemanticTokenLegendModifierBits::Declaration);
+    addSpan(spans, declaration.getTypeLocation(),
+            SemanticTokenLegendType::Type);
 
     if (const auto& init = declaration.initializer()) {
       init->accept(*this);
     }
   }
 
-  void visitFunctionDeclaration(ast::FunctionDeclaration& declaration) override {
-    unsigned int modifiers =
-        static_cast<unsigned int>(SemanticTokenLegendModifier::Declaration);
+  void visitFunctionDeclaration(
+      ast::FunctionDeclaration& declaration) override {
+    SemanticTokenLegendModifier modifiers{
+        SemanticTokenLegendModifierBits::Declaration};
     if (declaration.isStatic()) {
-      modifiers |= static_cast<unsigned int>(SemanticTokenLegendModifier::Static);
+      modifiers |= SemanticTokenLegendModifierBits::Static;
     }
 
     addSpan(spans, declaration.getNameLocation(),
@@ -253,25 +230,25 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
 
     for (const auto& param : declaration.getParameters()) {
       addSpan(spans, param.nameLocation, SemanticTokenLegendType::Parameter,
-              static_cast<unsigned int>(
-                  SemanticTokenLegendModifier::Declaration));
+              SemanticTokenLegendModifierBits::Declaration);
       addSpan(spans, param.typeLocation, SemanticTokenLegendType::Type);
     }
 
     declaration.getBody()->accept(*this);
   }
 
-  void visitPropertyDeclaration(ast::PropertyDeclaration& declaration) override {
-    unsigned int modifiers =
-        static_cast<unsigned int>(SemanticTokenLegendModifier::Declaration);
+  void visitPropertyDeclaration(
+      ast::PropertyDeclaration& declaration) override {
+    SemanticTokenLegendModifier modifiers{
+        SemanticTokenLegendModifierBits::Declaration};
     if (declaration.isReadonly()) {
-      modifiers |=
-          static_cast<unsigned int>(SemanticTokenLegendModifier::Readonly);
+      modifiers |= SemanticTokenLegendModifierBits::Readonly;
     }
 
     addSpan(spans, declaration.getNameLocation(),
             SemanticTokenLegendType::Property, modifiers);
-    addSpan(spans, declaration.getTypeLocation(), SemanticTokenLegendType::Type);
+    addSpan(spans, declaration.getTypeLocation(),
+            SemanticTokenLegendType::Type);
 
     if (const auto& getBlock = declaration.getGetAccessor()) {
       getBlock.value()->accept(*this);
@@ -301,11 +278,9 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
 
   void visitLocalVariableStatement(
       ast::LocalVariableStatement& statement) override {
-    const unsigned int declMod =
-        static_cast<unsigned int>(SemanticTokenLegendModifier::Declaration);
-
     addSpan(spans, statement.getNameLocation(),
-            SemanticTokenLegendType::Variable, declMod);
+            SemanticTokenLegendType::Variable,
+            SemanticTokenLegendModifierBits::Declaration);
 
     addSpan(spans, statement.getTypeLocation(), SemanticTokenLegendType::Type);
 
@@ -325,7 +300,7 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
   void visitForStatement(ast::ForStatement& statement) override {
     addSpan(spans, statement.getVariableNameLocation(),
             SemanticTokenLegendType::Variable,
-            static_cast<unsigned int>(SemanticTokenLegendModifier::Declaration));
+            SemanticTokenLegendModifierBits::Declaration);
     statement.getArray()->accept(*this);
     statement.getBody()->accept(*this);
   }
@@ -381,6 +356,8 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
 
   void visitCastExpression(ast::CastExpression& expr) override {
     expr.getExpression()->accept(*this);
+    addSpan(spans, expr.getTargetExpression()->getLocation(),
+            SemanticTokenLegendType::Type);
   }
 
   void visitNewArrayExpression(ast::NewArrayExpression&) override {}
@@ -442,7 +419,8 @@ common::Vec<SemanticTokenSpan> tokenizeDocument(std::string_view source,
   return spans;
 }
 
-lsp::Array<lsp::uint> encodeSemanticTokens(common::Vec<SemanticTokenSpan> spans) {
+lsp::Array<lsp::uint> encodeSemanticTokens(
+    common::Vec<SemanticTokenSpan> spans) {
   std::sort(spans.begin(), spans.end(),
             [](const SemanticTokenSpan& a, const SemanticTokenSpan& b) {
               if (a.line != b.line) {
@@ -454,12 +432,12 @@ lsp::Array<lsp::uint> encodeSemanticTokens(common::Vec<SemanticTokenSpan> spans)
   lsp::Array<lsp::uint> data;
   data.reserve(spans.size() * 5);
 
-  unsigned int prevLine = 0;
-  unsigned int prevChar = 0;
+  int prevLine = 0;
+  int prevChar = 0;
 
   for (const auto& span : spans) {
-    const unsigned int deltaLine = span.line - prevLine;
-    const unsigned int deltaStart =
+    const int deltaLine = span.line - prevLine;
+    const int deltaStart =
         deltaLine == 0 ? span.character - prevChar : span.character;
 
     data.push_back(deltaLine);

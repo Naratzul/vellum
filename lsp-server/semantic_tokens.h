@@ -4,27 +4,32 @@
 
 #include <string_view>
 
+#include "common/flags.h"
+
 namespace vellum {
 
 // Legend indices must match semanticTokensProvider.legend in server.cpp.
-enum class SemanticTokenLegendType : unsigned int {
-  Keyword = 0,
-  String = 1,
-  Number = 2,
-  Operator = 3,
-  Variable = 4,
-  Class = 5,
-  Type = 6,
-  Function = 7,
-  Property = 8,
-  Parameter = 9,
+enum class SemanticTokenLegendType {
+  Keyword,
+  String,
+  Number,
+  Operator,
+  Variable,
+  Class,
+  Type,
+  Function,
+  Property,
+  Parameter,
 };
 
-enum class SemanticTokenLegendModifier : unsigned int {
+enum class SemanticTokenLegendModifierBits {
   Declaration = 1u << 0,
   Readonly = 1u << 1,
   Static = 1u << 2,
 };
+
+using SemanticTokenLegendModifier =
+    common::Flags<SemanticTokenLegendModifierBits>;
 
 class SemanticTokensBuilder {
  public:
