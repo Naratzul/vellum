@@ -1,11 +1,11 @@
 #include "server.h"
 
-#include <format>
 #include <unordered_map>
 
 #include "analyze/import_library.h"
 #include "common/fs.h"
 #include "common/os.h"
+#include "definitions_provider.h"
 #include "diagnostics.h"
 #include "semantic_tokens.h"
 
@@ -74,7 +74,7 @@ void LspServer::registerHandlers() {
 
             logMsg("Import paths:");
             for (const auto& p : importPaths) {
-              logMsg("- " + p.string());
+              logMsg("- {}", p.string());
             }
 
             importLibrary = makeShared<ImportLibrary>(std::move(importPaths));
@@ -83,15 +83,16 @@ void LspServer::registerHandlers() {
                 .capabilities =
                     {.positionEncoding = lsp::PositionEncodingKind::UTF16,
                      .textDocumentSync = lsp::TextDocumentSyncKind::Full,
+                     .definitionProvider = lsp::DefinitionOptions{},
                      .semanticTokensProvider =
                          lsp::SemanticTokensOptions{
                              .legend =
                                  lsp::SemanticTokensLegend{
                                      .tokenTypes = {"keyword", "string",
                                                     "number", "operator",
-                                                    "variable", "class",
-                                                    "type", "function",
-                                                    "property", "parameter"},
+                                                    "variable", "class", "type",
+                                                    "function", "property",
+                                                    "parameter"},
                                      .tokenModifiers = {"declaration",
                                                         "readonly", "static"},
                                  },
@@ -102,15 +103,13 @@ void LspServer::registerHandlers() {
           })
       .add<lsp::notifications::TextDocument_DidOpen>(
           [this](lsp::notifications::TextDocument_DidOpen::Params&& params) {
-            logMsg(
-                std::format("Opened file: {}", params.textDocument.uri.path()));
+            logMsg("Opened file: {}", params.textDocument.uri.path());
             documents[std::string(params.textDocument.uri.path())] =
                 params.textDocument.text;
           })
       .add<lsp::notifications::TextDocument_DidChange>(
           [this](lsp::notifications::TextDocument_DidChange::Params&& params) {
-            logMsg(std::format("Did change file: {}",
-                               params.textDocument.uri.path()));
+            logMsg("Did change file: {}", params.textDocument.uri.path());
 
             for (const auto& change : params.contentChanges) {
               handleDocumentChange(params.textDocument.uri, change);
@@ -118,8 +117,8 @@ void LspServer::registerHandlers() {
           })
       .add<lsp::requests::TextDocument_Diagnostic>(
           [&](lsp::requests::TextDocument_Diagnostic::Params&& params) {
-            logMsg(std::format("Diagnostics request for: {}",
-                               params.textDocument.uri.path()));
+            logMsg("Diagnostics request for: {}",
+                   params.textDocument.uri.path());
 
             if (!documents.contains(
                     std::string(params.textDocument.uri.path()))) {
@@ -135,8 +134,8 @@ void LspServer::registerHandlers() {
       .add<lsp::requests::TextDocument_SemanticTokens_Full>(
           [this](lsp::requests::TextDocument_SemanticTokens_Full::Params&&
                      params) {
-            logMsg(std::format("Semantic tokens request for: {}",
-                               params.textDocument.uri.path()));
+            logMsg("Semantic tokens request for: {}",
+                   params.textDocument.uri.path());
 
             const std::string path(params.textDocument.uri.path());
             if (!documents.contains(path)) {
@@ -146,6 +145,20 @@ void LspServer::registerHandlers() {
 
             return lsp::TextDocument_SemanticTokens_FullResult{
                 SemanticTokensBuilder().build(documents.at(path))};
+          })
+      .add<lsp::requests::TextDocument_Definition>(
+          [this](lsp::requests::TextDocument_Definition::Params&& params) {
+            logMsg("Definition request for: {}",
+                   params.textDocument.uri.path());
+
+            const std::string path(params.textDocument.uri.path());
+            if (!documents.contains(path)) {
+              logMsg("Can't provide semantic tokens, text is not synced yet.");
+              return lsp::requests::TextDocument_Definition::Result{};
+            }
+
+            return lsp::requests::TextDocument_Definition::Result{
+                DefinitionsProvider().getDefinitions(params.position)};
           });
 
   messageHandler.add<lsp::requests::Shutdown>([&]() {
@@ -166,11 +179,5 @@ void LspServer::handleDocumentChange(
           },
           [&](const lsp::TextDocumentContentChangeEvent_Range_Text& text) {}},
       changeEvent);
-}
-
-void LspServer::logMsg(const std::string& msg) {
-  lsp::LogMessageParams params{.type = lsp::MessageType::Info, .message = msg};
-  messageHandler.sendNotification<lsp::notifications::Window_LogMessage>(
-      std::move(params));
 }
 }  // namespace vellum

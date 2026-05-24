@@ -3,6 +3,8 @@
 #include <lsp/messagehandler.h>
 #include <lsp/messages.h>  // Generated message definitions
 
+#include <format>
+
 #include "common/types.h"
 
 namespace vellum {
@@ -32,6 +34,18 @@ class LspServer {
       const lsp::DocumentUri& uri,
       const lsp::TextDocumentContentChangeEvent& changeEvent);
 
-  void logMsg(const std::string& msg);
+  template <typename... Types>
+  void logMsg(const std::format_string<Types...> fmt, Types&&... args);
 };
+
+template <typename... Types>
+void LspServer::logMsg(const std::format_string<Types...> fmt,
+                       Types&&... args) {
+  lsp::LogMessageParams params{
+      .type = lsp::MessageType::Info,
+      .message = std::format(fmt, std::forward<Types>(args)...)};
+  messageHandler.sendNotification<lsp::notifications::Window_LogMessage>(
+      std::move(params));
+}
+
 }  // namespace vellum
