@@ -61,6 +61,10 @@ export function activate(context: ExtensionContext) {
 		initializationOptions: {
 			importPaths: importPaths
 		},
+		synchronize: {
+			configurationSection: 'vellum',
+		},
+		workspaceFolder: wsFolder,
 		outputChannel: output
 	};
 

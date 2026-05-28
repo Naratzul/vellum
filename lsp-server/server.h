@@ -5,11 +5,14 @@
 
 #include <format>
 
+#include "common/fs.h"
 #include "common/types.h"
 #include "document_store.h"
 
 namespace vellum {
 using common::Shared;
+using common::Vec;
+using common::fs::path;
 
 class LspServer {
  public:
@@ -27,6 +30,9 @@ class LspServer {
   Shared<ImportLibrary> importLibrary{nullptr};
 
   void registerHandlers();
+
+  void applyImportPaths(Vec<path> importPaths);
+  void requestDiagnosticAndSemanticRefresh();
 
   void handleDocumentChange(
       const lsp::DocumentUri& uri,

@@ -62,6 +62,12 @@ void DocumentStore::ensureAnalysis(DocumentState& doc, AnalysisKind kind,
   }
 }
 
+void DocumentStore::invalidateAll() {
+  for (auto& [_, doc] : documents) {
+    doc.cache.reset();
+  }
+}
+
 const CachedAnalysis& DocumentStore::getOrAnalyze(
     const path& filePath, AnalysisKind kind,
     const Shared<ImportLibrary>& importLibrary) {

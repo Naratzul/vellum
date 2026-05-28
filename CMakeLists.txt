@@ -25,6 +25,8 @@ message(STATUS "C++ compiler flags: ${CMAKE_CXX_FLAGS}")
 add_subdirectory(src)
 add_subdirectory(test) 
 
-set(LSP_USE_SANITIZERS OFF)
+set(LSP_USE_SANITIZERS OFF CACHE BOOL
+    "Use address and undefined behavior sanitizers for lsp-framework Debug builds"
+    FORCE)
 add_subdirectory(external/lsp-framework)
 add_subdirectory(lsp-server)

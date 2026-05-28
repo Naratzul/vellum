@@ -39,6 +39,7 @@ class DocumentStore {
   const CachedAnalysis& getOrAnalyze(
       const path& filePath, AnalysisKind kind,
       const Shared<ImportLibrary>& importLibrary);
+  void invalidateAll();
 
  private:
   struct DocumentState {

@@ -14,23 +14,8 @@ struct overloaded : Ts... {
   using Ts::operator()...;
 };
 
-Vec<fs::path> parseImportPathsFromInit(const lsp::InitializeParams& params) {
+Vec<fs::path> parseImportPathsFromArray(const lsp::json::Any& pathsAny) {
   Vec<fs::path> out;
-  if (!params.initializationOptions) {
-    return out;
-  }
-
-  const auto& any = *params.initializationOptions;
-  if (!any.isObject()) {
-    return out;
-  }
-
-  const auto& obj = any.object();
-  if (!obj.contains("importPaths")) {
-    return out;
-  }
-
-  const auto& pathsAny = obj.get("importPaths");
   if (!pathsAny.isArray()) {
     return out;
   }
@@ -42,6 +27,48 @@ Vec<fs::path> parseImportPathsFromInit(const lsp::InitializeParams& params) {
   }
 
   return out;
+}
+
+Vec<fs::path> parseImportPathsFromInit(const lsp::InitializeParams& params) {
+  if (!params.initializationOptions) {
+    return {};
+  }
+
+  const auto& any = *params.initializationOptions;
+  if (!any.isObject()) {
+    return {};
+  }
+
+  const auto& obj = any.object();
+  if (!obj.contains("importPaths")) {
+    return {};
+  }
+
+  return parseImportPathsFromArray(obj.get("importPaths"));
+}
+
+Vec<fs::path> parseImportPathsFromConfiguration(
+    const lsp::DidChangeConfigurationParams& params) {
+  if (!params.settings.isObject()) {
+    return {};
+  }
+
+  const auto& settings = params.settings.object();
+  if (!settings.contains("vellum")) {
+    return {};
+  }
+
+  const auto& vellumAny = settings.get("vellum");
+  if (!vellumAny.isObject()) {
+    return {};
+  }
+
+  const auto& vellum = vellumAny.object();
+  if (!vellum.contains("importPaths")) {
+    return {};
+  }
+
+  return parseImportPathsFromArray(vellum.get("importPaths"));
 }
 }  // namespace
 
@@ -62,21 +89,38 @@ bool LspServer::run() {
   return isShutdownRequested;
 }
 
+void LspServer::applyImportPaths(Vec<path> importPaths) {
+  importPaths = dedupePathsPreserveOrder(importPaths);
+
+  logMsg("Import paths:");
+  for (const auto& p : importPaths) {
+    logMsg("- {}", p.string());
+  }
+
+  importLibrary = makeShared<ImportLibrary>(std::move(importPaths));
+  documentStore.invalidateAll();
+}
+
+void LspServer::requestDiagnosticAndSemanticRefresh() {
+  messageHandler.sendRequest<lsp::requests::Workspace_Diagnostic_Refresh>(
+      [](std::nullptr_t) {},
+      [this](const lsp::ResponseError& error) {
+        logMsg("workspace/diagnostic/refresh failed: {}", error.message());
+      });
+
+  messageHandler.sendRequest<lsp::requests::Workspace_SemanticTokens_Refresh>(
+      [](std::nullptr_t) {},
+      [this](const lsp::ResponseError& error) {
+        logMsg("workspace/semanticTokens/refresh failed: {}", error.message());
+      });
+}
+
 void LspServer::registerHandlers() {
   messageHandler
       .add<lsp::requests::Initialize>(
           [this](lsp::requests::Initialize::Params&& params) {
             logMsg("Received Initialize message");
-
-            auto importPaths = parseImportPathsFromInit(params);
-            importPaths = dedupePathsPreserveOrder(importPaths);
-
-            logMsg("Import paths:");
-            for (const auto& p : importPaths) {
-              logMsg("- {}", p.string());
-            }
-
-            importLibrary = makeShared<ImportLibrary>(std::move(importPaths));
+            applyImportPaths(parseImportPathsFromInit(params));
 
             return lsp::requests::Initialize::Result{
                 .capabilities =
@@ -99,6 +143,13 @@ void LspServer::registerHandlers() {
                      .diagnosticProvider = lsp::DiagnosticOptions{}},
                 .serverInfo = lsp::InitializeResultServerInfo{
                     .name = "Vellum Language Server", .version = "0.1.0"}};
+          })
+      .add<lsp::notifications::Workspace_DidChangeConfiguration>(
+          [this](lsp::notifications::Workspace_DidChangeConfiguration::Params&&
+                     params) {
+            logMsg("Received workspace/didChangeConfiguration");
+            applyImportPaths(parseImportPathsFromConfiguration(params));
+            requestDiagnosticAndSemanticRefresh();
           })
       .add<lsp::notifications::TextDocument_DidOpen>(
           [this](lsp::notifications::TextDocument_DidOpen::Params&& params) {
