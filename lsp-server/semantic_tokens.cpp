@@ -453,6 +453,17 @@ lsp::Array<lsp::uint> encodeSemanticTokens(
   return data;
 }
 
+common::Vec<SemanticTokenSpan> collectSemanticSpansFromParse(
+    ParserResult& parseResult, std::string_view source) {
+  common::Vec<SemanticTokenSpan> spans;
+  SemanticTokensCollector collector(spans);
+  collector.collect(parseResult.declarations);
+
+  auto lexerSpans = tokenizeDocument(source, false);
+  spans.insert(spans.end(), lexerSpans.begin(), lexerSpans.end());
+  return spans;
+}
+
 common::Vec<SemanticTokenSpan> collectSemanticSpans(std::string_view source) {
   auto lexer = common::makeUnique<Lexer>(source);
   auto errorHandler = common::makeShared<CompilerErrorHandler>();
@@ -463,13 +474,7 @@ common::Vec<SemanticTokenSpan> collectSemanticSpans(std::string_view source) {
     return tokenizeDocument(source, true);
   }
 
-  common::Vec<SemanticTokenSpan> spans;
-  SemanticTokensCollector collector(spans);
-  collector.collect(parseResult.declarations);
-
-  auto lexerSpans = tokenizeDocument(source, false);
-  spans.insert(spans.end(), lexerSpans.begin(), lexerSpans.end());
-  return spans;
+  return collectSemanticSpansFromParse(parseResult, source);
 }
 
 }  // namespace
@@ -477,6 +482,17 @@ common::Vec<SemanticTokenSpan> collectSemanticSpans(std::string_view source) {
 lsp::SemanticTokens SemanticTokensBuilder::build(
     std::string_view sourceCode) const {
   auto spans = collectSemanticSpans(sourceCode);
+  return lsp::SemanticTokens{.data = encodeSemanticTokens(std::move(spans))};
+}
+
+lsp::SemanticTokens buildSemanticTokensFromParse(ParserResult& parseResult,
+                                                 std::string_view source) {
+  auto spans = collectSemanticSpansFromParse(parseResult, source);
+  return lsp::SemanticTokens{.data = encodeSemanticTokens(std::move(spans))};
+}
+
+lsp::SemanticTokens buildSemanticTokensLexerFallback(std::string_view source) {
+  auto spans = tokenizeDocument(source, true);
   return lsp::SemanticTokens{.data = encodeSemanticTokens(std::move(spans))};
 }
 

@@ -1,18 +1,14 @@
 #include "server.h"
 
-#include <unordered_map>
-
 #include "analyze/import_library.h"
 #include "common/fs.h"
 #include "common/os.h"
 #include "definitions_provider.h"
 #include "diagnostics.h"
-#include "semantic_tokens.h"
 
 namespace {
 using namespace vellum::common;
 
-// helper type for the visitor #4
 template <class... Ts>
 struct overloaded : Ts... {
   using Ts::operator()...;
@@ -50,6 +46,9 @@ Vec<fs::path> parseImportPathsFromInit(const lsp::InitializeParams& params) {
 }  // namespace
 
 namespace vellum {
+using common::fs::path;
+using common::makeShared;
+
 LspServer::LspServer()
     : connection(lsp::io::standardIO()), messageHandler(connection) {
   registerHandlers();
@@ -103,9 +102,9 @@ void LspServer::registerHandlers() {
           })
       .add<lsp::notifications::TextDocument_DidOpen>(
           [this](lsp::notifications::TextDocument_DidOpen::Params&& params) {
-            logMsg("Opened file: {}", params.textDocument.uri.path());
-            documents[std::string(params.textDocument.uri.path())] =
-                params.textDocument.text;
+            const path filePath = pathFromDocumentUri(params.textDocument.uri);
+            logMsg("Opened file: {}", filePath.string());
+            documentStore.openOrUpdate(filePath, params.textDocument.text);
           })
       .add<lsp::notifications::TextDocument_DidChange>(
           [this](lsp::notifications::TextDocument_DidChange::Params&& params) {
@@ -116,49 +115,50 @@ void LspServer::registerHandlers() {
             }
           })
       .add<lsp::requests::TextDocument_Diagnostic>(
-          [&](lsp::requests::TextDocument_Diagnostic::Params&& params) {
-            logMsg("Diagnostics request for: {}",
-                   params.textDocument.uri.path());
+          [this](lsp::requests::TextDocument_Diagnostic::Params&& params) {
+            const path filePath = pathFromDocumentUri(params.textDocument.uri);
+            logMsg("Diagnostics request for: {}", filePath.string());
 
-            if (!documents.contains(
-                    std::string(params.textDocument.uri.path()))) {
+            if (!documentStore.has(filePath)) {
               logMsg("Can't do diagnostics, text is not synced yet.");
               return lsp::requests::TextDocument_Diagnostic::Result{};
             }
 
-            std::string path(params.textDocument.uri.path());
-
-            return vellum::Diagnostics().getDiagnostics(
-                filenameWithoutExt(path), documents.at(path), importLibrary);
+            const CachedAnalysis& analysis = documentStore.getOrAnalyze(
+                filePath, AnalysisKind::Full, importLibrary);
+            return Diagnostics::fromCache(analysis);
           })
       .add<lsp::requests::TextDocument_SemanticTokens_Full>(
           [this](lsp::requests::TextDocument_SemanticTokens_Full::Params&&
                      params) {
-            logMsg("Semantic tokens request for: {}",
-                   params.textDocument.uri.path());
+            const path filePath = pathFromDocumentUri(params.textDocument.uri);
+            logMsg("Semantic tokens request for: {}", filePath.string());
 
-            const std::string path(params.textDocument.uri.path());
-            if (!documents.contains(path)) {
+            if (!documentStore.has(filePath)) {
               logMsg("Can't provide semantic tokens, text is not synced yet.");
               return lsp::TextDocument_SemanticTokens_FullResult{};
             }
 
+            const CachedAnalysis& analysis = documentStore.getOrAnalyze(
+                filePath, AnalysisKind::SemanticTokens, importLibrary);
             return lsp::TextDocument_SemanticTokens_FullResult{
-                SemanticTokensBuilder().build(documents.at(path))};
+                analysis.semanticTokens};
           })
       .add<lsp::requests::TextDocument_Definition>(
           [this](lsp::requests::TextDocument_Definition::Params&& params) {
-            logMsg("Definition request for: {}",
-                   params.textDocument.uri.path());
+            const path filePath = pathFromDocumentUri(params.textDocument.uri);
+            logMsg("Definition request for: {}", filePath.string());
 
-            const std::string path(params.textDocument.uri.path());
-            if (!documents.contains(path)) {
-              logMsg("Can't provide semantic tokens, text is not synced yet.");
+            if (!documentStore.has(filePath)) {
+              logMsg("Can't provide definition, text is not synced yet.");
               return lsp::requests::TextDocument_Definition::Result{};
             }
 
             return lsp::requests::TextDocument_Definition::Result{
-                DefinitionsProvider().getDefinitions(params.position)};
+                DefinitionsProvider().getDefinitions(
+                    filePath, documentStore.scriptName(filePath),
+                    documentStore.text(filePath), params.position,
+                    documentStore, importLibrary)};
           });
 
   messageHandler.add<lsp::requests::Shutdown>([&]() {
@@ -169,13 +169,15 @@ void LspServer::registerHandlers() {
 
   messageHandler.add<lsp::notifications::Exit>([&]() { isRunning = false; });
 }
+
 void LspServer::handleDocumentChange(
     const lsp::DocumentUri& uri,
     const lsp::TextDocumentContentChangeEvent& changeEvent) {
   std::visit(
       overloaded{
           [&](const lsp::TextDocumentContentChangeEvent_Text& text) {
-            documents[std::string(uri.path())] = text.text;
+            const path filePath = pathFromDocumentUri(uri);
+            documentStore.openOrUpdate(filePath, text.text);
           },
           [&](const lsp::TextDocumentContentChangeEvent_Range_Text& text) {}},
       changeEvent);

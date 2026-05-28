@@ -6,12 +6,10 @@
 #include <format>
 
 #include "common/types.h"
+#include "document_store.h"
 
 namespace vellum {
-using common::Map;
 using common::Shared;
-
-class ImportLibrary;
 
 class LspServer {
  public:
@@ -25,7 +23,7 @@ class LspServer {
 
   lsp::Connection connection;
   lsp::MessageHandler messageHandler;
-  Map<std::string, std::string> documents;
+  DocumentStore documentStore;
   Shared<ImportLibrary> importLibrary{nullptr};
 
   void registerHandlers();

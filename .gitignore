@@ -47,3 +47,6 @@ local/
 
 CMakeSettings.json
 releases/
+
+*.code-workspace
+plans/

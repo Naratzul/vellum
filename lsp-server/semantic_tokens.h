@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "common/flags.h"
+#include "parser/parser.h"
 
 namespace vellum {
 
@@ -35,5 +36,9 @@ class SemanticTokensBuilder {
  public:
   lsp::SemanticTokens build(std::string_view sourceCode) const;
 };
+
+lsp::SemanticTokens buildSemanticTokensFromParse(ParserResult& parseResult,
+                                                 std::string_view source);
+lsp::SemanticTokens buildSemanticTokensLexerFallback(std::string_view source);
 
 }  // namespace vellum

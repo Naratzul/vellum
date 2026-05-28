@@ -3,7 +3,17 @@ project(vellum-lsp)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(vellum-lsp main.cpp "static_analyze.h" "static_analyze.cpp" "definitions_provider.cpp" "diagnostics.h" "diagnostics.cpp" "semantic_tokens.h" "semantic_tokens.cpp" "message_handler.h" "message_handler.cpp" "server.h" "server.cpp" "definitions_provider.h" "definitions_provider.cpp")
+add_executable(vellum-lsp
+    main.cpp
+    document_analyzer.h document_analyzer.cpp
+    document_store.h document_store.cpp
+    static_analyze.h static_analyze.cpp
+    definitions_provider.h definitions_provider.cpp
+    diagnostics.h diagnostics.cpp
+    semantic_tokens.h semantic_tokens.cpp
+    message_handler.h message_handler.cpp
+    server.h server.cpp
+)
 target_link_libraries(vellum-lsp PUBLIC lsp vellum_compiler)
 
 target_include_directories(vellum-lsp PRIVATE

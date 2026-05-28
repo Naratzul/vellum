@@ -2,8 +2,6 @@
 
 #include <lsp/types.h>
 
-#include "static_analyze.h"
-
 namespace vellum {
 
 static lsp::Position convert(const Location& loc) {
@@ -19,17 +17,12 @@ static lsp::Diagnostic convert(const DiagnosticMessage& message) {
       .severity = lsp::DiagnosticSeverity::Error};
 }
 
-lsp::requests::TextDocument_Diagnostic::Result Diagnostics::getDiagnostics(
-    std::string_view filename, std::string_view sourceCode,
-    const Shared<ImportLibrary>& importLibrary) {
-  StaticAnalyze analyzer;
-  const std::vector<DiagnosticMessage> messages =
-      analyzer.analyze(filename, sourceCode, importLibrary);
-
+lsp::requests::TextDocument_Diagnostic::Result Diagnostics::fromCache(
+    const CachedAnalysis& analysis) {
   lsp::RelatedFullDocumentDiagnosticReport result;
-  result.items.reserve(messages.size());
+  result.items.reserve(analysis.diagnostics.size());
 
-  for (const auto& message : messages) {
+  for (const auto& message : analysis.diagnostics) {
     result.items.push_back(convert(message));
   }
 
