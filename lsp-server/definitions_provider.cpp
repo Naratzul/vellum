@@ -32,10 +32,10 @@ lsp::DefinitionLink makeDefinitionLink(const Token& originToken,
                                        const Token& targetToken) {
   const lsp::Range targetRange = toLspRange(targetToken);
   return lsp::DefinitionLink{
-      .originSelectionRange = toLspRange(originToken),
       .targetUri = pathToUri(targetPath),
       .targetRange = targetRange,
       .targetSelectionRange = targetRange,
+      .originSelectionRange = toLspRange(originToken),
   };
 }
 

@@ -35,18 +35,22 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
   }
 
   void visitImportDeclaration(ast::ImportDeclaration& declaration) override {
-    considerToken(declaration.getImportNameLocation(), AstLocatorTargetKind::ImportName,
+    considerToken(declaration.getImportNameLocation(),
+                  AstLocatorTargetKind::ImportName,
                   VellumIdentifier(declaration.getImportName()));
   }
 
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override {
-    if (const auto scriptName = identifierFromType(declaration.getScriptName())) {
+    if (const auto scriptName =
+            identifierFromType(declaration.getScriptName())) {
       considerToken(declaration.getScriptNameLocation(),
                     AstLocatorTargetKind::ScriptName, *scriptName);
     }
     if (const auto parentLoc = declaration.getParentScriptNameLocation()) {
-      if (const auto parentName = identifierFromType(declaration.getParentScriptName())) {
-        considerToken(*parentLoc, AstLocatorTargetKind::ParentScriptName, *parentName);
+      if (const auto parentName =
+              identifierFromType(declaration.getParentScriptName())) {
+        considerToken(*parentLoc, AstLocatorTargetKind::ParentScriptName,
+                      *parentName);
       }
     }
 
@@ -56,7 +60,8 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
   }
 
   void visitStateDeclaration(ast::StateDeclaration& declaration) override {
-    considerToken(declaration.getStateNameLocation(), AstLocatorTargetKind::DeclName,
+    considerToken(declaration.getStateNameLocation(),
+                  AstLocatorTargetKind::DeclName,
                   VellumIdentifier(declaration.getStateName()));
     for (const auto& memberDecl : declaration.getMemberDecls()) {
       memberDecl->accept(*this);
@@ -65,22 +70,26 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
 
   void visitVariableDeclaration(
       ast::GlobalVariableDeclaration& declaration) override {
-    considerOptToken(declaration.getNameLocation(), AstLocatorTargetKind::DeclName,
+    considerOptToken(declaration.getNameLocation(),
+                     AstLocatorTargetKind::DeclName,
                      VellumIdentifier(declaration.name()));
     if (const auto& init = declaration.initializer()) {
       visitExpression(*init, depth + 1);
     }
   }
 
-  void visitFunctionDeclaration(ast::FunctionDeclaration& declaration) override {
+  void visitFunctionDeclaration(
+      ast::FunctionDeclaration& declaration) override {
     if (declaration.getName()) {
-      considerOptToken(declaration.getNameLocation(), AstLocatorTargetKind::DeclName,
+      considerOptToken(declaration.getNameLocation(),
+                       AstLocatorTargetKind::DeclName,
                        VellumIdentifier(*declaration.getName()));
     }
     declaration.getBody()->accept(*this);
   }
 
-  void visitPropertyDeclaration(ast::PropertyDeclaration& declaration) override {
+  void visitPropertyDeclaration(
+      ast::PropertyDeclaration& declaration) override {
     considerToken(declaration.getNameLocation(), AstLocatorTargetKind::DeclName,
                   VellumIdentifier(declaration.getName()));
     if (const auto& getBlock = declaration.getGetAccessor()) {
@@ -109,7 +118,8 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
     }
   }
 
-  void visitLocalVariableStatement(ast::LocalVariableStatement& statement) override {
+  void visitLocalVariableStatement(
+      ast::LocalVariableStatement& statement) override {
     considerToken(statement.getNameLocation(), AstLocatorTargetKind::DeclName,
                   statement.getName());
     if (const auto& init = statement.getInitializer()) {
@@ -146,7 +156,8 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
 
   void visitCallExpression(ast::CallExpression& expr) override {
     if (expr.getCallee()->isIdentifierExpression()) {
-      considerToken(expr.getCallee()->getLocation(), AstLocatorTargetKind::CallCallee,
+      considerToken(expr.getCallee()->getLocation(),
+                    AstLocatorTargetKind::CallCallee,
                     expr.getCallee()->asIdentifier().getIdentifier());
     } else {
       visitExpression(*expr.getCallee(), depth + 1);
@@ -196,7 +207,8 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
     visitExpression(*expr.getIndex(), depth + 1);
   }
 
-  void visitArrayIndexSetExpression(ast::ArrayIndexSetExpression& expr) override {
+  void visitArrayIndexSetExpression(
+      ast::ArrayIndexSetExpression& expr) override {
     visitExpression(*expr.getArray(), depth + 1);
     visitExpression(*expr.getIndex(), depth + 1);
     visitExpression(*expr.getValue(), depth + 1);
@@ -223,7 +235,8 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
     }
     if (atDepth >= bestDepth) {
       bestDepth = atDepth;
-      best = AstLocatorTarget{.kind = kind, .token = token, .identifier = identifier};
+      best = AstLocatorTarget{
+          .kind = kind, .token = token, .identifier = identifier};
     }
   }
 
@@ -232,7 +245,8 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
     consider(kind, token, identifier, depth);
   }
 
-  void considerOptToken(const common::Opt<Token>& token, AstLocatorTargetKind kind,
+  void considerOptToken(const common::Opt<Token>& token,
+                        AstLocatorTargetKind kind,
                         VellumIdentifier identifier) {
     if (token) {
       considerToken(*token, kind, identifier);
@@ -253,7 +267,8 @@ Opt<AstLocatorTarget> AstLocator::locate(const ParserResult& parseResult,
                                          lsp::Position pos) {
   AstLocatorVisitor visitor(pos);
   auto& declarations =
-      const_cast<common::Vec<common::Unique<ast::Declaration>>&>(parseResult.declarations);
+      const_cast<common::Vec<common::Unique<ast::Declaration>>&>(
+          parseResult.declarations);
   visitor.collect(declarations);
   return visitor.result();
 }

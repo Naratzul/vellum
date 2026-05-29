@@ -130,7 +130,7 @@ inline void Parser::consume(TokenType type, CompilerErrorKind error,
     advance();
     return;
   }
-  throw ParseException(
-      current, error, std::format(fmt, std::forward<Args>(args)...));
+  throw ParseException(current, error,
+                       std::format(fmt, std::forward<Args>(args)...));
 }
 }  // namespace vellum
