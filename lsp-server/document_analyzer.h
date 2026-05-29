@@ -19,8 +19,6 @@ using common::Opt;
 using common::Shared;
 using common::Vec;
 
-enum class AnalysisKind { SemanticTokens, Full };
-
 struct NavigationContext {
   ParserResult parseResult;
   Shared<Resolver> resolver;
@@ -44,8 +42,7 @@ struct AnalysisResult {
 class DocumentAnalyzer {
  public:
   static AnalysisResult run(std::string_view source, std::string_view scriptName,
-                            const Shared<ImportLibrary>& importLibrary,
-                            AnalysisKind kind);
+                            const Shared<ImportLibrary>& importLibrary);
 };
 
 }  // namespace vellum

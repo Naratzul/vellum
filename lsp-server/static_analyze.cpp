@@ -8,9 +8,7 @@ using common::Vec;
 Vec<DiagnosticMessage> StaticAnalyze::analyze(
     std::string_view filename, std::string_view sourceCode,
     const Shared<ImportLibrary>& importLibrary) {
-  return DocumentAnalyzer::run(sourceCode, filename, importLibrary,
-                               AnalysisKind::Full)
-      .diagnostics;
+  return DocumentAnalyzer::run(sourceCode, filename, importLibrary).diagnostics;
 }
 
 }  // namespace vellum

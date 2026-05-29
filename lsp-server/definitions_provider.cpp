@@ -350,7 +350,7 @@ lsp::Array<lsp::DefinitionLink> DefinitionsProvider::getDefinitions(
   (void)scriptName;
 
   const CachedAnalysis& cache =
-      store.getOrAnalyze(filePath, AnalysisKind::Full, importLibrary);
+      store.getOrAnalyze(filePath, importLibrary);
 
   if (!cache.navigation || !cache.navigation->parseOk) {
     return {};

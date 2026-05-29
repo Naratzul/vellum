@@ -33,19 +33,14 @@ std::string_view DocumentStore::scriptName(const path& filePath) const {
   return documents.at(filePath).scriptName;
 }
 
-void DocumentStore::ensureAnalysis(DocumentState& doc, AnalysisKind kind,
+void DocumentStore::ensureAnalysis(DocumentState& doc,
                                    const Shared<ImportLibrary>& importLibrary) {
   if (doc.cache && doc.cache->version == doc.version) {
-    if (kind == AnalysisKind::SemanticTokens) {
-      return;
-    }
-    if (kind == AnalysisKind::Full && doc.cache->fullAnalysisComplete) {
-      return;
-    }
+    return;
   }
 
-  AnalysisResult result = DocumentAnalyzer::run(doc.text, doc.scriptName,
-                                                importLibrary, kind);
+  AnalysisResult result =
+      DocumentAnalyzer::run(doc.text, doc.scriptName, importLibrary);
 
   if (!doc.cache) {
     doc.cache = CachedAnalysis{};
@@ -53,17 +48,10 @@ void DocumentStore::ensureAnalysis(DocumentState& doc, AnalysisKind kind,
 
   doc.cache->version = doc.version;
   doc.cache->semanticTokens = std::move(result.semanticTokens);
-
-  if (kind == AnalysisKind::Full) {
-    doc.cache->diagnostics = std::move(result.diagnostics);
-    if (result.navigation) {
-      doc.cache->navigation = std::move(*result.navigation);
-    } else {
-      doc.cache->navigation.reset();
-    }
-    doc.cache->fullAnalysisComplete = true;
+  doc.cache->diagnostics = std::move(result.diagnostics);
+  if (result.navigation) {
+    doc.cache->navigation = std::move(*result.navigation);
   } else {
-    doc.cache->fullAnalysisComplete = false;
     doc.cache->navigation.reset();
   }
 }
@@ -75,14 +63,13 @@ void DocumentStore::invalidateAll() {
 }
 
 const CachedAnalysis& DocumentStore::getOrAnalyze(
-    const path& filePath, AnalysisKind kind,
-    const Shared<ImportLibrary>& importLibrary) {
+    const path& filePath, const Shared<ImportLibrary>& importLibrary) {
   const auto it = documents.find(filePath);
   if (it == documents.end()) {
     throw std::out_of_range("DocumentStore::getOrAnalyze: unknown document");
   }
 
-  ensureAnalysis(it->second, kind, importLibrary);
+  ensureAnalysis(it->second, importLibrary);
   return *it->second.cache;
 }
 

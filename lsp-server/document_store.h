@@ -25,7 +25,6 @@ common::fs::path pathFromDocumentUri(const lsp::DocumentUri& uri);
 
 struct CachedAnalysis {
   uint64_t version{0};
-  bool fullAnalysisComplete{false};
   lsp::SemanticTokens semanticTokens;
   Vec<DiagnosticMessage> diagnostics;
   Opt<NavigationContext> navigation;
@@ -38,8 +37,7 @@ class DocumentStore {
   std::string_view text(const path& filePath) const;
   std::string_view scriptName(const path& filePath) const;
   const CachedAnalysis& getOrAnalyze(
-      const path& filePath, AnalysisKind kind,
-      const Shared<ImportLibrary>& importLibrary);
+      const path& filePath, const Shared<ImportLibrary>& importLibrary);
   void invalidateAll();
 
  private:
@@ -51,7 +49,7 @@ class DocumentStore {
     Opt<CachedAnalysis> cache;
   };
 
-  void ensureAnalysis(DocumentState& doc, AnalysisKind kind,
+  void ensureAnalysis(DocumentState& doc,
                       const Shared<ImportLibrary>& importLibrary);
 
   Map<path, DocumentState> documents;

@@ -84,8 +84,7 @@ FullAnalyzeOutcome analyzeFull(ParserResult parseResult,
 
 AnalysisResult DocumentAnalyzer::run(std::string_view source,
                                      std::string_view scriptName,
-                                     const Shared<ImportLibrary>& importLibrary,
-                                     AnalysisKind kind) {
+                                     const Shared<ImportLibrary>& importLibrary) {
   ParseOutcome parseOutcome = parseDocument(source);
 
   if (parseOutcome.errorHandler->hadError()) {
@@ -96,18 +95,12 @@ AnalysisResult DocumentAnalyzer::run(std::string_view source,
     };
   }
 
-  lsp::SemanticTokens semanticTokens =
-      buildSemanticTokensFromParse(parseOutcome.parseResult, source);
-
-  if (kind == AnalysisKind::SemanticTokens) {
-    return AnalysisResult{.diagnostics = {},
-                          .semanticTokens = semanticTokens,
-                          .navigation = std::nullopt};
-  }
-
   FullAnalyzeOutcome fullOutcome =
       analyzeFull(std::move(parseOutcome.parseResult), scriptName, importLibrary,
                   parseOutcome.errorHandler);
+
+  lsp::SemanticTokens semanticTokens = buildSemanticTokensFromParse(
+      fullOutcome.navigation.parseResult, source);
 
   return AnalysisResult{.diagnostics = std::move(fullOutcome.diagnostics),
                         .semanticTokens = std::move(semanticTokens),

@@ -176,8 +176,8 @@ void LspServer::registerHandlers() {
               return lsp::requests::TextDocument_Diagnostic::Result{};
             }
 
-            const CachedAnalysis& analysis = documentStore.getOrAnalyze(
-                filePath, AnalysisKind::Full, importLibrary);
+            const CachedAnalysis& analysis =
+                documentStore.getOrAnalyze(filePath, importLibrary);
             return Diagnostics::fromCache(analysis);
           })
       .add<lsp::requests::TextDocument_SemanticTokens_Full>(
@@ -191,8 +191,8 @@ void LspServer::registerHandlers() {
               return lsp::TextDocument_SemanticTokens_FullResult{};
             }
 
-            const CachedAnalysis& analysis = documentStore.getOrAnalyze(
-                filePath, AnalysisKind::SemanticTokens, importLibrary);
+            const CachedAnalysis& analysis =
+                documentStore.getOrAnalyze(filePath, importLibrary);
             return lsp::TextDocument_SemanticTokens_FullResult{
                 analysis.semanticTokens};
           })

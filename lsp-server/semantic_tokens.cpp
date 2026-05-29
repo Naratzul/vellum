@@ -13,6 +13,7 @@
 #include "lexer/lexer.h"
 #include "lexer/token.h"
 #include "parser/parser.h"
+#include "vellum/vellum_value.h"
 
 namespace vellum {
 namespace {
@@ -312,15 +313,38 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
   }
 
   void visitIdentifierExpression(ast::IdentifierExpression& expr) override {
-    addSpan(spans, expr.getLocation(), SemanticTokenLegendType::Variable);
+    if (expr.getIdentifierType() == VellumValueType::ScriptType) {
+      addSpan(spans, expr.getLocation(), SemanticTokenLegendType::Type);
+    } else {
+      addSpan(spans, expr.getLocation(), SemanticTokenLegendType::Variable);
+    }
   }
 
   void visitCallExpression(ast::CallExpression& expr) override {
-    if (expr.getCallee()->isIdentifierExpression()) {
-      addSpan(spans, expr.getCallee()->getLocation(),
-              SemanticTokenLegendType::Function);
+    const auto& callee = expr.getCallee();
+
+    if (callee->isPropertyGetExpression()) {
+      const auto& propGet = callee->asPropertyGet();
+      const bool isStaticCall = expr.getFunctionCall() &&
+                                expr.getFunctionCall()->isStatic();
+      SemanticTokenLegendModifier functionModifiers{};
+      if (isStaticCall) {
+        functionModifiers |= SemanticTokenLegendModifierBits::Static;
+      }
+
+      if (isStaticCall && propGet.getObject()->isIdentifierExpression()) {
+        addSpan(spans, propGet.getObject()->getLocation(),
+                SemanticTokenLegendType::Type);
+      } else {
+        propGet.getObject()->accept(*this);
+      }
+
+      addSpan(spans, propGet.getLocation(), SemanticTokenLegendType::Function,
+              functionModifiers);
+    } else if (callee->isIdentifierExpression()) {
+      addSpan(spans, callee->getLocation(), SemanticTokenLegendType::Function);
     } else {
-      expr.getCallee()->accept(*this);
+      callee->accept(*this);
     }
 
     for (const auto& arg : expr.getArguments()) {
