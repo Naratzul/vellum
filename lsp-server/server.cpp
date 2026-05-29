@@ -126,7 +126,8 @@ void LspServer::registerHandlers() {
                 .capabilities =
                     {.positionEncoding = lsp::PositionEncodingKind::UTF16,
                      .textDocumentSync = lsp::TextDocumentSyncKind::Full,
-                     .definitionProvider = lsp::DefinitionOptions{},
+                     .definitionProvider =
+                         lsp::OneOf<bool, lsp::DefinitionOptions>(true),
                      .semanticTokensProvider =
                          lsp::SemanticTokensOptions{
                              .legend =
@@ -207,8 +208,7 @@ void LspServer::registerHandlers() {
 
             return lsp::requests::TextDocument_Definition::Result{
                 DefinitionsProvider().getDefinitions(
-                    filePath, documentStore.scriptName(filePath),
-                    documentStore.text(filePath), params.position,
+                    filePath, documentStore.scriptName(filePath), params.position,
                     documentStore, importLibrary)};
           });
 

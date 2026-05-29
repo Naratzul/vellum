@@ -30,35 +30,54 @@ ParseOutcome parseDocument(std::string_view source) {
   return {std::move(errorHandler), std::move(parseResult)};
 }
 
-Vec<DiagnosticMessage> analyzeFull(
-    ParserResult& parseResult, std::string_view scriptName,
-    const Shared<ImportLibrary>& importLibrary,
-    const Shared<CompilerErrorHandler>& errorHandler) {
+struct FullAnalyzeOutcome {
+  Vec<DiagnosticMessage> diagnostics;
+  NavigationContext navigation;
+};
+
+FullAnalyzeOutcome analyzeFull(ParserResult parseResult,
+                               std::string_view scriptName,
+                               const Shared<ImportLibrary>& importLibrary,
+                               const Shared<CompilerErrorHandler>& errorHandler) {
+  NavigationContext navigation;
+  navigation.parseResult = std::move(parseResult);
+  navigation.parseOk = true;
+
   auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
   auto builtinFunctions = makeShared<BuiltinFunctions>();
   auto resolver =
       makeShared<Resolver>(VellumObject(VellumType::identifier(scriptName)),
                            errorHandler, importLibrary, builtinFunctions);
 
+  navigation.importResolver = importResolver;
+  navigation.resolver = resolver;
+
   TypeCollector typeCollector;
-  typeCollector.collect(parseResult.declarations);
+  typeCollector.collect(navigation.parseResult.declarations);
 
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
 
   DeclarationCollector collector(errorHandler, resolver, scriptName);
-  collector.collect(parseResult.declarations);
+  collector.collect(navigation.parseResult.declarations);
 
   if (errorHandler->hadError()) {
-    return errorHandler->getErrors();
+    return {.diagnostics = errorHandler->getErrors(),
+            .navigation = std::move(navigation)};
   }
 
   SemanticAnalyzer semantic(errorHandler, resolver, scriptName);
-  semantic.analyze(std::move(parseResult.declarations));
+  auto semanticResult =
+      semantic.analyze(std::move(navigation.parseResult.declarations));
+  navigation.parseResult.declarations = std::move(semanticResult.declarations);
+
   if (errorHandler->hadError()) {
-    return errorHandler->getErrors();
+    return {.diagnostics = errorHandler->getErrors(),
+            .navigation = std::move(navigation)};
   }
 
-  return Vec<DiagnosticMessage>();
+  navigation.semanticOk = true;
+  return {.diagnostics = Vec<DiagnosticMessage>(),
+          .navigation = std::move(navigation)};
 }
 
 }  // namespace
@@ -73,6 +92,7 @@ AnalysisResult DocumentAnalyzer::run(std::string_view source,
     return AnalysisResult{
         .diagnostics = parseOutcome.errorHandler->getErrors(),
         .semanticTokens = buildSemanticTokensLexerFallback(source),
+        .navigation = std::nullopt,
     };
   }
 
@@ -80,15 +100,18 @@ AnalysisResult DocumentAnalyzer::run(std::string_view source,
       buildSemanticTokensFromParse(parseOutcome.parseResult, source);
 
   if (kind == AnalysisKind::SemanticTokens) {
-    return AnalysisResult{.diagnostics = {}, .semanticTokens = semanticTokens};
+    return AnalysisResult{.diagnostics = {},
+                          .semanticTokens = semanticTokens,
+                          .navigation = std::nullopt};
   }
 
-  Vec<DiagnosticMessage> diagnostics = analyzeFull(
-      parseOutcome.parseResult, scriptName, importLibrary,
-      parseOutcome.errorHandler);
+  FullAnalyzeOutcome fullOutcome =
+      analyzeFull(std::move(parseOutcome.parseResult), scriptName, importLibrary,
+                  parseOutcome.errorHandler);
 
-  return AnalysisResult{.diagnostics = std::move(diagnostics),
-                        .semanticTokens = std::move(semanticTokens)};
+  return AnalysisResult{.diagnostics = std::move(fullOutcome.diagnostics),
+                        .semanticTokens = std::move(semanticTokens),
+                        .navigation = std::move(fullOutcome.navigation)};
 }
 
 }  // namespace vellum

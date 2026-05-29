@@ -2,17 +2,13 @@
 
 #include <lsp/types.h>
 
-namespace vellum {
+#include "lsp_locations.h"
 
-static lsp::Position convert(const Location& loc) {
-  return lsp::Position{.line = (unsigned int)loc.line,
-                       .character = (unsigned int)loc.position};
-}
+namespace vellum {
 
 static lsp::Diagnostic convert(const DiagnosticMessage& message) {
   return lsp::Diagnostic{
-      .range = {.start = convert(message.token.location.start),
-                .end = convert(message.token.location.end)},
+      .range = toLspRange(message.token.location),
       .message = message.message,
       .severity = lsp::DiagnosticSeverity::Error};
 }

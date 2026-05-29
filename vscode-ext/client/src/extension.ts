@@ -56,7 +56,6 @@ export function activate(context: ExtensionContext) {
 
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
-		// Register the server for plain text documents
 		documentSelector: [{ scheme: 'file', language: 'vellum' }],
 		initializationOptions: {
 			importPaths: importPaths
@@ -65,7 +64,16 @@ export function activate(context: ExtensionContext) {
 			configurationSection: 'vellum',
 		},
 		workspaceFolder: wsFolder,
-		outputChannel: output
+		outputChannel: output,
+		middleware: {
+			provideDefinition: (document, position, token, next) => {
+				output.appendLine(
+					`[client] textDocument/definition ${document.uri.fsPath} ` +
+					`@ ${position.line}:${position.character}`,
+				);
+				return next(document, position, token);
+			},
+		},
 	};
 
 	// Create the language client and start the client.
@@ -77,7 +85,12 @@ export function activate(context: ExtensionContext) {
 	);
 
 	// Start the client. This will also launch the server
-	client.start();
+	void client.start().then(() => {
+		const def = client.initializeResult?.capabilities?.definitionProvider;
+		output.appendLine(
+			`[client] server definitionProvider: ${JSON.stringify(def ?? null)}`,
+		);
+	});
 }
 
 export function deactivate(): Thenable<void> | undefined {

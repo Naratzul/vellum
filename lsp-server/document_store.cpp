@@ -44,8 +44,8 @@ void DocumentStore::ensureAnalysis(DocumentState& doc, AnalysisKind kind,
     }
   }
 
-  const AnalysisResult result = DocumentAnalyzer::run(
-      doc.text, doc.scriptName, importLibrary, kind);
+  AnalysisResult result = DocumentAnalyzer::run(doc.text, doc.scriptName,
+                                                importLibrary, kind);
 
   if (!doc.cache) {
     doc.cache = CachedAnalysis{};
@@ -56,9 +56,15 @@ void DocumentStore::ensureAnalysis(DocumentState& doc, AnalysisKind kind,
 
   if (kind == AnalysisKind::Full) {
     doc.cache->diagnostics = std::move(result.diagnostics);
+    if (result.navigation) {
+      doc.cache->navigation = std::move(*result.navigation);
+    } else {
+      doc.cache->navigation.reset();
+    }
     doc.cache->fullAnalysisComplete = true;
   } else {
     doc.cache->fullAnalysisComplete = false;
+    doc.cache->navigation.reset();
   }
 }
 

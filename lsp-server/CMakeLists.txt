@@ -10,6 +10,9 @@ add_executable(vellum-lsp
     static_analyze.h static_analyze.cpp
     definitions_provider.h definitions_provider.cpp
     diagnostics.h diagnostics.cpp
+    lsp_locations.h lsp_locations.cpp
+    ast_locator.h ast_locator.cpp
+    declaration_index.h declaration_index.cpp
     semantic_tokens.h semantic_tokens.cpp
     message_handler.h message_handler.cpp
     server.h server.cpp

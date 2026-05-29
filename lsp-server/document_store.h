@@ -28,6 +28,7 @@ struct CachedAnalysis {
   bool fullAnalysisComplete{false};
   lsp::SemanticTokens semanticTokens;
   Vec<DiagnosticMessage> diagnostics;
+  Opt<NavigationContext> navigation;
 };
 
 class DocumentStore {
