@@ -127,13 +127,13 @@ void LspServer::registerHandlers() {
                 .capabilities =
                     {.positionEncoding = lsp::PositionEncodingKind::UTF16,
                      .textDocumentSync = lsp::TextDocumentSyncKind::Full,
-                     .definitionProvider =
-                         lsp::OneOf<bool, lsp::DefinitionOptions>(true),
                      .completionProvider =
                          lsp::CompletionOptions{
                              .triggerCharacters =
                                  lsp::Array<lsp::String>{".", ":", "\""},
                              .resolveProvider = false},
+                     .definitionProvider =
+                         lsp::OneOf<bool, lsp::DefinitionOptions>(true),
                      .semanticTokensProvider =
                          lsp::SemanticTokensOptions{
                              .legend =
