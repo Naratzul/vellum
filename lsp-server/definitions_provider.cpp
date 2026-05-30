@@ -578,6 +578,36 @@ Opt<lsp::DefinitionLink> resolveCallCalleeTarget(
                                  importLibrary);
 }
 
+Opt<lsp::DefinitionLink> resolveScriptTypeTarget(
+    const AstLocatorTarget& target, const NavigationContext& navigation,
+    const common::fs::path& filePath,
+    const Shared<ImportLibrary>& importLibrary) {
+  if (!target.identifier || !navigation.resolver) {
+    return std::nullopt;
+  }
+
+  VellumIdentifier scriptId = *target.identifier;
+  if (const auto scriptType =
+          navigation.resolver->resolveScriptType(*target.identifier)) {
+    if (const auto resolvedId = identifierFromType(*scriptType)) {
+      scriptId = *resolvedId;
+    }
+  }
+
+  if (const auto currentScript =
+          identifierFromType(navigation.resolver->getObject().getType());
+      currentScript && scriptId == *currentScript) {
+    if (const auto link = definitionInAst(navigation.parseResult, filePath,
+                                        target.token, scriptId,
+                                        MemberKind::Script)) {
+      return link;
+    }
+  }
+
+  return definitionInModule(importLibrary->findModule(scriptId), target.token,
+                            scriptId, MemberKind::Script);
+}
+
 }  // namespace
 
 lsp::Array<lsp::DefinitionLink> DefinitionsProvider::getDefinitions(
@@ -609,29 +639,11 @@ lsp::Array<lsp::DefinitionLink> DefinitionsProvider::getDefinitions(
       break;
     }
     case AstLocatorTargetKind::ScriptName:
-    case AstLocatorTargetKind::ParentScriptName: {
-      if (!target->identifier) {
-        break;
-      }
-      if (const auto scriptType =
-              navigation.resolver->resolveScriptType(*target->identifier)) {
-        const Opt<VellumIdentifier> scriptId = identifierFromType(*scriptType);
-        if (!scriptId) {
-          break;
-        }
-        if (const auto currentScript =
-                identifierFromType(navigation.resolver->getObject().getType());
-            currentScript && *scriptId == *currentScript) {
-          link = definitionInAst(navigation.parseResult, filePath,
-                                 target->token, *scriptId, MemberKind::Script);
-        } else {
-          link =
-              definitionInModule(importLibrary->findModule(*scriptId),
-                                 target->token, *scriptId, MemberKind::Script);
-        }
-      }
+    case AstLocatorTargetKind::ParentScriptName:
+    case AstLocatorTargetKind::TypeReference:
+      link = resolveScriptTypeTarget(*target, navigation, filePath,
+                                     importLibrary);
       break;
-    }
     case AstLocatorTargetKind::IdentifierUse:
       link = resolveIdentifierTarget(*target, navigation, filePath, pos,
                                      importLibrary);

@@ -15,6 +15,7 @@ enum class AstLocatorTargetKind {
   ImportName,
   ScriptName,
   ParentScriptName,
+  TypeReference,
   DeclName,
   CallCallee,
 };

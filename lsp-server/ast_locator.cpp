@@ -20,6 +20,16 @@ Opt<VellumIdentifier> identifierFromType(const VellumType& type) {
   return type.asIdentifier();
 }
 
+Opt<VellumIdentifier> identifierFromAnnotatedType(const VellumType& type) {
+  if (const auto id = identifierFromType(type)) {
+    return id;
+  }
+  if (type.getState() == VellumTypeState::Array) {
+    return identifierFromAnnotatedType(*type.asArraySubtype());
+  }
+  return std::nullopt;
+}
+
 class AstLocatorVisitor : public ast::DeclarationVisitor,
                           public ast::StatementVisitor,
                           public ast::ExpressionVisitor {
@@ -73,6 +83,9 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
     considerOptToken(declaration.getNameLocation(),
                      AstLocatorTargetKind::DeclName,
                      VellumIdentifier(declaration.name()));
+    if (const auto& typeName = declaration.typeName()) {
+      considerTypeAnnotation(declaration.getTypeLocation(), *typeName);
+    }
     if (const auto& init = declaration.initializer()) {
       visitExpression(*init, depth + 1);
     }
@@ -85,6 +98,11 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
                        AstLocatorTargetKind::DeclName,
                        VellumIdentifier(*declaration.getName()));
     }
+    for (const auto& param : declaration.getParameters()) {
+      considerTypeAnnotation(param.typeLocation, param.type);
+    }
+    considerTypeAnnotation(declaration.getReturnTypeLocation(),
+                           declaration.getReturnTypeName());
     declaration.getBody()->accept(*this);
   }
 
@@ -92,6 +110,8 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
       ast::PropertyDeclaration& declaration) override {
     considerToken(declaration.getNameLocation(), AstLocatorTargetKind::DeclName,
                   VellumIdentifier(declaration.getName()));
+    considerTypeAnnotation(declaration.getTypeLocation(),
+                           declaration.getTypeName());
     if (const auto& getBlock = declaration.getGetAccessor()) {
       getBlock.value()->accept(*this);
     }
@@ -122,6 +142,9 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
       ast::LocalVariableStatement& statement) override {
     considerToken(statement.getNameLocation(), AstLocatorTargetKind::DeclName,
                   statement.getName());
+    if (const auto& type = statement.getType()) {
+      considerTypeAnnotation(statement.getTypeLocation(), *type);
+    }
     if (const auto& init = statement.getInitializer()) {
       visitExpression(*init, depth + 1);
     }
@@ -251,6 +274,27 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
     if (token) {
       considerToken(*token, kind, identifier);
     }
+  }
+
+  void considerTypeAnnotation(const common::Opt<Token>& typeLocation,
+                              const VellumType& type) {
+    if (!typeLocation) {
+      return;
+    }
+    if (const auto id = identifierFromAnnotatedType(type)) {
+      considerOptToken(typeLocation, AstLocatorTargetKind::TypeReference, *id);
+      return;
+    }
+    if (type.getState() == VellumTypeState::Unresolved &&
+        !typeLocation->lexeme.empty()) {
+      considerOptToken(typeLocation, AstLocatorTargetKind::TypeReference,
+                       VellumIdentifier(typeLocation->lexeme));
+    }
+  }
+
+  void considerTypeAnnotation(const Token& typeLocation,
+                              const VellumType& type) {
+    considerTypeAnnotation(common::Opt<Token>{typeLocation}, type);
   }
 
   void visitExpression(ast::Expression& expr, int childDepth) {
