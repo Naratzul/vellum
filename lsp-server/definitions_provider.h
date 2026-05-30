@@ -18,7 +18,7 @@ class ImportLibrary;
 class DefinitionsProvider {
  public:
   lsp::Array<lsp::DefinitionLink> getDefinitions(
-      const path& filePath, std::string_view scriptName, lsp::Position pos,
-      DocumentStore& store, const Shared<ImportLibrary>& importLibrary);
+      const path& filePath, lsp::Position pos, DocumentStore& store,
+      const Shared<ImportLibrary>& importLibrary);
 };
 }  // namespace vellum

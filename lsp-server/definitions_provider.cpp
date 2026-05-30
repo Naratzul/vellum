@@ -73,7 +73,8 @@ const Resolver* resolverForType(const Resolver& currentResolver,
   if (currentResolver.getObject().getType() == type) {
     return &currentResolver;
   }
-  if (const Resolver* scriptResolver = currentResolver.findScriptResolver(typeId)) {
+  if (const Resolver* scriptResolver =
+          currentResolver.findScriptResolver(typeId)) {
     return scriptResolver;
   }
   if (const auto module = importLibrary->findModule(typeId)) {
@@ -118,15 +119,18 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
       memberDecl->accept(*this);
     }
   }
-  void visitVariableDeclaration(ast::GlobalVariableDeclaration& declaration) override {
+  void visitVariableDeclaration(
+      ast::GlobalVariableDeclaration& declaration) override {
     if (declaration.initializer()) {
       declaration.initializer()->accept(*this);
     }
   }
-  void visitFunctionDeclaration(ast::FunctionDeclaration& declaration) override {
+  void visitFunctionDeclaration(
+      ast::FunctionDeclaration& declaration) override {
     declaration.getBody()->accept(*this);
   }
-  void visitPropertyDeclaration(ast::PropertyDeclaration& declaration) override {
+  void visitPropertyDeclaration(
+      ast::PropertyDeclaration& declaration) override {
     if (const auto& getBlock = declaration.getGetAccessor()) {
       getBlock.value()->accept(*this);
     }
@@ -150,7 +154,8 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
       statement.getElseBlock()->accept(*this);
     }
   }
-  void visitLocalVariableStatement(ast::LocalVariableStatement& statement) override {
+  void visitLocalVariableStatement(
+      ast::LocalVariableStatement& statement) override {
     if (statement.getInitializer()) {
       statement.getInitializer()->accept(*this);
     }
@@ -217,7 +222,8 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
     expr.getArray()->accept(*this);
     expr.getIndex()->accept(*this);
   }
-  void visitArrayIndexSetExpression(ast::ArrayIndexSetExpression& expr) override {
+  void visitArrayIndexSetExpression(
+      ast::ArrayIndexSetExpression& expr) override {
     expr.getArray()->accept(*this);
     expr.getIndex()->accept(*this);
     expr.getValue()->accept(*this);
@@ -238,7 +244,8 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
 
 Opt<lsp::DefinitionLink> resolveIdentifierTarget(
     const AstLocatorTarget& target, const NavigationContext& navigation,
-    const common::fs::path& filePath, const Shared<ImportLibrary>& importLibrary) {
+    const common::fs::path& filePath, lsp::Position pos,
+    const Shared<ImportLibrary>& importLibrary) {
   if (!target.identifier) {
     return std::nullopt;
   }
@@ -246,24 +253,23 @@ Opt<lsp::DefinitionLink> resolveIdentifierTarget(
   const VellumIdentifier name = *target.identifier;
   const Resolver& resolver = *navigation.resolver;
 
-  if (const auto var = resolver.resolveVariable(name)) {
-    const Token& loc = var->getNameLocation();
-    if (!loc.lexeme.empty()) {
-      return makeDefinitionLink(target.token, filePath, loc);
-    }
+  if (const auto local =
+          DeclarationIndex::findLocalDeclaration(navigation.parseResult, pos,
+                                                 name)) {
+    return makeDefinitionLink(target.token, filePath, *local);
   }
 
   if (const auto value = resolver.resolveIdentifier(name)) {
     switch (value->getType()) {
       case VellumValueType::Variable:
-        return definitionInAst(navigation.parseResult, filePath, target.token, name,
-                               MemberKind::GlobalVariable);
+        return definitionInAst(navigation.parseResult, filePath, target.token,
+                               name, MemberKind::GlobalVariable);
       case VellumValueType::Property:
-        return definitionInAst(navigation.parseResult, filePath, target.token, name,
-                               MemberKind::Property);
+        return definitionInAst(navigation.parseResult, filePath, target.token,
+                               name, MemberKind::Property);
       case VellumValueType::Function:
-        return definitionInAst(navigation.parseResult, filePath, target.token, name,
-                               MemberKind::Function);
+        return definitionInAst(navigation.parseResult, filePath, target.token,
+                               name, MemberKind::Function);
       case VellumValueType::ScriptType: {
         const Opt<VellumIdentifier> scriptName =
             identifierFromType(value->asScriptType());
@@ -276,8 +282,9 @@ Opt<lsp::DefinitionLink> resolveIdentifierTarget(
           return definitionInAst(navigation.parseResult, filePath, target.token,
                                  *scriptName, MemberKind::Script);
         }
-        return definitionInModule(importLibrary->findModule(*scriptName), target.token,
-                                  *scriptName, MemberKind::Script);
+        return definitionInModule(importLibrary->findModule(*scriptName),
+                                  target.token, *scriptName,
+                                  MemberKind::Script);
       }
       default:
         break;
@@ -290,8 +297,10 @@ Opt<lsp::DefinitionLink> resolveIdentifierTarget(
 common::fs::path pathForResolver(const Resolver& resolver,
                                  const common::fs::path& currentFilePath,
                                  const Shared<ImportLibrary>& importLibrary) {
-  if (resolver.getObject().getType().getState() == VellumTypeState::Identifier) {
-    const VellumIdentifier scriptId = resolver.getObject().getType().asIdentifier();
+  if (resolver.getObject().getType().getState() ==
+      VellumTypeState::Identifier) {
+    const VellumIdentifier scriptId =
+        resolver.getObject().getType().asIdentifier();
     if (const auto module = importLibrary->findModule(scriptId)) {
       return module->getFilePath();
     }
@@ -301,16 +310,17 @@ common::fs::path pathForResolver(const Resolver& resolver,
 
 Opt<lsp::DefinitionLink> resolvePropertyTarget(
     const AstLocatorTarget& target, const NavigationContext& navigation,
-    const common::fs::path& filePath, const Shared<ImportLibrary>& importLibrary,
-    lsp::Position pos) {
+    const common::fs::path& filePath,
+    const Shared<ImportLibrary>& importLibrary, lsp::Position pos) {
   if (!target.identifier || !navigation.semanticOk) {
     return std::nullopt;
   }
 
   const VellumIdentifier member = *target.identifier;
   PropertyObjectTypeFinder finder(pos, member);
-  auto& declarations = const_cast<common::Vec<common::Unique<ast::Declaration>>&>(
-      navigation.parseResult.declarations);
+  auto& declarations =
+      const_cast<common::Vec<common::Unique<ast::Declaration>>&>(
+          navigation.parseResult.declarations);
   finder.collect(declarations);
 
   if (!finder.result.found) {
@@ -323,14 +333,15 @@ Opt<lsp::DefinitionLink> resolvePropertyTarget(
     return std::nullopt;
   }
 
-  const Resolver* ownerResolver = resolverForType(resolver, objectType, importLibrary);
+  const Resolver* ownerResolver =
+      resolverForType(resolver, objectType, importLibrary);
   if (!ownerResolver) {
     return std::nullopt;
   }
 
   if (ownerResolver == navigation.resolver.get()) {
-    return definitionInAst(navigation.parseResult, filePath, target.token, member,
-                           MemberKind::Property);
+    return definitionInAst(navigation.parseResult, filePath, target.token,
+                           member, MemberKind::Property);
   }
 
   const Opt<VellumIdentifier> ownerScript =
@@ -345,19 +356,17 @@ Opt<lsp::DefinitionLink> resolvePropertyTarget(
 }  // namespace
 
 lsp::Array<lsp::DefinitionLink> DefinitionsProvider::getDefinitions(
-    const path& filePath, std::string_view scriptName, lsp::Position pos,
-    DocumentStore& store, const Shared<ImportLibrary>& importLibrary) {
-  (void)scriptName;
-
-  const CachedAnalysis& cache =
-      store.getOrAnalyze(filePath, importLibrary);
+    const path& filePath, lsp::Position pos, DocumentStore& store,
+    const Shared<ImportLibrary>& importLibrary) {
+  const CachedAnalysis& cache = store.getOrAnalyze(filePath, importLibrary);
 
   if (!cache.navigation || !cache.navigation->parseOk) {
     return {};
   }
 
   const NavigationContext& navigation = *cache.navigation;
-  const Opt<AstLocatorTarget> target = AstLocator::locate(navigation.parseResult, pos);
+  const Opt<AstLocatorTarget> target =
+      AstLocator::locate(navigation.parseResult, pos);
   if (!target) {
     return {};
   }
@@ -370,7 +379,8 @@ lsp::Array<lsp::DefinitionLink> DefinitionsProvider::getDefinitions(
         break;
       }
       link = definitionInModule(importLibrary->findModule(*target->identifier),
-                                target->token, *target->identifier, MemberKind::Script);
+                                target->token, *target->identifier,
+                                MemberKind::Script);
       break;
     }
     case AstLocatorTargetKind::ScriptName:
@@ -378,7 +388,8 @@ lsp::Array<lsp::DefinitionLink> DefinitionsProvider::getDefinitions(
       if (!target->identifier) {
         break;
       }
-      if (const auto scriptType = navigation.resolver->resolveScriptType(*target->identifier)) {
+      if (const auto scriptType =
+              navigation.resolver->resolveScriptType(*target->identifier)) {
         const Opt<VellumIdentifier> scriptId = identifierFromType(*scriptType);
         if (!scriptId) {
           break;
@@ -386,24 +397,27 @@ lsp::Array<lsp::DefinitionLink> DefinitionsProvider::getDefinitions(
         if (const auto currentScript =
                 identifierFromType(navigation.resolver->getObject().getType());
             currentScript && *scriptId == *currentScript) {
-          link = definitionInAst(navigation.parseResult, filePath, target->token,
-                                 *scriptId, MemberKind::Script);
+          link = definitionInAst(navigation.parseResult, filePath,
+                                 target->token, *scriptId, MemberKind::Script);
         } else {
-          link = definitionInModule(importLibrary->findModule(*scriptId), target->token,
-                                    *scriptId, MemberKind::Script);
+          link =
+              definitionInModule(importLibrary->findModule(*scriptId),
+                                 target->token, *scriptId, MemberKind::Script);
         }
       }
       break;
     }
     case AstLocatorTargetKind::IdentifierUse:
-      link = resolveIdentifierTarget(*target, navigation, filePath, importLibrary);
+      link = resolveIdentifierTarget(*target, navigation, filePath, pos,
+                                     importLibrary);
       break;
     case AstLocatorTargetKind::CallCallee: {
       if (!target->identifier || !navigation.semanticOk) {
         break;
       }
       if (const auto func = navigation.resolver->resolveFunction(
-              navigation.resolver->getObject().getType(), *target->identifier)) {
+              navigation.resolver->getObject().getType(),
+              *target->identifier)) {
         (void)func;
         link = definitionInAst(navigation.parseResult, filePath, target->token,
                                *target->identifier, MemberKind::Function);
@@ -411,7 +425,8 @@ lsp::Array<lsp::DefinitionLink> DefinitionsProvider::getDefinitions(
       break;
     }
     case AstLocatorTargetKind::PropertyUse:
-      link = resolvePropertyTarget(*target, navigation, filePath, importLibrary, pos);
+      link = resolvePropertyTarget(*target, navigation, filePath, importLibrary,
+                                   pos);
       break;
     case AstLocatorTargetKind::DeclName:
       if (target->identifier) {

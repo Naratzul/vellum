@@ -208,8 +208,7 @@ void LspServer::registerHandlers() {
 
             return lsp::requests::TextDocument_Definition::Result{
                 DefinitionsProvider().getDefinitions(
-                    filePath, documentStore.scriptName(filePath), params.position,
-                    documentStore, importLibrary)};
+                    filePath, params.position, documentStore, importLibrary)};
           });
 
   messageHandler.add<lsp::requests::Shutdown>([&]() {

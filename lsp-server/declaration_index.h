@@ -1,5 +1,7 @@
 #pragma once
 
+#include <lsp/types.h>
+
 #include "common/types.h"
 #include "lexer/token.h"
 #include "parser/parser.h"
@@ -14,6 +16,10 @@ class DeclarationIndex {
   static Opt<Token> findMemberDeclaration(const ParserResult& ast,
                                           VellumIdentifier name, MemberKind kind,
                                           Opt<VellumIdentifier> state = {});
+
+  static Opt<Token> findLocalDeclaration(const ParserResult& ast,
+                                         lsp::Position usePosition,
+                                         VellumIdentifier name);
 };
 
 }  // namespace vellum
