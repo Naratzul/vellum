@@ -73,6 +73,13 @@ export function activate(context: ExtensionContext) {
 				);
 				return next(document, position, token);
 			},
+			provideCompletionItem: (document, position, context, token, next) => {
+				output.appendLine(
+					`[client] textDocument/completion ${document.uri.fsPath} ` +
+					`@ ${position.line}:${position.character}`,
+				);
+				return next(document, position, context, token);
+			},
 		},
 	};
 
@@ -86,9 +93,12 @@ export function activate(context: ExtensionContext) {
 
 	// Start the client. This will also launch the server
 	void client.start().then(() => {
-		const def = client.initializeResult?.capabilities?.definitionProvider;
+		const caps = client.initializeResult?.capabilities;
 		output.appendLine(
-			`[client] server definitionProvider: ${JSON.stringify(def ?? null)}`,
+			`[client] server definitionProvider: ${JSON.stringify(caps?.definitionProvider ?? null)}`,
+		);
+		output.appendLine(
+			`[client] server completionProvider: ${JSON.stringify(caps?.completionProvider ?? null)}`,
 		);
 	});
 }

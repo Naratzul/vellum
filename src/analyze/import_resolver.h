@@ -17,6 +17,9 @@ class ImportResolver {
 
   void buildImportGraph(const Set<VellumIdentifier>& importedNames);
 
+  // Parse and resolve a single import module (for completion on unreferenced types).
+  void ensureModule(VellumIdentifier name);
+
   const Shared<Resolver> getImportResolver(VellumIdentifier name);
 
  private:

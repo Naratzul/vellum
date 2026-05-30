@@ -60,22 +60,19 @@ FullAnalyzeOutcome analyzeFull(ParserResult parseResult,
   DeclarationCollector collector(errorHandler, resolver, scriptName);
   collector.collect(navigation.parseResult.declarations);
 
-  if (errorHandler->hadError()) {
-    return {.diagnostics = errorHandler->getErrors(),
-            .navigation = std::move(navigation)};
-  }
-
   SemanticAnalyzer semantic(errorHandler, resolver, scriptName);
   auto semanticResult =
       semantic.analyze(std::move(navigation.parseResult.declarations));
   navigation.parseResult.declarations = std::move(semanticResult.declarations);
+  // Best-effort: keep resolver/AST types for completion even when diagnostics
+  // report errors (e.g. undefined identifier while typing).
+  navigation.semanticOk = true;
 
   if (errorHandler->hadError()) {
     return {.diagnostics = errorHandler->getErrors(),
             .navigation = std::move(navigation)};
   }
 
-  navigation.semanticOk = true;
   return {.diagnostics = Vec<DiagnosticMessage>(),
           .navigation = std::move(navigation)};
 }

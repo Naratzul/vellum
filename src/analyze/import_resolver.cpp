@@ -28,6 +28,17 @@ void ImportResolver::buildImportGraph(
   doResolveAllModules();
 }
 
+void ImportResolver::ensureModule(VellumIdentifier name) {
+  const auto module = importLibrary->findModule(name);
+  if (!module) {
+    return;
+  }
+  if (!module->isParsed()) {
+    doBuildImportGraph(Set<VellumIdentifier>{name});
+  }
+  doResolveAllModules();
+}
+
 const Shared<Resolver> ImportResolver::getImportResolver(
     VellumIdentifier name) {
   auto import = importLibrary->findModule(name);

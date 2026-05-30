@@ -3,6 +3,7 @@
 #include "analyze/import_library.h"
 #include "common/fs.h"
 #include "common/os.h"
+#include "completions_provider.h"
 #include "definitions_provider.h"
 #include "diagnostics.h"
 
@@ -128,6 +129,11 @@ void LspServer::registerHandlers() {
                      .textDocumentSync = lsp::TextDocumentSyncKind::Full,
                      .definitionProvider =
                          lsp::OneOf<bool, lsp::DefinitionOptions>(true),
+                     .completionProvider =
+                         lsp::CompletionOptions{
+                             .triggerCharacters =
+                                 lsp::Array<lsp::String>{".", ":", "\""},
+                             .resolveProvider = false},
                      .semanticTokensProvider =
                          lsp::SemanticTokensOptions{
                              .legend =
@@ -209,6 +215,20 @@ void LspServer::registerHandlers() {
             return lsp::requests::TextDocument_Definition::Result{
                 DefinitionsProvider().getDefinitions(
                     filePath, params.position, documentStore, importLibrary)};
+          })
+      .add<lsp::requests::TextDocument_Completion>(
+          [this](lsp::requests::TextDocument_Completion::Params&& params) {
+            const path filePath = pathFromDocumentUri(params.textDocument.uri);
+            logMsg("Completion request for: {}", filePath.string());
+
+            if (!documentStore.has(filePath)) {
+              logMsg("Can't provide completion, text is not synced yet.");
+              return lsp::requests::TextDocument_Completion::Result{};
+            }
+
+            return lsp::requests::TextDocument_Completion::Result{
+                CompletionsProvider().getCompletions(
+                    filePath, params, documentStore, importLibrary)};
           });
 
   messageHandler.add<lsp::requests::Shutdown>([&]() {
