@@ -413,25 +413,46 @@ Opt<lsp::DefinitionLink> definitionForTypeMember(
     const NavigationContext& navigation, const common::fs::path& filePath,
     const Token& originToken, VellumIdentifier member, VellumType objectType,
     MemberKind kind, const Shared<ImportLibrary>& importLibrary) {
+  if (objectType.getState() != VellumTypeState::Identifier) {
+    return std::nullopt;
+  }
+
   const Resolver& resolver = *navigation.resolver;
-  const Resolver* ownerResolver =
-      resolverForType(resolver, objectType, importLibrary);
-  if (!ownerResolver) {
-    return std::nullopt;
+  const Opt<VellumIdentifier> currentScript =
+      identifierFromType(resolver.getObject().getType());
+
+  VellumType curType = objectType;
+  for (int depth = 0; depth < 64; ++depth) {
+    if (curType.getState() != VellumTypeState::Identifier) {
+      break;
+    }
+    const VellumIdentifier scriptId = curType.asIdentifier();
+
+    if (currentScript && *currentScript == scriptId) {
+      if (const auto link = definitionInAst(navigation.parseResult, filePath,
+                                            originToken, member, kind)) {
+        return link;
+      }
+    } else if (const auto module = importLibrary->findModule(scriptId)) {
+      if (const auto link =
+              definitionInModule(module, originToken, member, kind)) {
+        return link;
+      }
+    }
+
+    const Resolver* scriptResolver =
+        resolverForType(resolver, curType, importLibrary);
+    if (!scriptResolver) {
+      break;
+    }
+    const Opt<VellumType> parentType = scriptResolver->getParentType();
+    if (!parentType || parentType->getState() != VellumTypeState::Identifier) {
+      break;
+    }
+    curType = *parentType;
   }
 
-  if (ownerResolver == navigation.resolver.get()) {
-    return definitionInAst(navigation.parseResult, filePath, originToken,
-                           member, kind);
-  }
-
-  const Opt<VellumIdentifier> ownerScript =
-      identifierFromType(ownerResolver->getObject().getType());
-  if (!ownerScript) {
-    return std::nullopt;
-  }
-  return definitionInModule(importLibrary->findModule(*ownerScript),
-                            originToken, member, kind);
+  return std::nullopt;
 }
 
 Opt<lsp::DefinitionLink> resolvePropertyTarget(
