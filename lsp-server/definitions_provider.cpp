@@ -85,9 +85,64 @@ const Resolver* resolverForType(const Resolver& currentResolver,
   return nullptr;
 }
 
+struct FunctionDeclAtCursor {
+  bool onFunctionName{false};
+  Opt<VellumIdentifier> enclosingState;
+};
+
+class FunctionDeclAtCursorFinder : public ast::DeclarationVisitor {
+ public:
+  explicit FunctionDeclAtCursorFinder(lsp::Position pos) : pos(pos) {}
+
+  FunctionDeclAtCursor result;
+
+  void collect(common::Vec<common::Unique<ast::Declaration>>& declarations) {
+    for (auto& decl : declarations) {
+      decl->accept(*this);
+    }
+  }
+
+  void visitImportDeclaration(ast::ImportDeclaration&) override {}
+
+  void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override {
+    for (const auto& memberDecl : declaration.getMemberDecls()) {
+      memberDecl->accept(*this);
+    }
+  }
+
+  void visitStateDeclaration(ast::StateDeclaration& declaration) override {
+    const Opt<VellumIdentifier> savedState = enclosingState;
+    enclosingState = VellumIdentifier(declaration.getStateName());
+    for (const auto& memberDecl : declaration.getMemberDecls()) {
+      memberDecl->accept(*this);
+    }
+    enclosingState = savedState;
+  }
+
+  void visitVariableDeclaration(ast::GlobalVariableDeclaration&) override {}
+  void visitPropertyDeclaration(ast::PropertyDeclaration&) override {}
+
+  void visitFunctionDeclaration(
+      ast::FunctionDeclaration& declaration) override {
+    if (!declaration.getName() || !declaration.getNameLocation()) {
+      return;
+    }
+    if (!positionInRange(pos, declaration.getNameLocation()->location)) {
+      return;
+    }
+    result.onFunctionName = true;
+    result.enclosingState = enclosingState;
+  }
+
+ private:
+  lsp::Position pos;
+  Opt<VellumIdentifier> enclosingState;
+};
+
 struct PropertyOwnerContext {
   VellumType objectType{VellumType::unresolved()};
   Opt<MemberKind> memberKind;
+  bool isSuper{false};
   bool found{false};
 };
 
@@ -244,6 +299,7 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
     }
 
     bestDepth = depth;
+    result.isSuper = expr.getObject()->isSuperExpression();
     result.objectType = expr.getObject()->getType();
     result.memberKind = std::nullopt;
     if (expr.getIdentifierType() == VellumValueType::Function) {
@@ -273,9 +329,8 @@ Opt<lsp::DefinitionLink> resolveIdentifierTarget(
   const VellumIdentifier name = *target.identifier;
   const Resolver& resolver = *navigation.resolver;
 
-  if (const auto local =
-          DeclarationIndex::findLocalDeclaration(navigation.parseResult, pos,
-                                                 name)) {
+  if (const auto local = DeclarationIndex::findLocalDeclaration(
+          navigation.parseResult, pos, name)) {
     return makeDefinitionLink(target.token, filePath, *local);
   }
 
@@ -398,17 +453,87 @@ Opt<lsp::DefinitionLink> resolvePropertyTarget(
     return std::nullopt;
   }
 
-  const VellumType objectType = finder.result.objectType;
   const Resolver& resolver = *navigation.resolver;
-  const Opt<MemberKind> kind =
-      memberKindForTypeMember(resolver, objectType, member,
-                              finder.result.memberKind);
+  VellumType objectType = finder.result.objectType;
+
+  if (finder.result.isSuper) {
+    if (const auto parentType = resolver.getParentType()) {
+      objectType = *parentType;
+    } else {
+      return std::nullopt;
+    }
+    if (resolver.resolveParentFunction(member)) {
+      return definitionForTypeMember(navigation, filePath, target.token, member,
+                                     objectType, MemberKind::Function,
+                                     importLibrary);
+    }
+  }
+
+  const Opt<MemberKind> kind = memberKindForTypeMember(
+      resolver, objectType, member, finder.result.memberKind);
   if (!kind) {
     return std::nullopt;
   }
 
   return definitionForTypeMember(navigation, filePath, target.token, member,
                                  objectType, *kind, importLibrary);
+}
+
+Opt<lsp::DefinitionLink> resolveDeclNameTarget(
+    const AstLocatorTarget& target, const NavigationContext& navigation,
+    const common::fs::path& filePath,
+    const Shared<ImportLibrary>& importLibrary, lsp::Position pos) {
+  if (!target.identifier) {
+    return std::nullopt;
+  }
+
+  const VellumIdentifier name = *target.identifier;
+  FunctionDeclAtCursorFinder declFinder(pos);
+  auto& declarations =
+      const_cast<common::Vec<common::Unique<ast::Declaration>>&>(
+          navigation.parseResult.declarations);
+  declFinder.collect(declarations);
+
+  if (!declFinder.result.onFunctionName) {
+    if (const auto token = DeclarationIndex::findMemberDeclaration(
+            navigation.parseResult, name, MemberKind::State)) {
+      return makeDefinitionLink(target.token, filePath, *token);
+    }
+    if (const auto token = DeclarationIndex::findMemberDeclaration(
+            navigation.parseResult, name, MemberKind::Property)) {
+      return makeDefinitionLink(target.token, filePath, *token);
+    }
+    if (const auto token = DeclarationIndex::findMemberDeclaration(
+            navigation.parseResult, name, MemberKind::GlobalVariable)) {
+      return makeDefinitionLink(target.token, filePath, *token);
+    }
+    return makeDefinitionLink(target.token, filePath, target.token);
+  }
+
+  const Opt<VellumIdentifier> enclosingState = declFinder.result.enclosingState;
+
+  if (enclosingState) {
+    if (const auto rootDecl =
+            definitionInAst(navigation.parseResult, filePath, target.token,
+                            name, MemberKind::Function, /*state=*/{})) {
+      return rootDecl;
+    }
+  }
+
+  if (navigation.semanticOk) {
+    const Resolver& resolver = *navigation.resolver;
+    if (const auto parentType = resolver.getParentType()) {
+      if (parentType->getState() == VellumTypeState::Identifier &&
+          resolver.resolveParentFunction(name)) {
+        return definitionForTypeMember(navigation, filePath, target.token, name,
+                                       *parentType, MemberKind::Function,
+                                       importLibrary);
+      }
+    }
+  }
+
+  return definitionInAst(navigation.parseResult, filePath, target.token, name,
+                         MemberKind::Function, enclosingState);
 }
 
 Opt<lsp::DefinitionLink> resolveCallCalleeTarget(
@@ -491,17 +616,16 @@ lsp::Array<lsp::DefinitionLink> DefinitionsProvider::getDefinitions(
                                      importLibrary);
       break;
     case AstLocatorTargetKind::CallCallee:
-      link = resolveCallCalleeTarget(*target, navigation, filePath,
-                                     importLibrary);
+      link =
+          resolveCallCalleeTarget(*target, navigation, filePath, importLibrary);
       break;
     case AstLocatorTargetKind::PropertyUse:
       link = resolvePropertyTarget(*target, navigation, filePath, importLibrary,
                                    pos);
       break;
     case AstLocatorTargetKind::DeclName:
-      if (target->identifier) {
-        link = makeDefinitionLink(target->token, filePath, target->token);
-      }
+      link = resolveDeclNameTarget(*target, navigation, filePath, importLibrary,
+                                   pos);
       break;
   }
 
