@@ -196,6 +196,8 @@ TokenType PapyrusLexer::identifierType() const {
         }
       }
       break;
+    case 'c':
+      return checkKeyword(1, 10, "onditional", TokenType::CONDITIONAL);
     case 'e':
       if (current - start > 1) {
         switch (std::tolower(start[1])) {
@@ -214,7 +216,11 @@ TokenType PapyrusLexer::identifierType() const {
                 TokenType::ENDFUNCTION) {
               return TokenType::ENDFUNCTION;
             }
-            return checkKeyword(2, 9, "dproperty", TokenType::ENDPROPERTY);
+            if (checkKeyword(2, 9, "dproperty", TokenType::ENDPROPERTY) ==
+                TokenType::ENDPROPERTY) {
+              return TokenType::ENDPROPERTY;
+            }
+            return checkKeyword(2, 6, "dstate", TokenType::ENDSTATE);
         }
       }
       break;
@@ -248,7 +254,7 @@ TokenType PapyrusLexer::identifierType() const {
           case 'a':
             return checkKeyword(2, 4, "tive", TokenType::NATIVE);
           case 'o':
-           return checkKeyword(2, 2, "ne", TokenType::NONE);
+            return checkKeyword(2, 2, "ne", TokenType::NONE);
         }
       }
       break;
@@ -257,7 +263,15 @@ TokenType PapyrusLexer::identifierType() const {
     case 'r':
       return checkKeyword(1, 5, "eturn", TokenType::RETURN);
     case 's':
-      return checkKeyword(1, 9, "criptname", TokenType::SCRIPTNAME);
+      if (current - start > 1) {
+        switch (std::tolower(start[1])) {
+          case 'c':
+            return checkKeyword(2, 8, "riptname", TokenType::SCRIPTNAME);
+          case 't':
+            return checkKeyword(2, 3, "ate", TokenType::STATE);
+        }
+      }
+      break;
     case 't':
       return checkKeyword(1, 3, "rue", TokenType::TRUE);
     case 'v':

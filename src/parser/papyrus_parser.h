@@ -38,6 +38,7 @@ class PapyrusParser {
   Unique<ast::Declaration> topDeclaration();
   Unique<ast::Declaration> importDeclaration();
   Unique<ast::Declaration> scriptDeclaration();
+  Unique<ast::Declaration> stateDeclaration(bool isAuto);
 
   bool match(TokenType type);
   bool check(TokenType type) const;
@@ -60,6 +61,7 @@ class PapyrusParser {
   void skipUnitlEndProperty();
   void skipToEndOfStatement();
   void skipBlock();
+  void skipUntilEndState();
 
   void synchronize();
 };

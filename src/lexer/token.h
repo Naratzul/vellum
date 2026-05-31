@@ -79,6 +79,7 @@ enum class TokenType {
   SCRIPTNAME,
   EXTENDS,
   HIDDEN,
+  CONDITIONAL,
   FUNCTION,
   ENDFUNCTION,
   ENDEVENT,
@@ -88,6 +89,7 @@ enum class TokenType {
   AUTOREADONLY,
   NATIVE,
   GLOBAL,
+  ENDSTATE,
 
   ERROR,
   END_OF_FILE
@@ -125,7 +127,7 @@ struct Token {
   TokenType type = TokenType::END_OF_FILE;
   std::string_view lexeme;
   LocationRange location;
-  common::Opt<VellumLiteral> value;
+  common::Opt<VellumLiteral> value{std::nullopt};
 };
 
 inline bool operator==(const Token& lhs, const Token& rhs) {

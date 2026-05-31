@@ -58,8 +58,7 @@
 				],
 				"extensions": [
 					".vel",
-					".vellum",
-					".psc"
+					".vellum"
 				],
 				"configuration": "./language-configuration.json"
 			}

@@ -82,6 +82,12 @@ Unique<ast::Declaration> PapyrusParser::topDeclaration() {
     // Neither Function nor Property - error
     throw ParseException(current,
                          "Expect 'Function' or 'Property' after type name.");
+  } else if (match(TokenType::STATE)) {
+    return stateDeclaration(false);
+  } else if (match(TokenType::AUTO)) {
+    consume(TokenType::STATE, CompilerErrorKind::ExpectDeclaration,
+            "State expected.");
+    return stateDeclaration(true);
   }
 
   throw ParseException(previous,
@@ -114,6 +120,7 @@ Unique<ast::Declaration> PapyrusParser::scriptDeclaration() {
 
   // Skip optional 'Hidden' keyword (can appear before or after extends)
   match(TokenType::HIDDEN);
+  match(TokenType::CONDITIONAL);
 
   auto parentScriptName = VellumType::none();
   Opt<Token> parentScriptNameLocation;
@@ -125,11 +132,24 @@ Unique<ast::Declaration> PapyrusParser::scriptDeclaration() {
 
     // Skip optional 'Hidden' keyword after extends
     match(TokenType::HIDDEN);
+    match(TokenType::CONDITIONAL);
   }
 
   return makeUnique<ast::ScriptDeclaration>(
       scriptName, scriptNameLocation, parentScriptName,
       parentScriptNameLocation, Vec<Unique<ast::Declaration>>{});
+}
+
+Unique<ast::Declaration> PapyrusParser::stateDeclaration(bool isAuto) {
+  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
+          "Expect a state's name.");
+  auto stateName = previous.lexeme;
+  auto nameLocation = previous;
+
+  skipUntilEndState();
+
+  return makeUnique<ast::StateDeclaration>(stateName, nameLocation, isAuto,
+                                           Vec<Unique<ast::Declaration>>{});
 }
 
 Unique<ast::Declaration> PapyrusParser::functionDeclarationWithReturnType(
@@ -196,8 +216,8 @@ Unique<ast::Declaration> PapyrusParser::eventDeclaration() {
   Opt<Token> returnTypeLocation = std::nullopt;
   return makeUnique<ast::FunctionDeclaration>(
       name, parameters, VellumType::none(),
-      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false,
-      nameLocation, returnTypeLocation);
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false, nameLocation,
+      returnTypeLocation);
 }
 
 Unique<ast::Declaration> PapyrusParser::propertyDeclarationWithType(
@@ -218,7 +238,11 @@ Unique<ast::Declaration> PapyrusParser::propertyDeclarationWithType(
   }
 
   if (match(TokenType::AUTOREADONLY)) {
+    match(TokenType::HIDDEN);
+    match(TokenType::CONDITIONAL);
   } else if (match(TokenType::AUTO)) {
+    match(TokenType::HIDDEN);
+    match(TokenType::CONDITIONAL);
   } else {
     skipUnitlEndProperty();
   }
@@ -290,19 +314,27 @@ Opt<VellumLiteral> PapyrusParser::parseDefaultArgument() {
   bool negative = match(TokenType::MINUS);
   if (check(TokenType::INT)) {
     advance();
-    if (!previous.value) throw ParseException(previous, "Expect a literal value for default argument.");
+    if (!previous.value)
+      throw ParseException(previous,
+                           "Expect a literal value for default argument.");
     int32_t v = previous.value->asInt();
     return VellumLiteral(negative ? -v : v);
   }
   if (check(TokenType::FLOAT)) {
     advance();
-    if (!previous.value) throw ParseException(previous, "Expect a literal value for default argument.");
+    if (!previous.value)
+      throw ParseException(previous,
+                           "Expect a literal value for default argument.");
     float v = previous.value->asFloat();
     return VellumLiteral(negative ? -v : v);
   }
-  if (negative) throw ParseException(current, "Expect a literal value for default argument.");
+  if (negative)
+    throw ParseException(current,
+                         "Expect a literal value for default argument.");
   if (match(TokenType::STRING)) {
-    if (!previous.value) throw ParseException(previous, "Expect a literal value for default argument.");
+    if (!previous.value)
+      throw ParseException(previous,
+                           "Expect a literal value for default argument.");
     return *previous.value;
   }
   if (match(TokenType::TRUE)) return VellumLiteral(true);
@@ -387,6 +419,14 @@ void PapyrusParser::skipBlock() {
     } else {
       advance();
     }
+  }
+}
+
+void PapyrusParser::skipUntilEndState() {
+  while (!check(TokenType::ENDSTATE) && !check(TokenType::END_OF_FILE)) {
+    advance();
+  }
+  if (match(TokenType::ENDSTATE)) {
   }
 }
 

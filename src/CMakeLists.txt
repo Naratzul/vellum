@@ -71,6 +71,10 @@ target_compile_options(vellum_compiler PRIVATE
 
 target_include_directories(vellum_compiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_executable(parse_psc tools/parse_psc.cpp)
+target_link_libraries(parse_psc PRIVATE vellum_compiler)
+target_include_directories(parse_psc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_executable(vellum main.cpp common/sentry_report.cpp)
 target_link_libraries(vellum PRIVATE vellum_compiler sentry cpptrace::cpptrace)
 target_include_directories(vellum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
