@@ -50,8 +50,8 @@ class PapyrusParser {
   Unique<ast::Declaration> functionDeclarationWithReturnType(
       VellumType returnType);
   Unique<ast::Declaration> eventDeclaration();
-  Unique<ast::Declaration> propertyDeclaration();
   Unique<ast::Declaration> propertyDeclarationWithType(VellumType type);
+  Unique<ast::Declaration> variableDeclaration(VellumType type);
 
   Vec<ast::FunctionParameter> parseParameters();
   Opt<VellumLiteral> parseDefaultArgument();

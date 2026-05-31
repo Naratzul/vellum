@@ -58,7 +58,7 @@ void DeclarationCollector::visitScriptDeclaration(
   }
 
   auto scriptName = declaration.getScriptName();
-  if (scriptName.toString() != scriptFilename) {
+  if (common::normalizeToLower(scriptName.toString()) != common::normalizeToLower(scriptFilename)) {
     errorHandler->errorAt(declaration.getScriptNameLocation(),
                           CompilerErrorKind::FilenameMismatch,
                           "Filename '{}' doesn't match scriptname '{}'.",

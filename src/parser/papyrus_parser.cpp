@@ -77,11 +77,9 @@ Unique<ast::Declaration> PapyrusParser::topDeclaration() {
       // It's a property: Type Property Name
       // We've already parsed the type, now parse the rest
       return propertyDeclarationWithType(type);
-    }
+    } 
 
-    // Neither Function nor Property - error
-    throw ParseException(current,
-                         "Expect 'Function' or 'Property' after type name.");
+    return variableDeclaration(type);
   } else if (match(TokenType::STATE)) {
     return stateDeclaration(false);
   } else if (match(TokenType::AUTO)) {
@@ -252,36 +250,16 @@ Unique<ast::Declaration> PapyrusParser::propertyDeclarationWithType(
                                               nameLocation, typeLocation);
 }
 
-Unique<ast::Declaration> PapyrusParser::propertyDeclaration() {
-  // Parse type
-  VellumType typeName = parseType();
-  Token typeLocation = previous;
+Unique<ast::Declaration> PapyrusParser::variableDeclaration(VellumType type) {
+  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
+          "Expect a variable name.");
 
-  consume(TokenType::PROPERTY, CompilerErrorKind::ExpectDeclaration,
-          "Expect 'Property' after type name.");
+  auto name = previous.lexeme;
+  auto nameLocation = previous;
 
-  consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
-          "Expect a property name.");
-  const std::string_view name = previous.lexeme;
-  Token nameLocation = previous;
+  parseDefaultArgument();
 
-  if (match(TokenType::EQUAL)) {
-    // Skip default value for now - just consume until Auto/AutoReadOnly
-    while (!check(TokenType::AUTO) && !check(TokenType::AUTOREADONLY) &&
-           !check(TokenType::END_OF_FILE) && !check(TokenType::SEMICOLON)) {
-      advance();
-    }
-  }
-
-  if (match(TokenType::AUTOREADONLY)) {
-  } else if (match(TokenType::AUTO)) {
-  } else {
-    skipToEndOfStatement();
-  }
-
-  return makeUnique<ast::PropertyDeclaration>(name, typeName, "", std::nullopt,
-                                              std::nullopt, std::nullopt,
-                                              nameLocation, typeLocation);
+  return makeUnique<ast::GlobalVariableDeclaration>(name, type, nullptr, nameLocation);
 }
 
 Vec<ast::FunctionParameter> PapyrusParser::parseParameters() {
@@ -351,26 +329,27 @@ VellumType PapyrusParser::parseType() {
   advance();
   std::string_view typeName = previous.lexeme;
 
+  VellumType subtype = VellumType::unresolved(typeName);
+
   if (typeName == "bool") {
-    return VellumType::literal(VellumLiteralType::Bool);
+    subtype = VellumType::literal(VellumLiteralType::Bool);
   } else if (typeName == "int") {
-    return VellumType::literal(VellumLiteralType::Int);
+    subtype = VellumType::literal(VellumLiteralType::Int);
   } else if (typeName == "float") {
-    return VellumType::literal(VellumLiteralType::Float);
+    subtype = VellumType::literal(VellumLiteralType::Float);
   } else if (typeName == "string") {
-    return VellumType::literal(VellumLiteralType::String);
+    subtype = VellumType::literal(VellumLiteralType::String);
   } else if (typeName == "Var") {
-    return VellumType::unresolved("Var");
+    subtype = VellumType::unresolved("Var");
   }
 
   if (match(TokenType::LEFT_BRACK)) {
     consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
             "Expect ']' after array type.");
-    VellumType elementType = VellumType::unresolved(typeName);
-    return VellumType::array(std::move(elementType));
+    return VellumType::array(std::move(subtype));
   }
 
-  return VellumType::unresolved(typeName);
+  return subtype;
 }
 
 void PapyrusParser::skipUntilEndFunction() {
