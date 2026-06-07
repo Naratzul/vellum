@@ -2,10 +2,15 @@
 #include <iostream>
 #include <vector>
 
+#include "analyze/declaration_collector.h"
+#include "analyze/import_resolver.h"
+#include "analyze/type_collector.h"
 #include "common/fs.h"
 #include "common/os.h"
 #include "common/types.h"
+#include "compiler/builtin_functions.h"
 #include "compiler/compiler_error_handler.h"
+#include "compiler/resolver.h"
 #include "parser/papyrus_lexer.h"
 #include "parser/papyrus_parser.h"
 
@@ -13,22 +18,23 @@ namespace {
 namespace fs = std::filesystem;
 
 int run(const fs::path& inputPath) {
-  using vellum::common::makeShared;
-  using vellum::common::makeUnique;
-  using vellum::common::pathToUtf8;
+  using namespace vellum;
+
+  using common::makeShared;
+  using common::makeUnique;
+  using common::pathToUtf8;
 
   std::string source;
   try {
-    source = vellum::common::readFileContent(inputPath);
+    source = common::readFileContent(inputPath);
   } catch (const std::exception& e) {
     std::cerr << e.what() << '\n';
     return 1;
   }
 
-  auto errorHandler = makeShared<vellum::CompilerErrorHandler>();
-  vellum::PapyrusParser parser(
-      makeUnique<vellum::PapyrusLexer>(source), errorHandler);
-  const auto result = parser.parse();
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  vellum::PapyrusParser parser(makeUnique<PapyrusLexer>(source), errorHandler);
+  auto result = parser.parse();
 
   if (errorHandler->hadError()) {
     errorHandler->printErrors();
@@ -37,6 +43,32 @@ int run(const fs::path& inputPath) {
 
   std::cout << "Parsed " << pathToUtf8(inputPath) << ": "
             << result.declarations.size() << " top-level declaration(s)\n";
+
+  auto filename = inputPath.stem().string();
+  Vec<fs::path> importPaths = {fs::path(
+      "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Skyrim Special "
+      "Edition\\Data\\Source\\Scripts")};
+
+  auto importLibrary = makeShared<ImportLibrary>(importPaths);
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier(filename)),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(result.declarations);
+
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  DeclarationCollector collector(errorHandler, resolver, filename);
+  collector.collect(result.declarations);
+
+  if (errorHandler->hadError()) {
+    errorHandler->printErrors();
+    return 1;
+  }
+
   return 0;
 }
 

@@ -50,15 +50,18 @@ class PapyrusParser {
   Unique<ast::Declaration> functionDeclarationWithReturnType(
       VellumType returnType);
   Unique<ast::Declaration> eventDeclaration();
-  Unique<ast::Declaration> propertyDeclarationWithType(VellumType type);
+  Unique<ast::Declaration> propertyDeclarationWithType(VellumType type,
+                                                       Token typeLocation);
   Unique<ast::Declaration> variableDeclaration(VellumType type);
+
+  void consumePropertyUserFlags(bool& isAuto, bool& isAutoReadOnly);
 
   Vec<ast::FunctionParameter> parseParameters();
   Opt<VellumLiteral> parseDefaultArgument();
   VellumType parseType();
   void skipUntilEndFunction();
   void skipUntilEndEvent();
-  void skipUnitlEndProperty();
+  void skipUntilEndProperty();
   void skipToEndOfStatement();
   void skipBlock();
   void skipUntilEndState();
@@ -75,6 +78,7 @@ inline void PapyrusParser::consume(TokenType type, CompilerErrorKind error,
     return;
   }
   errorHandler->errorAt(current, error, fmt, std::forward<Args>(args)...);
+  advance();
 }
 
 }  // namespace vellum

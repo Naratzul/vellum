@@ -36,6 +36,7 @@ class PapyrusLexer : public ILexer {
 
   void skipWhitespaces();
   void skipLineComment();
+  void skipSemicolonBlockComment();
   void skipMultilineComment();
 
   bool isAtEnd() const;

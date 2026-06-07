@@ -1305,7 +1305,6 @@ TEST_CASE("CompileComparison_ScriptSubtype_EmitsCastBeforeCmpEq") {
     }
     module->setResolver(modResolver);
     importLibrary->addTestModule(module);
-    resolver->importObject(name);
   };
 
   addModule(VellumObject(VellumType::identifier("ParentPexCmp")), std::nullopt);

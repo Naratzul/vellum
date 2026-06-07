@@ -3,7 +3,6 @@
 #include "ast/decl/declaration.h"
 #include "common/types.h"
 #include "vellum/vellum_literal.h"
-#include "vellum/vellum_value.h"
 
 namespace vellum {
 using common::makeUnique;
@@ -24,7 +23,17 @@ ParserResult PapyrusParser::parse() {
 
   while (!check(TokenType::END_OF_FILE)) {
     try {
+      Token before = current;
       auto decl = topDeclaration();
+      if (current.type == before.type &&
+          current.location.start.line == before.location.start.line &&
+          current.location.start.position == before.location.start.position) {
+        errorHandler->errorAt(
+            current, CompilerErrorKind::ExpectDeclaration,
+            "Could not advance while parsing top-level declarations.");
+        advance();
+        continue;
+      }
       if (decl->getOrder() == ast::DeclarationOrder::Script) {
         if (hasScript) {
           errorHandler->errorAt(
@@ -56,36 +65,40 @@ void PapyrusParser::advance() {
 }
 
 Unique<ast::Declaration> PapyrusParser::topDeclaration() {
-  if (match(TokenType::IMPORT)) {
-    return importDeclaration();
-  } else if (match(TokenType::SCRIPTNAME)) {
-    return scriptDeclaration();
-  } else if (match(TokenType::FUNCTION)) {
-    return functionDeclarationWithReturnType(VellumType::none());
-  } else if (match(TokenType::EVENT)) {
-    return eventDeclaration();
-  } else if (check(TokenType::IDENTIFIER)) {
-    // Could be: returnType Function Name, or Type Property Name
-    // Parse the type first (it will be consumed), then check next token
-    VellumType type = parseType();
-
-    if (match(TokenType::FUNCTION)) {
-      // It's a function: returnType Function Name
-      // We've already parsed the return type, now parse the rest
-      return functionDeclarationWithReturnType(type);
-    } else if (match(TokenType::PROPERTY)) {
-      // It's a property: Type Property Name
-      // We've already parsed the type, now parse the rest
-      return propertyDeclarationWithType(type);
-    } 
-
-    return variableDeclaration(type);
-  } else if (match(TokenType::STATE)) {
-    return stateDeclaration(false);
-  } else if (match(TokenType::AUTO)) {
-    consume(TokenType::STATE, CompilerErrorKind::ExpectDeclaration,
-            "State expected.");
-    return stateDeclaration(true);
+  switch (current.type) {
+    case TokenType::IMPORT:
+      advance();
+      return importDeclaration();
+    case TokenType::SCRIPTNAME:
+      advance();
+      return scriptDeclaration();
+    case TokenType::FUNCTION:
+      advance();
+      return functionDeclarationWithReturnType(VellumType::none());
+    case TokenType::EVENT:
+      advance();
+      return eventDeclaration();
+    case TokenType::STATE:
+      advance();
+      return stateDeclaration(false);
+    case TokenType::AUTO:
+      advance();
+      consume(TokenType::STATE, CompilerErrorKind::ExpectDeclaration,
+              "State expected.");
+      return stateDeclaration(true);
+    case TokenType::IDENTIFIER: {
+      VellumType type = parseType();
+      Token typeLocation = previous;
+      if (match(TokenType::FUNCTION)) {
+        return functionDeclarationWithReturnType(type);
+      }
+      if (match(TokenType::PROPERTY)) {
+        return propertyDeclarationWithType(type, typeLocation);
+      }
+      return variableDeclaration(type);
+    }
+    default:
+      break;
   }
 
   throw ParseException(previous,
@@ -116,7 +129,6 @@ Unique<ast::Declaration> PapyrusParser::scriptDeclaration() {
   Token scriptNameLocation = previous;
   auto scriptName = VellumType::identifier(previous.lexeme);
 
-  // Skip optional 'Hidden' keyword (can appear before or after extends)
   match(TokenType::HIDDEN);
   match(TokenType::CONDITIONAL);
 
@@ -128,7 +140,6 @@ Unique<ast::Declaration> PapyrusParser::scriptDeclaration() {
     parentScriptName = VellumType::identifier(previous.lexeme);
     parentScriptNameLocation = previous;
 
-    // Skip optional 'Hidden' keyword after extends
     match(TokenType::HIDDEN);
     match(TokenType::CONDITIONAL);
   }
@@ -171,13 +182,11 @@ Unique<ast::Declaration> PapyrusParser::functionDeclarationWithReturnType(
   bool isNative = match(TokenType::NATIVE);
   bool isGlobal = match(TokenType::GLOBAL);
 
-  // Skip function body
   if (!isNative) {
     skipUntilEndFunction();
   }
 
   Opt<Token> returnTypeLocation = std::nullopt;
-  // Return type location is not available in Papyrus parser context
   return makeUnique<ast::FunctionDeclaration>(
       name, parameters, returnTypeName,
       makeUnique<ast::BlockStatement>(ast::FunctionBody{}), isGlobal,
@@ -201,10 +210,8 @@ Unique<ast::Declaration> PapyrusParser::eventDeclaration() {
   consume(TokenType::RIGHT_PAREN, CompilerErrorKind::ExpectRightParen,
           "Expect ')' after event parameters.");
 
-  // Check if native (native events have no body)
   bool isNative = match(TokenType::NATIVE);
 
-  // Skip event body
   if (isNative) {
     skipToEndOfStatement();
   } else {
@@ -218,31 +225,40 @@ Unique<ast::Declaration> PapyrusParser::eventDeclaration() {
       returnTypeLocation);
 }
 
+void PapyrusParser::consumePropertyUserFlags(bool& isAuto,
+                                             bool& isAutoReadOnly) {
+  while (match(TokenType::HIDDEN) || match(TokenType::CONDITIONAL)) {
+  }
+
+  if (match(TokenType::AUTOREADONLY)) {
+    isAutoReadOnly = true;
+    while (match(TokenType::HIDDEN) || match(TokenType::CONDITIONAL)) {
+    }
+    return;
+  }
+
+  if (match(TokenType::AUTO)) {
+    isAuto = true;
+    while (match(TokenType::HIDDEN) || match(TokenType::CONDITIONAL)) {
+    }
+  }
+}
+
 Unique<ast::Declaration> PapyrusParser::propertyDeclarationWithType(
-    VellumType typeName) {
-  // Type location was captured when parseType() was called before this function
-  Token typeLocation = previous;
+    VellumType typeName, Token typeLocation) {
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
           "Expect a property name.");
   const std::string_view name = previous.lexeme;
   Token nameLocation = previous;
 
-  if (match(TokenType::EQUAL)) {
-    // Skip default value for now - just consume until Auto/AutoReadOnly
-    while (!check(TokenType::AUTO) && !check(TokenType::AUTOREADONLY) &&
-           !check(TokenType::END_OF_FILE) && !check(TokenType::SEMICOLON)) {
-      advance();
-    }
-  }
+  parseDefaultArgument();
 
-  if (match(TokenType::AUTOREADONLY)) {
-    match(TokenType::HIDDEN);
-    match(TokenType::CONDITIONAL);
-  } else if (match(TokenType::AUTO)) {
-    match(TokenType::HIDDEN);
-    match(TokenType::CONDITIONAL);
-  } else {
-    skipUnitlEndProperty();
+  bool isAuto = false;
+  bool isAutoReadOnly = false;
+  consumePropertyUserFlags(isAuto, isAutoReadOnly);
+
+  if (!isAuto && !isAutoReadOnly) {
+    skipUntilEndProperty();
   }
 
   return makeUnique<ast::PropertyDeclaration>(name, typeName, "", std::nullopt,
@@ -259,7 +275,8 @@ Unique<ast::Declaration> PapyrusParser::variableDeclaration(VellumType type) {
 
   parseDefaultArgument();
 
-  return makeUnique<ast::GlobalVariableDeclaration>(name, type, nullptr, nameLocation);
+  return makeUnique<ast::GlobalVariableDeclaration>(name, type, nullptr,
+                                                    nameLocation);
 }
 
 Vec<ast::FunctionParameter> PapyrusParser::parseParameters() {
@@ -353,26 +370,113 @@ VellumType PapyrusParser::parseType() {
 }
 
 void PapyrusParser::skipUntilEndFunction() {
-  while (!check(TokenType::ENDFUNCTION) && !check(TokenType::END_OF_FILE)) {
-    advance();
-  }
-  if (match(TokenType::ENDFUNCTION)) {
+  while (!check(TokenType::END_OF_FILE)) {
+    if (match(TokenType::ENDFUNCTION)) {
+      return;
+    }
+    if (match(TokenType::FUNCTION)) {
+      skipUntilEndFunction();
+    } else if (match(TokenType::EVENT)) {
+      skipUntilEndEvent();
+    } else if (match(TokenType::IF)) {
+      while (!check(TokenType::END_OF_FILE) && !check(TokenType::ENDIF)) {
+        if (match(TokenType::FUNCTION)) {
+          skipUntilEndFunction();
+        } else if (match(TokenType::EVENT)) {
+          skipUntilEndEvent();
+        } else {
+          advance();
+        }
+      }
+      match(TokenType::ENDIF);
+    } else if (match(TokenType::WHILE)) {
+      while (!check(TokenType::END_OF_FILE) && !check(TokenType::ENDWHILE)) {
+        if (match(TokenType::FUNCTION)) {
+          skipUntilEndFunction();
+        } else if (match(TokenType::EVENT)) {
+          skipUntilEndEvent();
+        } else {
+          advance();
+        }
+      }
+      match(TokenType::ENDWHILE);
+    } else {
+      advance();
+    }
   }
 }
 
 void PapyrusParser::skipUntilEndEvent() {
-  while (!check(TokenType::ENDEVENT) && !check(TokenType::END_OF_FILE)) {
-    advance();
-  }
-  if (match(TokenType::ENDEVENT)) {
+  while (!check(TokenType::END_OF_FILE)) {
+    if (match(TokenType::ENDEVENT)) {
+      return;
+    }
+    if (match(TokenType::FUNCTION)) {
+      skipUntilEndFunction();
+    } else if (match(TokenType::EVENT)) {
+      skipUntilEndEvent();
+    } else if (match(TokenType::IF)) {
+      while (!check(TokenType::END_OF_FILE) && !check(TokenType::ENDIF)) {
+        if (match(TokenType::FUNCTION)) {
+          skipUntilEndFunction();
+        } else if (match(TokenType::EVENT)) {
+          skipUntilEndEvent();
+        } else {
+          advance();
+        }
+      }
+      match(TokenType::ENDIF);
+    } else if (match(TokenType::WHILE)) {
+      while (!check(TokenType::END_OF_FILE) && !check(TokenType::ENDWHILE)) {
+        if (match(TokenType::FUNCTION)) {
+          skipUntilEndFunction();
+        } else if (match(TokenType::EVENT)) {
+          skipUntilEndEvent();
+        } else {
+          advance();
+        }
+      }
+      match(TokenType::ENDWHILE);
+    } else {
+      advance();
+    }
   }
 }
 
-void PapyrusParser::skipUnitlEndProperty() {
-  while (!check(TokenType::ENDPROPERTY) && !check(TokenType::END_OF_FILE)) {
-    advance();
-  }
-  if (match(TokenType::ENDPROPERTY)) {
+void PapyrusParser::skipUntilEndProperty() {
+  while (!check(TokenType::END_OF_FILE)) {
+    if (match(TokenType::ENDPROPERTY)) {
+      return;
+    }
+    if (match(TokenType::FUNCTION)) {
+      skipUntilEndFunction();
+    } else if (match(TokenType::EVENT)) {
+      skipUntilEndEvent();
+    } else if (match(TokenType::IF)) {
+      while (!check(TokenType::END_OF_FILE) && !check(TokenType::ENDIF)) {
+        if (match(TokenType::FUNCTION)) {
+          skipUntilEndFunction();
+        } else if (match(TokenType::EVENT)) {
+          skipUntilEndEvent();
+        } else {
+          advance();
+        }
+      }
+      match(TokenType::ENDIF);
+    } else if (match(TokenType::WHILE)) {
+      while (!check(TokenType::END_OF_FILE) && !check(TokenType::ENDWHILE)) {
+        if (match(TokenType::FUNCTION)) {
+          skipUntilEndFunction();
+        } else if (match(TokenType::EVENT)) {
+          skipUntilEndEvent();
+        } else {
+          advance();
+        }
+      }
+      match(TokenType::ENDWHILE);
+    } else {
+      advance();
+    }
   }
 }
 
@@ -402,28 +506,34 @@ void PapyrusParser::skipBlock() {
 }
 
 void PapyrusParser::skipUntilEndState() {
-  while (!check(TokenType::ENDSTATE) && !check(TokenType::END_OF_FILE)) {
-    advance();
-  }
-  if (match(TokenType::ENDSTATE)) {
+  while (!check(TokenType::END_OF_FILE)) {
+    if (match(TokenType::ENDSTATE)) {
+      return;
+    }
+    if (match(TokenType::FUNCTION)) {
+      skipUntilEndFunction();
+    } else if (match(TokenType::EVENT)) {
+      skipUntilEndEvent();
+    } else {
+      advance();
+    }
   }
 }
 
 void PapyrusParser::synchronize() {
   while (!check(TokenType::END_OF_FILE)) {
-    if (previous.type == TokenType::SEMICOLON) return;
-
     switch (current.type) {
       case TokenType::SCRIPTNAME:
+      case TokenType::IMPORT:
       case TokenType::FUNCTION:
       case TokenType::EVENT:
-      case TokenType::PROPERTY:
-      case TokenType::IMPORT:
+      case TokenType::STATE:
+      case TokenType::AUTO:
+      case TokenType::IDENTIFIER:
         return;
       default:
         break;
     }
-
     advance();
   }
 }

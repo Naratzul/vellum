@@ -76,8 +76,7 @@ Opt<VellumValue> Resolver::resolveIdentifier(
 
 bool Resolver::isInstanceMember(VellumIdentifier identifier) const {
   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-    if (it->getVariable(identifier))
-      return false;
+    if (it->getVariable(identifier)) return false;
   }
 
   if (auto id = object.findIdentifier(identifier)) {
@@ -108,8 +107,20 @@ Opt<VellumValue> Resolver::resolveProperty(VellumType type,
     return std::nullopt;
   }
 
+  bool typeMatches = false;
+
   if (type == object.getType()) {
-    if (auto prop = this->object.findProperty(member)) {
+    typeMatches = true;
+  } else {
+    auto module = importLibrary->findModule(object.getType().asIdentifier());
+    if (module && module->getType() == ImportModuleType::Papyrus) {
+      typeMatches = equalsCaseInsensitive(type.asIdentifier(),
+                                          object.getType().asIdentifier());
+    }
+  }
+
+  if (typeMatches) {
+    if (auto prop = object.findProperty(member)) {
       return prop;
     }
     if (parentType && parentType->getState() == VellumTypeState::Identifier) {
@@ -120,33 +131,6 @@ Opt<VellumValue> Resolver::resolveProperty(VellumType type,
       }
     }
     return std::nullopt;
-  }
-
-  for (const auto& importedObject : importedObjects) {
-    auto importType = VellumType::identifier(importedObject);
-    bool typeMatches = false;
-
-    // Check exact match first
-    if (importType == type) {
-      typeMatches = true;
-    } else if (type.getState() == VellumTypeState::Identifier) {
-      // For Papyrus modules, also check case-insensitive match
-      if (auto module = importLibrary->findModule(importedObject)) {
-        if (module->getType() == ImportModuleType::Papyrus) {
-          if (equalsCaseInsensitive(importedObject, type.asIdentifier())) {
-            typeMatches = true;
-          }
-        }
-      }
-    }
-
-    if (typeMatches) {
-      if (auto module = importLibrary->findModule(importedObject)) {
-        if (auto resolver = module->getResolver()) {
-          return resolver->resolveProperty(importType, member);
-        }
-      }
-    }
   }
 
   if (type.getState() == VellumTypeState::Identifier) {
@@ -184,8 +168,20 @@ Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
     return std::nullopt;
   }
 
+  bool typeMatches = false;
+
   if (type == object.getType()) {
-    if (auto func = this->object.findFunction(function)) {
+    typeMatches = true;
+  } else {
+    auto module = importLibrary->findModule(object.getType().asIdentifier());
+    if (module && module->getType() == ImportModuleType::Papyrus) {
+      typeMatches = equalsCaseInsensitive(type.asIdentifier(),
+                                          object.getType().asIdentifier());
+    }
+  }
+
+  if (typeMatches) {
+    if (auto func = object.findFunction(function)) {
       return func;
     }
 
@@ -200,33 +196,6 @@ Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
       }
     }
     return std::nullopt;
-  }
-
-  for (const auto& importedObject : importedObjects) {
-    auto importType = VellumType::identifier(importedObject);
-    bool typeMatches = false;
-
-    // Check exact match first
-    if (importType == type) {
-      typeMatches = true;
-    } else if (type.getState() == VellumTypeState::Identifier) {
-      // For Papyrus modules, also check case-insensitive match
-      if (auto module = importLibrary->findModule(importedObject)) {
-        if (module->getType() == ImportModuleType::Papyrus) {
-          if (equalsCaseInsensitive(importedObject, type.asIdentifier())) {
-            typeMatches = true;
-          }
-        }
-      }
-    }
-
-    if (typeMatches) {
-      if (auto module = importLibrary->findModule(importedObject)) {
-        if (auto resolver = module->getResolver()) {
-          return resolver->resolveFunction(importType, function);
-        }
-      }
-    }
   }
 
   if (type.getState() == VellumTypeState::Identifier) {

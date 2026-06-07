@@ -52,7 +52,6 @@ class SemanticTestsFixture {
                                                importLibrary, builtinFunctions);
     module->setResolver(objectResolver);
     importLibrary->addTestModule(module);
-    resolver->importObject(name);
   }
 
   void addTestObjectWithParent(const VellumObject& object,
@@ -66,7 +65,6 @@ class SemanticTestsFixture {
     objectResolver->setParentType(VellumType::identifier(parentScriptName));
     module->setResolver(objectResolver);
     importLibrary->addTestModule(module);
-    resolver->importObject(name);
   }
 
  protected:

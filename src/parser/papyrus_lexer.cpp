@@ -65,7 +65,12 @@ Token PapyrusLexer::scanToken() {
     case ':':
       return makeToken(TokenType::COLON);
     case ';':
-      return makeToken(TokenType::SEMICOLON);
+      if (peek() == '/') {
+        skipSemicolonBlockComment();
+        return scanToken();
+      }
+      skipLineComment();
+      return scanToken();
     case ',':
       return makeToken(TokenType::COMMA);
     case '.':
@@ -96,7 +101,7 @@ Token PapyrusLexer::scanToken() {
       break;
     case '|':
       if (match('|')) {
-        return makeToken(TokenType::AND);
+        return makeToken(TokenType::OR);
       }
       break;
     case '"':
@@ -204,6 +209,10 @@ TokenType PapyrusLexer::identifierType() const {
           case 'v':
             return checkKeyword(2, 3, "ent", TokenType::EVENT);
           case 'l':
+            if (checkKeyword(2, 4, "seif", TokenType::ELSEIF) ==
+                TokenType::ELSEIF) {
+              return TokenType::ELSEIF;
+            }
             return checkKeyword(2, 2, "se", TokenType::ELSE);
           case 'x':
             return checkKeyword(2, 5, "tends", TokenType::EXTENDS);
@@ -216,11 +225,19 @@ TokenType PapyrusLexer::identifierType() const {
                 TokenType::ENDFUNCTION) {
               return TokenType::ENDFUNCTION;
             }
+            if (checkKeyword(2, 3, "dif", TokenType::ENDIF) ==
+                TokenType::ENDIF) {
+              return TokenType::ENDIF;
+            }
             if (checkKeyword(2, 9, "dproperty", TokenType::ENDPROPERTY) ==
                 TokenType::ENDPROPERTY) {
               return TokenType::ENDPROPERTY;
             }
-            return checkKeyword(2, 6, "dstate", TokenType::ENDSTATE);
+            if (checkKeyword(2, 6, "dstate", TokenType::ENDSTATE) ==
+                TokenType::ENDSTATE) {
+              return TokenType::ENDSTATE;
+            }
+            return checkKeyword(2, 6, "dwhile", TokenType::ENDWHILE);
         }
       }
       break;
@@ -343,7 +360,11 @@ void PapyrusLexer::skipWhitespaces() {
         advance();
         break;
       case ';':
-        skipLineComment();
+        if (peekNext() == '/') {
+          skipSemicolonBlockComment();
+        } else {
+          skipLineComment();
+        }
         break;
       case '{':
         skipMultilineComment();
@@ -357,6 +378,23 @@ void PapyrusLexer::skipWhitespaces() {
 void PapyrusLexer::skipLineComment() {
   // Papyrus uses ; for line comments, goes until end of line
   while (peek() != '\n' && !isAtEnd()) advance();
+}
+
+void PapyrusLexer::skipSemicolonBlockComment() {
+  advance();  // consume ';'
+  advance();  // consume '/'
+  while (!isAtEnd()) {
+    if (peek() == '\n') {
+      line++;
+      position = 0;
+    }
+    if (peek() == '/' && peekNext() == ';') {
+      advance();  // consume '/'
+      advance();  // consume ';'
+      return;
+    }
+    advance();
+  }
 }
 
 void PapyrusLexer::skipMultilineComment() {
