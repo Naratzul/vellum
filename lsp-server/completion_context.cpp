@@ -158,6 +158,9 @@ CompletionContext detectContext(
   const size_t col = params.position.character;
   if (!line.empty() && col > 0) {
     size_t i = col;
+    if (i > line.size()) {
+      i = line.size();
+    }
     while (i > 0 && (line[i - 1] == ' ' || line[i - 1] == '\t')) {
       i--;
     }

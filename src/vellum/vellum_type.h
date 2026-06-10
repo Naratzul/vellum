@@ -16,6 +16,8 @@ enum class VellumTypeState { Unresolved, Literal, Identifier, Array };
 
 class VellumType {
  public:
+  VellumType() : VellumType(VellumLiteralType::None) {}
+
   static VellumType none();
   static VellumType literal(VellumLiteralType type);
   static VellumType identifier(VellumIdentifier identifier);
@@ -51,7 +53,6 @@ class VellumType {
                Shared<VellumType>>
       type;
 
-  VellumType() = default;
   explicit VellumType(std::string_view type);
   explicit VellumType(VellumLiteralType type);
   explicit VellumType(VellumIdentifier type);

@@ -84,7 +84,7 @@ AnalysisResult DocumentAnalyzer::run(std::string_view source,
                                      const Shared<ImportLibrary>& importLibrary) {
   ParseOutcome parseOutcome = parseDocument(source);
 
-  if (parseOutcome.errorHandler->hadError()) {
+  if (parseOutcome.parseResult.declarations.empty()) {
     return AnalysisResult{
         .diagnostics = parseOutcome.errorHandler->getErrors(),
         .semanticTokens = buildSemanticTokensLexerFallback(source),
@@ -96,8 +96,11 @@ AnalysisResult DocumentAnalyzer::run(std::string_view source,
       analyzeFull(std::move(parseOutcome.parseResult), scriptName, importLibrary,
                   parseOutcome.errorHandler);
 
-  lsp::SemanticTokens semanticTokens = buildSemanticTokensFromParse(
-      fullOutcome.navigation.parseResult, source);
+  lsp::SemanticTokens semanticTokens =
+      parseOutcome.errorHandler->hadError()
+          ? buildSemanticTokensLexerFallback(source)
+          : buildSemanticTokensFromParse(fullOutcome.navigation.parseResult,
+                                         source);
 
   return AnalysisResult{.diagnostics = std::move(fullOutcome.diagnostics),
                         .semanticTokens = std::move(semanticTokens),

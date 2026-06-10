@@ -54,7 +54,6 @@ void DeclarationCollector::visitScriptDeclaration(
     errorHandler->errorAt(declaration.getScriptNameLocation(),
                           CompilerErrorKind::MultipleScriptsDefinition,
                           "Only 1 Script is allowed per file.");
-    return;
   }
 
   auto scriptName = declaration.getScriptName();
@@ -75,14 +74,12 @@ void DeclarationCollector::visitScriptDeclaration(
                             "can only extend from other scripts, not literal "
                             "types (Int, Float, String, Bool).",
                             parentScriptName.toString());
-      return;
     }
 
     if (parentScriptName == scriptName) {
       errorHandler->errorAt(location.value(),
                             CompilerErrorKind::CannotExtendOutself,
                             "Cannot extend ourself.");
-      return;
     }
 
     VellumIdentifier parentId =
@@ -95,7 +92,6 @@ void DeclarationCollector::visitScriptDeclaration(
       errorHandler->errorAt(
           location.value(), CompilerErrorKind::UnknownParentScript,
           "Unknown parent script '{}'.", parentScriptName.toString());
-      return;
     }
   }
 

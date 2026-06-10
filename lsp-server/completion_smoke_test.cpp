@@ -167,6 +167,66 @@ int main() {
   const common::fs::path scriptsPath =
       common::fs::path(__FILE__).parent_path().parent_path().parent_path() /
       "Scripts" / "Source" / "Scripts";
+  static constexpr const char* kEventParamDot = R"(script TrainingMannequin {
+  event onHit(aggressor: ObjectReference, source: Form, p: Projectile) {
+    p.
+  }
+}
+)";
+
+  static constexpr const char* kGameDotInline = R"(script TrainingMannequin {
+  event onHit() {
+    Game.
+  }
+}
+)";
+
+  if (common::fs::exists(scriptsPath / "Game.psc")) {
+    auto importWithScripts = common::makeShared<ImportLibrary>(
+        common::Vec<common::fs::path>{scriptsPath});
+    store.openOrUpdate(filePath, kGameDotInline);
+    store.getOrAnalyze(filePath, importWithScripts);
+
+    lsp::requests::TextDocument_Completion::Params gameDotParams;
+    gameDotParams.textDocument.uri = pathToUri(filePath);
+    gameDotParams.position = lsp::Position{.line = 2, .character = 8};
+    gameDotParams.context = lsp::CompletionContext{
+        .triggerKind = lsp::CompletionTriggerKind::TriggerCharacter,
+        .triggerCharacter = "."};
+    const auto gameDotResult = CompletionsProvider().getCompletions(
+        filePath, gameDotParams, store, importWithScripts);
+    const auto* gameDotList = std::get_if<lsp::CompletionList>(&gameDotResult);
+    if (!gameDotList || !hasLabel(*gameDotList, "GetPlayer")) {
+      std::cerr << "Expected Game.GetPlayer for inline Game.\n";
+      failures++;
+    }
+  }
+
+  if (common::fs::exists(scriptsPath / "Projectile.psc")) {
+    auto importWithScripts = common::makeShared<ImportLibrary>(
+        common::Vec<common::fs::path>{scriptsPath});
+    store.openOrUpdate(filePath, kEventParamDot);
+    store.getOrAnalyze(filePath, importWithScripts);
+
+    lsp::requests::TextDocument_Completion::Params pDotParams;
+    pDotParams.textDocument.uri = pathToUri(filePath);
+    pDotParams.position = lsp::Position{.line = 2, .character = 5};
+    pDotParams.context = lsp::CompletionContext{
+        .triggerKind = lsp::CompletionTriggerKind::TriggerCharacter,
+        .triggerCharacter = "."};
+    const auto pDotResult = CompletionsProvider().getCompletions(
+        filePath, pDotParams, store, importWithScripts);
+    const auto* pDotList = std::get_if<lsp::CompletionList>(&pDotResult);
+    if (!pDotList || !hasLabel(*pDotList, "GetFormID")) {
+      std::cerr << "Expected Projectile/Form member GetFormID for event param p.\n";
+      failures++;
+    }
+    if (pDotList && hasLabel(*pDotList, "GetOwningQuest")) {
+      std::cerr << "p. must not include Package-only members like GetOwningQuest\n";
+      failures++;
+    }
+  }
+
   if (common::fs::exists(scriptsPath / "Math.psc")) {
     auto importWithMathAndMathEx = common::makeShared<ImportLibrary>(
         common::Vec<common::fs::path>{examplesPath, scriptsPath});

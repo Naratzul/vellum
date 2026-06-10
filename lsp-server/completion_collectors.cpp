@@ -1,5 +1,6 @@
 #include "completion_collectors.h"
 
+#include "analyze/import_library.h"
 #include "ast/decl/declaration.h"
 #include "ast/decl/declaration_visitor.h"
 #include "ast/expression/expression.h"
@@ -22,6 +23,8 @@
 #include "vellum/vellum_variable.h"
 #include "vellum_keywords.h"
 
+#include <algorithm>
+#include <climits>
 #include <span>
 
 namespace vellum {
@@ -84,6 +87,24 @@ bool blockContainsUse(ast::BlockStatement& block, lsp::Position usePos) {
     }
   }
   return false;
+}
+
+bool blockSpansPosition(ast::BlockStatement& block, lsp::Position usePos) {
+  int minLine = INT_MAX;
+  int maxLine = 0;
+  for (const auto& stmt : block.getStatements()) {
+    const LocationRange extent = statementExtent(*stmt);
+    if (extent.start.line == 0 && extent.end.line == 0) {
+      continue;
+    }
+    minLine = std::min(minLine, extent.start.line);
+    maxLine = std::max(maxLine, extent.end.line);
+  }
+  if (minLine == INT_MAX) {
+    return false;
+  }
+  return static_cast<int>(usePos.line) >= minLine &&
+         static_cast<int>(usePos.line) <= maxLine;
 }
 
 class ExpressionExtentCollector : public ast::ExpressionVisitor {
@@ -293,6 +314,165 @@ void addArrayMembers(const Resolver& resolver, VellumType objectType,
   }
 }
 
+std::string functionDetailFromDecl(const ast::FunctionDeclaration& decl) {
+  std::string detail = "(";
+  bool first = true;
+  for (const auto& param : decl.getParameters()) {
+    if (!first) {
+      detail += ", ";
+    }
+    first = false;
+    detail += param.name;
+    detail += ": ";
+    detail += param.type.toString();
+  }
+  detail += ") -> ";
+  detail += decl.getReturnTypeName().toString();
+  return detail;
+}
+
+class AstMembersCollector : public ast::DeclarationVisitor {
+ public:
+  AstMembersCollector(Vec<CompletionCandidate>& out,
+                      common::Set<std::string_view>& seen,
+                      bool includeStaticMembers)
+      : out(out), seen(seen), includeStaticMembers(includeStaticMembers) {}
+
+  void collect(const ParserResult& parseResult) {
+    auto& declarations =
+        const_cast<common::Vec<common::Unique<ast::Declaration>>&>(
+            parseResult.declarations);
+    for (auto& decl : declarations) {
+      decl->accept(*this);
+    }
+  }
+
+  void visitImportDeclaration(ast::ImportDeclaration&) override {}
+  void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override {
+    for (const auto& memberDecl : declaration.getMemberDecls()) {
+      memberDecl->accept(*this);
+    }
+  }
+  void visitStateDeclaration(ast::StateDeclaration& declaration) override {
+    if (currentState_) {
+      return;
+    }
+    const Opt<VellumIdentifier> savedState = currentState_;
+    currentState_ = VellumIdentifier(declaration.getStateName());
+    for (const auto& memberDecl : declaration.getMemberDecls()) {
+      memberDecl->accept(*this);
+    }
+    currentState_ = savedState;
+  }
+  void visitVariableDeclaration(
+      ast::GlobalVariableDeclaration& declaration) override {
+    if (currentState_) {
+      return;
+    }
+    const auto name = declaration.name();
+    const auto key = common::normalizeToLower(name);
+    if (!seen.insert(key).second) {
+      return;
+    }
+    const VellumType type =
+        declaration.typeName().value_or(VellumType::none());
+    addCandidate(out, std::string(name), lsp::CompletionItemKind::Variable,
+                 typeDetail(type), "1_");
+  }
+  void visitFunctionDeclaration(
+      ast::FunctionDeclaration& declaration) override {
+    if (currentState_ || !declaration.getName()) {
+      return;
+    }
+    if (declaration.isStatic() && !includeStaticMembers) {
+      return;
+    }
+    const auto name = declaration.getName()->data();
+    const auto key = common::normalizeToLower(name);
+    if (!seen.insert(key).second) {
+      return;
+    }
+    addCandidate(out, std::string(name), lsp::CompletionItemKind::Function,
+                 functionDetailFromDecl(declaration), "1_");
+  }
+  void visitPropertyDeclaration(
+      ast::PropertyDeclaration& declaration) override {
+    if (currentState_) {
+      return;
+    }
+    const auto name = declaration.getName();
+    const auto key = common::normalizeToLower(name);
+    if (!seen.insert(key).second) {
+      return;
+    }
+    addCandidate(out, std::string(name), lsp::CompletionItemKind::Property,
+                 typeDetail(declaration.getTypeName()), "1_");
+  }
+
+ private:
+  Vec<CompletionCandidate>& out;
+  common::Set<std::string_view>& seen;
+  bool includeStaticMembers;
+  Opt<VellumIdentifier> currentState_;
+};
+
+void addMembersFromAst(const ParserResult& parseResult,
+                       Vec<CompletionCandidate>& out,
+                       common::Set<std::string_view>& seen) {
+  AstMembersCollector collector(out, seen, /*includeStaticMembers=*/true);
+  collector.collect(parseResult);
+}
+
+void addMembersFromModule(const ImportModule& module,
+                          Vec<CompletionCandidate>& out,
+                          common::Set<std::string_view>& seen) {
+  if (!module.isParsed()) {
+    return;
+  }
+  addMembersFromAst(module.getAst(), out, seen);
+}
+
+Opt<VellumType> parentTypeFromAst(const ParserResult& parseResult) {
+  for (const auto& decl : parseResult.declarations) {
+    auto* script = dynamic_cast<ast::ScriptDeclaration*>(decl.get());
+    if (!script) {
+      continue;
+    }
+    const VellumType parent = script->getParentScriptName();
+    if (parent.getState() == VellumTypeState::Identifier) {
+      return parent;
+    }
+    if (parent.getState() == VellumTypeState::Unresolved) {
+      const std::string_view raw = parent.asRawType();
+      if (!raw.empty()) {
+        return VellumType::identifier(VellumIdentifier(raw));
+      }
+    }
+    return std::nullopt;
+  }
+  return std::nullopt;
+}
+
+Opt<VellumType> parentTypeForModule(const ImportModule& module,
+                                    const Shared<ImportLibrary>& importLibrary,
+                                    const Resolver& rootResolver) {
+  if (!module.isParsed()) {
+    return std::nullopt;
+  }
+  if (const Opt<VellumType> fromAst = parentTypeFromAst(module.getAst())) {
+    if (fromAst->getState() == VellumTypeState::Identifier) {
+      return fromAst;
+    }
+  }
+  const VellumIdentifier typeId = module.getName();
+  if (const Resolver* typeResolver =
+          resolverForType(rootResolver, VellumType::identifier(typeId),
+                          importLibrary)) {
+    return typeResolver->getParentType();
+  }
+  return std::nullopt;
+}
+
 void addMemberFromObject(const VellumObject& object, const Resolver& resolver,
                          VellumType objectType, Vec<CompletionCandidate>& out,
                          common::Set<std::string_view>& seen,
@@ -335,6 +515,7 @@ void addMemberFromObject(const VellumObject& object, const Resolver& resolver,
 
 void enumerateTypeMembers(const Resolver& rootResolver, VellumType objectType,
                           const Shared<ImportLibrary>& importLibrary,
+                          const ParserResult* localAst,
                           Vec<CompletionCandidate>& out,
                           common::Set<std::string_view>& seen) {
   VellumType curType = objectType;
@@ -345,16 +526,42 @@ void enumerateTypeMembers(const Resolver& rootResolver, VellumType objectType,
       break;
     }
 
-    const Resolver* typeResolver =
-        resolverForType(rootResolver, curType, importLibrary);
-    if (!typeResolver) {
+    if (curType.getState() != VellumTypeState::Identifier) {
       break;
     }
 
-    addMemberFromObject(typeResolver->getObject(), *typeResolver, curType, out,
-                        seen, /*includeStaticMembers=*/true);
+    const VellumIdentifier typeId = curType.asIdentifier();
+    const size_t before = out.size();
 
-    const Opt<VellumType> parentType = typeResolver->getParentType();
+    const Resolver* typeResolver =
+        resolverForType(rootResolver, curType, importLibrary);
+    if (typeResolver) {
+      addMemberFromObject(typeResolver->getObject(), *typeResolver, curType, out,
+                          seen, /*includeStaticMembers=*/true);
+    }
+
+    if (out.size() == before) {
+      if (importLibrary) {
+        if (const ImportModulePtr module = importLibrary->findModule(typeId)) {
+          addMembersFromModule(*module, out, seen);
+        }
+      }
+      if (out.size() == before && localAst &&
+          rootResolver.getObject().getType() == curType) {
+        addMembersFromAst(*localAst, out, seen);
+      }
+    }
+
+    Opt<VellumType> parentType;
+    if (typeResolver) {
+      parentType = typeResolver->getParentType();
+    }
+    if ((!parentType || parentType->getState() != VellumTypeState::Identifier) &&
+        importLibrary) {
+      if (const ImportModulePtr module = importLibrary->findModule(typeId)) {
+        parentType = parentTypeForModule(*module, importLibrary, rootResolver);
+      }
+    }
     if (!parentType || parentType->getState() != VellumTypeState::Identifier) {
       break;
     }
@@ -407,6 +614,12 @@ Vec<VellumIdentifier> findImportModulesForQualifier(
     return matches;
   }
 
+  // Prefix matching is for module qualifiers like "Mat" → Math/MathEx, not
+  // lowercase locals such as event parameter "p".
+  if (qualifier.empty() || qualifier[0] < 'A' || qualifier[0] > 'Z') {
+    return matches;
+  }
+
   const std::string qualifierLower =
       std::string(common::normalizeToLower(qualifier));
   for (const auto& [name, module] : importLibrary->getAllModules()) {
@@ -422,36 +635,6 @@ Vec<VellumIdentifier> findImportModulesForQualifier(
   return matches;
 }
 
-Opt<VellumType> resolveIdentifierBeforeDot(const Resolver& resolver,
-                                           std::string_view line,
-                                           size_t dotIndex) {
-  const Opt<std::string> name = identifierTextBeforeDot(line, dotIndex);
-  if (!name) {
-    return std::nullopt;
-  }
-
-  const VellumIdentifier id(*name);
-
-  if (const auto value = resolver.resolveIdentifier(id)) {
-    switch (value->getType()) {
-      case VellumValueType::Variable:
-        return value->asVariable().getType();
-      case VellumValueType::Property:
-        return value->asProperty().getType();
-      case VellumValueType::ScriptType:
-        return value->asScriptType();
-      default:
-        break;
-    }
-  }
-
-  if (const auto scriptType = resolver.resolveScriptType(id)) {
-    return *scriptType;
-  }
-
-  return std::nullopt;
-}
-
 bool functionContainsUse(ast::FunctionDeclaration& declaration,
                          lsp::Position usePos) {
   for (const auto& param : declaration.getParameters()) {
@@ -460,8 +643,11 @@ bool functionContainsUse(ast::FunctionDeclaration& declaration,
       return true;
     }
   }
-  return declaration.getBody() &&
-         blockContainsUse(*declaration.getBody(), usePos);
+  if (!declaration.getBody()) {
+    return false;
+  }
+  return blockContainsUse(*declaration.getBody(), usePos) ||
+         blockSpansPosition(*declaration.getBody(), usePos);
 }
 
 class LocalScopeCollector : public ast::DeclarationVisitor {
@@ -475,6 +661,15 @@ class LocalScopeCollector : public ast::DeclarationVisitor {
   }
 
   Vec<CompletionCandidate> result;
+
+  Opt<VellumType> lookupType(VellumIdentifier name) const {
+    const auto key = std::string(common::normalizeToLower(name.toString()));
+    const auto it = localTypes_.find(key);
+    if (it == localTypes_.end()) {
+      return std::nullopt;
+    }
+    return it->second;
+  }
 
   void visitImportDeclaration(ast::ImportDeclaration&) override {}
   void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override {
@@ -511,8 +706,7 @@ class LocalScopeCollector : public ast::DeclarationVisitor {
       addLocal(param.name, param.type, true);
     }
 
-    if (declaration.getBody() &&
-        blockContainsUse(*declaration.getBody(), usePos)) {
+    if (declaration.getBody()) {
       searchBlock(declaration.getBody()->getStatements());
     }
   }
@@ -520,9 +714,11 @@ class LocalScopeCollector : public ast::DeclarationVisitor {
  private:
   lsp::Position usePos;
   common::Set<std::string_view> seen_;
+  common::Map<std::string, VellumType> localTypes_;
 
   void addLocal(std::string_view name, VellumType type, bool isParam) {
     const auto key = common::normalizeToLower(name);
+    localTypes_[std::string(key)] = type;
     if (!seen_.insert(key).second) {
       return;
     }
@@ -614,6 +810,101 @@ class LocalScopeCollector : public ast::DeclarationVisitor {
     }
   }
 };
+
+VellumType normalizeTypeForMemberAccess(const Resolver& resolver,
+                                        VellumType type) {
+  if (type.isArray()) {
+    return VellumType::array(
+        normalizeTypeForMemberAccess(resolver, *type.asArraySubtype()));
+  }
+  if (!type.isResolved()) {
+    return resolver.resolveType(type, Token{});
+  }
+  return type;
+}
+
+Opt<VellumType> resolveTypeBeforeDot(const NavigationContext& navigation,
+                                     const Resolver& resolver, lsp::Position pos,
+                                     std::string_view line, size_t dotIndex) {
+  const Opt<std::string> name = identifierTextBeforeDot(line, dotIndex);
+  if (!name) {
+    return std::nullopt;
+  }
+
+  const VellumIdentifier id(*name);
+  auto finish = [&](VellumType type) -> Opt<VellumType> {
+    type = normalizeTypeForMemberAccess(resolver, type);
+    if (type.getState() == VellumTypeState::Identifier || type.isArray()) {
+      return type;
+    }
+    return std::nullopt;
+  };
+
+  if (const auto value = resolver.resolveIdentifier(id)) {
+    switch (value->getType()) {
+      case VellumValueType::Variable:
+        return finish(value->asVariable().getType());
+      case VellumValueType::Property:
+        return finish(value->asProperty().getType());
+      case VellumValueType::ScriptType:
+        return finish(value->asScriptType());
+      default:
+        break;
+    }
+  }
+
+  if (navigation.parseOk) {
+    LocalScopeCollector localLookup(pos);
+    auto& declarations =
+        const_cast<common::Vec<common::Unique<ast::Declaration>>&>(
+            navigation.parseResult.declarations);
+    localLookup.collect(declarations);
+    if (const Opt<VellumType> localType = localLookup.lookupType(id)) {
+      return finish(*localType);
+    }
+  }
+
+  if (const auto scriptType = resolver.resolveScriptType(id)) {
+    return finish(*scriptType);
+  }
+
+  return std::nullopt;
+}
+
+void appendTypeMembers(const NavigationContext& navigation,
+                       const Resolver& resolver, VellumType objectType,
+                       const Shared<ImportLibrary>& importLibrary,
+                       Vec<CompletionCandidate>& out) {
+  if (navigation.importResolver &&
+      objectType.getState() == VellumTypeState::Identifier) {
+    navigation.importResolver->ensureModule(objectType.asIdentifier());
+  }
+
+  common::Set<std::string_view> seen;
+  enumerateTypeMembers(resolver, objectType, importLibrary,
+                       &navigation.parseResult, out, seen);
+}
+
+void appendImportQualifierMembers(const NavigationContext& navigation,
+                                  const Resolver& resolver,
+                                  const Shared<ImportLibrary>& importLibrary,
+                                  std::string_view qualifier,
+                                  Vec<CompletionCandidate>& out) {
+  if (!importLibrary) {
+    return;
+  }
+
+  const Vec<VellumIdentifier> matches =
+      findImportModulesForQualifier(importLibrary, qualifier);
+  common::Set<std::string_view> seen;
+  for (const VellumIdentifier& moduleId : matches) {
+    if (navigation.importResolver) {
+      navigation.importResolver->ensureModule(moduleId);
+    }
+    enumerateTypeMembers(resolver, VellumType::identifier(moduleId),
+                         importLibrary, &navigation.parseResult, out, seen);
+  }
+}
 
 }  // namespace
 
@@ -717,35 +1008,28 @@ void collectTypeMembers(const NavigationContext& navigation,
   PropertyOwnerContext owner = findPropertyOwnerAtPosition(
       navigation.parseResult, pos, memberPrefix);
 
+  Opt<std::string> qualifierBeforeDot;
   if (!owner.found && afterDot) {
     if (const Opt<size_t> dotAt =
             dotIndexAtOrBeforeCursor(sourceLine, pos.character)) {
-      if (const auto type =
-              resolveIdentifierBeforeDot(resolver, sourceLine, *dotAt)) {
+      qualifierBeforeDot = identifierTextBeforeDot(sourceLine, *dotAt);
+      if (const auto type = resolveTypeBeforeDot(navigation, resolver, pos,
+                                                 sourceLine, *dotAt)) {
         owner.objectType = *type;
         owner.found = true;
-      } else if (importLibrary) {
-        if (const Opt<std::string> partialName =
-                identifierTextBeforeDot(sourceLine, *dotAt)) {
-          const Vec<VellumIdentifier> matches =
-              findImportModulesForQualifier(importLibrary, *partialName);
-          if (!matches.empty()) {
-            common::Set<std::string_view> seen;
-            for (const VellumIdentifier& moduleId : matches) {
-              if (navigation.importResolver) {
-                navigation.importResolver->ensureModule(moduleId);
-              }
-              enumerateTypeMembers(resolver, VellumType::identifier(moduleId),
-                                   importLibrary, out, seen);
-            }
-            return;
-          }
-        }
       }
     }
   }
 
   if (!owner.found) {
+    if (qualifierBeforeDot && importLibrary) {
+      const size_t before = out.size();
+      appendImportQualifierMembers(navigation, resolver, importLibrary,
+                                   *qualifierBeforeDot, out);
+      if (!out.empty() && out.size() > before) {
+        return;
+      }
+    }
     return;
   }
 
@@ -758,19 +1042,19 @@ void collectTypeMembers(const NavigationContext& navigation,
     }
   }
 
-  if (navigation.importResolver &&
-      objectType.getState() == VellumTypeState::Identifier) {
-    navigation.importResolver->ensureModule(objectType.asIdentifier());
+  const size_t before = out.size();
+  appendTypeMembers(navigation, resolver, objectType, importLibrary, out);
+  if (out.size() == before && qualifierBeforeDot && importLibrary) {
+    appendImportQualifierMembers(navigation, resolver, importLibrary,
+                                 *qualifierBeforeDot, out);
   }
-
-  common::Set<std::string_view> seen;
-  enumerateTypeMembers(resolver, objectType, importLibrary, out, seen);
 }
 
 void collectTypeMembersFromLine(const Shared<ImportLibrary>& importLibrary,
                                 std::string_view sourceLine, lsp::Position pos,
-                                bool afterDot, Vec<CompletionCandidate>& out) {
-  if (!afterDot || !importLibrary) {
+                                bool afterDot, Vec<CompletionCandidate>& out,
+                                const NavigationContext* navigation) {
+  if (!afterDot) {
     return;
   }
 
@@ -782,13 +1066,25 @@ void collectTypeMembersFromLine(const Shared<ImportLibrary>& importLibrary,
 
   const Opt<std::string> partialName =
       identifierTextBeforeDot(sourceLine, *dotAt);
-  if (!partialName) {
+
+  if (navigation && navigation->parseOk && navigation->resolver) {
+    if (const auto type = resolveTypeBeforeDot(*navigation, *navigation->resolver,
+                                               pos, sourceLine, *dotAt)) {
+      const size_t before = out.size();
+      appendTypeMembers(*navigation, *navigation->resolver, *type,
+                        importLibrary, out);
+      if (!out.empty() && out.size() > before) {
+        return;
+      }
+    }
+    if (partialName && importLibrary) {
+      appendImportQualifierMembers(*navigation, *navigation->resolver,
+                                   importLibrary, *partialName, out);
+    }
     return;
   }
 
-  const Vec<VellumIdentifier> matches =
-      findImportModulesForQualifier(importLibrary, *partialName);
-  if (matches.empty()) {
+  if (!importLibrary || !partialName) {
     return;
   }
 
@@ -800,11 +1096,13 @@ void collectTypeMembersFromLine(const Shared<ImportLibrary>& importLibrary,
       VellumObject(VellumType::identifier(VellumIdentifier("_"))), errorHandler,
       importLibrary, builtinFunctions);
 
+  const Vec<VellumIdentifier> matches =
+      findImportModulesForQualifier(importLibrary, *partialName);
   common::Set<std::string_view> seen;
   for (const VellumIdentifier& moduleId : matches) {
     importResolver->ensureModule(moduleId);
     enumerateTypeMembers(*rootResolver, VellumType::identifier(moduleId),
-                         importLibrary, out, seen);
+                         importLibrary, nullptr, out, seen);
   }
 }
 

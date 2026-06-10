@@ -44,11 +44,13 @@ void collectTypeMembers(const NavigationContext& navigation,
                         bool afterDot, Opt<VellumIdentifier> memberPrefix,
                         Vec<CompletionCandidate>& out);
 
-// When the document does not parse (e.g. trailing `.`), complete import modules
-// from the identifier text before the dot.
+// Fallback when AST-based member resolution produced no candidates (e.g.
+// trailing `.`). Uses local scope when navigation is available, otherwise
+// import modules from the identifier text before the dot.
 void collectTypeMembersFromLine(const Shared<ImportLibrary>& importLibrary,
                                 std::string_view sourceLine, lsp::Position pos,
-                                bool afterDot, Vec<CompletionCandidate>& out);
+                                bool afterDot, Vec<CompletionCandidate>& out,
+                                const NavigationContext* navigation = nullptr);
 
 void collectTypes(const NavigationContext& navigation,
                   const Shared<ImportLibrary>& importLibrary,

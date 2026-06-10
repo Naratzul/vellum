@@ -99,10 +99,10 @@ CompletionsProvider::getCompletions(
         collectTypeMembers(*cache.navigation, importLibrary, params.position,
                          sourceLine, afterDot, memberFilter, candidates);
       }
-      if (importLibrary && afterDot &&
-          (!canUseResolver || candidates.empty())) {
+      if (afterDot && (!canUseResolver || candidates.empty())) {
         collectTypeMembersFromLine(importLibrary, sourceLine, params.position,
-                                 afterDot, candidates);
+                                 afterDot, candidates,
+                                 canUseAst ? &*cache.navigation : nullptr);
       }
       break;
     }
