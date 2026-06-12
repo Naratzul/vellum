@@ -96,6 +96,8 @@ enum class CompilerErrorKind {
   FunctionRedefinition,
   PropertyRedefinition,
   VariableRedefinition,
+
+  InvalidCallee,
 };
 
 enum class CompilerWarningKind {};

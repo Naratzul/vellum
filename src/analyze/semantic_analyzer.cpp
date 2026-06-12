@@ -465,6 +465,9 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
     }
   } else {
     assert(false && "Unknown callee type");
+    errorHandler->errorAt(callee->getLocation(),
+                          CompilerErrorKind::InvalidCallee,
+                          "Unknown callee type.");
   }
 
   Opt<VellumFunction> func;
@@ -1015,7 +1018,8 @@ void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
           "Cannot cast to array type. (Skyrim: nothing can be "
           "cast to an array, including other arrays.)");
     } else {
-      errorHandler->errorAt(target.getLocation(), CompilerErrorKind::InvalidCast,
+      errorHandler->errorAt(target.getLocation(),
+                            CompilerErrorKind::InvalidCast,
                             "Cannot cast from '{}' to '{}'.",
                             innerType.toString(), targetType.toString());
     }

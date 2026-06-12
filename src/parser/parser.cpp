@@ -718,7 +718,13 @@ Unique<ast::Expression> Parser::callOrGetExpression() {
               "Expect ']' after array index.");
       expr = makeUnique<ast::ArrayIndexExpression>(std::move(expr),
                                                    std::move(index), location);
-    } else if (match(TokenType::LEFT_PAREN)) {
+    } else if (check(TokenType::LEFT_PAREN)) {
+      if (!expr->isIdentifierExpression() && !expr->isPropertyGetExpression()) {
+        break;
+      }
+
+      match(TokenType::LEFT_PAREN);
+
       expr = callExpression(std::move(expr), previous);
     } else if (match(TokenType::DOT)) {
       consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,

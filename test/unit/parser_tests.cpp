@@ -1805,3 +1805,222 @@ TEST_CASE("ParserReturn_Ternary_MissingColon_ExpectColon") {
 
   REQUIRE(errorHandler->hasError(CompilerErrorKind::ExpectColon));
 }
+
+TEST_CASE("ParserCall_NotChainedAfterCall_OnNextLine") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "test"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::VAR, 1, "var"),
+      makeToken(TokenType::IDENTIFIER, 1, "itemType"),
+      makeToken(TokenType::EQUAL, 1, "="),
+      makeToken(TokenType::IDENTIFIER, 1, "player"),
+      makeToken(TokenType::DOT, 1, "."),
+      makeToken(TokenType::IDENTIFIER, 1, "GetEquippedItemType"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_PAREN, 2, "("),
+      makeToken(TokenType::IDENTIFIER, 2, "source"),
+      makeToken(TokenType::AS, 2, "as"),
+      makeToken(TokenType::IDENTIFIER, 2, "Weapon"),
+      makeToken(TokenType::RIGHT_PAREN, 2, ")"),
+      makeToken(TokenType::RIGHT_BRACE, 2, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 2, "}"),
+      makeToken(TokenType::END_OF_FILE, 2, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 2);
+
+  const auto* varStmt = dynamic_cast<const ast::LocalVariableStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(varStmt != nullptr);
+  REQUIRE(varStmt->getName().toString() == "itemType");
+  REQUIRE(varStmt->getInitializer() != nullptr);
+
+  const auto* initCall = dynamic_cast<const ast::CallExpression*>(
+      varStmt->getInitializer().get());
+  REQUIRE(initCall != nullptr);
+  REQUIRE(initCall->getArguments().size() == 1);
+  REQUIRE(initCall->getArguments()[0]->isLiteralExpression());
+  REQUIRE(initCall->getArguments()[0]->asLiteral().getLiteral().asInt() == 1);
+
+  const auto* initCallee = dynamic_cast<const ast::PropertyGetExpression*>(
+      initCall->getCallee().get());
+  REQUIRE(initCallee != nullptr);
+  REQUIRE(initCallee->getObject()->isIdentifierExpression());
+  REQUIRE(initCallee->getObject()->asIdentifier().getIdentifier().toString() ==
+          "player");
+  REQUIRE(initCallee->getProperty().toString() == "GetEquippedItemType");
+
+  const auto* castStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()->getStatements()[1].get());
+  REQUIRE(castStmt != nullptr);
+
+  const auto* groupingExpr = dynamic_cast<const ast::GroupingExpression*>(
+      castStmt->getExpression().get());
+  REQUIRE(groupingExpr != nullptr);
+
+  const auto* castExpr = dynamic_cast<const ast::CastExpression*>(
+      groupingExpr->getExpression().get());
+  REQUIRE(castExpr != nullptr);
+  REQUIRE(castExpr->getExpression()->isIdentifierExpression());
+  REQUIRE(
+      castExpr->getExpression()->asIdentifier().getIdentifier().toString() ==
+      "source");
+  REQUIRE(castExpr->getTargetExpression()->getIdentifier().toString() ==
+          "Weapon");
+}
+
+TEST_CASE("ParserCall_NotChainedAfterGroupedCall_OnNextLine") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "test"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::VAR, 1, "var"),
+      makeToken(TokenType::IDENTIFIER, 1, "itemType"),
+      makeToken(TokenType::EQUAL, 1, "="),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::IDENTIFIER, 1, "player"),
+      makeToken(TokenType::DOT, 1, "."),
+      makeToken(TokenType::IDENTIFIER, 1, "GetEquippedItemType"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_PAREN, 2, "("),
+      makeToken(TokenType::IDENTIFIER, 2, "source"),
+      makeToken(TokenType::AS, 2, "as"),
+      makeToken(TokenType::IDENTIFIER, 2, "Weapon"),
+      makeToken(TokenType::RIGHT_PAREN, 2, ")"),
+      makeToken(TokenType::RIGHT_BRACE, 2, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 2, "}"),
+      makeToken(TokenType::END_OF_FILE, 2, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 2);
+
+  const auto* varStmt = dynamic_cast<const ast::LocalVariableStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(varStmt != nullptr);
+
+  const auto* initGrouping = dynamic_cast<const ast::GroupingExpression*>(
+      varStmt->getInitializer().get());
+  REQUIRE(initGrouping != nullptr);
+
+  const auto* initCall = dynamic_cast<const ast::CallExpression*>(
+      initGrouping->getExpression().get());
+  REQUIRE(initCall != nullptr);
+  REQUIRE(initCall->getCallee()->isPropertyGetExpression());
+
+  const auto* castStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()->getStatements()[1].get());
+  REQUIRE(castStmt != nullptr);
+  REQUIRE(dynamic_cast<const ast::CastExpression*>(
+              dynamic_cast<const ast::GroupingExpression*>(
+                  castStmt->getExpression().get())
+                  ->getExpression()
+                  .get()) != nullptr);
+}
+
+TEST_CASE("ParserCall_ChainedMethodCall") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "test"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "obj"),
+      makeToken(TokenType::DOT, 1, "."),
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::DOT, 1, "."),
+      makeToken(TokenType::IDENTIFIER, 1, "bar"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
+
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(exprStmt != nullptr);
+
+  const auto* outerCall = dynamic_cast<const ast::CallExpression*>(
+      exprStmt->getExpression().get());
+  REQUIRE(outerCall != nullptr);
+  REQUIRE(outerCall->getCallee()->isPropertyGetExpression());
+  REQUIRE(outerCall->getCallee()->asPropertyGet().getProperty().toString() ==
+          "bar");
+
+  const auto* innerCall = dynamic_cast<const ast::CallExpression*>(
+      outerCall->getCallee()->asPropertyGet().getObject().get());
+  REQUIRE(innerCall != nullptr);
+  REQUIRE(innerCall->getCallee()->isPropertyGetExpression());
+  REQUIRE(innerCall->getCallee()->asPropertyGet().getProperty().toString() ==
+          "foo");
+  REQUIRE(
+      innerCall->getCallee()->asPropertyGet().getObject()->isIdentifierExpression());
+  REQUIRE(innerCall->getCallee()
+              ->asPropertyGet()
+              .getObject()
+              ->asIdentifier()
+              .getIdentifier()
+              .toString() == "obj");
+}
