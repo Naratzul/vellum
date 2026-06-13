@@ -35,10 +35,10 @@ struct FullAnalyzeOutcome {
   NavigationContext navigation;
 };
 
-FullAnalyzeOutcome analyzeFull(ParserResult parseResult,
-                               std::string_view scriptName,
-                               const Shared<ImportLibrary>& importLibrary,
-                               const Shared<CompilerErrorHandler>& errorHandler) {
+FullAnalyzeOutcome analyzeFull(
+    ParserResult parseResult, std::string_view scriptName,
+    const Shared<ImportLibrary>& importLibrary,
+    const Shared<CompilerErrorHandler>& errorHandler) {
   NavigationContext navigation;
   navigation.parseResult = std::move(parseResult);
   navigation.parseOk = true;
@@ -79,9 +79,9 @@ FullAnalyzeOutcome analyzeFull(ParserResult parseResult,
 
 }  // namespace
 
-AnalysisResult DocumentAnalyzer::run(std::string_view source,
-                                     std::string_view scriptName,
-                                     const Shared<ImportLibrary>& importLibrary) {
+AnalysisResult DocumentAnalyzer::run(
+    std::string_view source, std::string_view scriptName,
+    const Shared<ImportLibrary>& importLibrary) {
   ParseOutcome parseOutcome = parseDocument(source);
 
   if (parseOutcome.parseResult.declarations.empty()) {
@@ -93,11 +93,11 @@ AnalysisResult DocumentAnalyzer::run(std::string_view source,
   }
 
   FullAnalyzeOutcome fullOutcome =
-      analyzeFull(std::move(parseOutcome.parseResult), scriptName, importLibrary,
-                  parseOutcome.errorHandler);
+      analyzeFull(std::move(parseOutcome.parseResult), scriptName,
+                  importLibrary, parseOutcome.errorHandler);
 
   lsp::SemanticTokens semanticTokens =
-      parseOutcome.errorHandler->hadError()
+      fullOutcome.navigation.parseResult.declarations.empty()
           ? buildSemanticTokensLexerFallback(source)
           : buildSemanticTokensFromParse(fullOutcome.navigation.parseResult,
                                          source);

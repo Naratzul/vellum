@@ -32,11 +32,6 @@ enum class SemanticTokenLegendModifierBits {
 using SemanticTokenLegendModifier =
     common::Flags<SemanticTokenLegendModifierBits>;
 
-class SemanticTokensBuilder {
- public:
-  lsp::SemanticTokens build(std::string_view sourceCode) const;
-};
-
 lsp::SemanticTokens buildSemanticTokensFromParse(ParserResult& parseResult,
                                                  std::string_view source);
 lsp::SemanticTokens buildSemanticTokensLexerFallback(std::string_view source);
