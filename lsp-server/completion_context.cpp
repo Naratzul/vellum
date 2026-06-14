@@ -14,6 +14,8 @@ bool isIdentifierChar(char c) {
 
 bool isHorizontalSpace(char c) { return c == ' ' || c == '\t'; }
 
+}  // namespace
+
 std::string_view lineAt(std::string_view source, unsigned lineIndex) {
   unsigned currentLine = 0;
   size_t start = 0;
@@ -31,8 +33,6 @@ std::string_view lineAt(std::string_view source, unsigned lineIndex) {
   }
   return {};
 }
-
-}  // namespace
 
 PrefixAtCursor prefixAtPosition(std::string_view source, lsp::Position pos) {
   PrefixAtCursor result;
@@ -105,12 +105,7 @@ CompletionContext detectContext(
     const lsp::requests::TextDocument_Completion::Params& params,
     const CachedAnalysis& cache, const PrefixAtCursor& prefix) {
   CompletionContext ctx;
-  ctx.prefix = prefix;
-
-  if (cache.navigation) {
-    ctx.parseOk = cache.navigation->parseOk;
-    ctx.semanticOk = cache.navigation->semanticOk;
-  }
+  const bool parseOk = cache.navigation && cache.navigation->parseOk;
 
   const bool triggerDot =
       params.context &&
@@ -180,7 +175,7 @@ CompletionContext detectContext(
     }
   }
 
-  if (ctx.parseOk && cache.navigation && cache.navigation->resolver) {
+  if (parseOk && cache.navigation && cache.navigation->resolver) {
     ctx.kind = CompletionContextKind::Expression;
   } else {
     ctx.kind = CompletionContextKind::Keyword;

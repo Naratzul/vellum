@@ -6,28 +6,9 @@
 #include "completion_context.h"
 #include "completion_items.h"
 #include "document_store.h"
-#include "navigation_utils.h"
 
 namespace vellum {
 namespace {
-
-std::string_view lineAt(std::string_view source, unsigned lineIndex) {
-  unsigned currentLine = 0;
-  size_t start = 0;
-  for (size_t i = 0; i < source.size(); ++i) {
-    if (source[i] == '\n') {
-      if (currentLine == lineIndex) {
-        return source.substr(start, i - start);
-      }
-      currentLine++;
-      start = i + 1;
-    }
-  }
-  if (currentLine == lineIndex) {
-    return source.substr(start);
-  }
-  return {};
-}
 
 void dedupeCandidates(Vec<CompletionCandidate>& candidates) {
   common::Set<std::string_view> seen;

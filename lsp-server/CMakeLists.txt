@@ -19,7 +19,7 @@ add_executable(vellum-lsp
     ast_locator.h ast_locator.cpp
     declaration_index.h declaration_index.cpp
     semantic_tokens.h semantic_tokens.cpp
-    message_handler.h message_handler.cpp
+     
     server.h server.cpp
 )
 target_link_libraries(vellum-lsp PUBLIC lsp vellum_compiler)
@@ -50,7 +50,7 @@ add_executable(vellum-lsp-completion-smoke
     ast_locator.cpp
     declaration_index.cpp
     semantic_tokens.cpp
-    message_handler.cpp
+    
     navigation_utils.cpp
     completion_context.cpp
     completion_collectors.cpp

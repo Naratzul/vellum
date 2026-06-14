@@ -12,7 +12,6 @@
 #include "compiler/builtin_functions.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
-#include "vellum/vellum_object.h"
 #include "lsp_locations.h"
 #include "navigation_utils.h"
 #include "vellum/vellum_function.h"

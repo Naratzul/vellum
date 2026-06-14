@@ -6,8 +6,6 @@
 #include <string>
 #include <string_view>
 
-#include "common/fs.h"
-#include "common/types.h"
 #include "document_store.h"
 
 namespace vellum {
@@ -30,11 +28,10 @@ struct PrefixAtCursor {
 
 PrefixAtCursor prefixAtPosition(std::string_view source, lsp::Position pos);
 
+std::string_view lineAt(std::string_view source, unsigned lineIndex);
+
 struct CompletionContext {
   CompletionContextKind kind{CompletionContextKind::Keyword};
-  PrefixAtCursor prefix;
-  bool parseOk{false};
-  bool semanticOk{false};
 };
 
 CompletionContext detectContext(
