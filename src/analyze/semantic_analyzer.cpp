@@ -427,7 +427,7 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
 
   if (callee->isIdentifierExpression()) {
     expr.setFunctionCall(VellumFunctionCall::methodCall(
-        VellumIdentifier("self"), resolver->getObject().getType(),
+        VellumIdentifier("self"), resolver->getObjectType(),
         callee->asIdentifier().getIdentifier()));
   } else if (callee->isPropertyGetExpression()) {
     if (callee->asPropertyGet().getObject()->isSuperExpression()) {
@@ -439,7 +439,7 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
 
       if (callee->asPropertyGet().getObject()->isSelfExpression()) {
         expr.setFunctionCall(VellumFunctionCall::methodCall(
-            VellumIdentifier("self"), resolver->getObject().getType(),
+            VellumIdentifier("self"), resolver->getObjectType(),
             callee->asPropertyGet().getProperty()));
       } else if (callee->asPropertyGet()
                      .getObject()
@@ -613,6 +613,8 @@ void SemanticAnalyzer::visitPropertyGetExpression(
     }
   }
 
+  const VellumType objectType = expr.getObject()->getType();
+
   Opt<VellumValue> property;
   if (expr.getObject()->isSuperExpression()) {
     if (auto func = resolver->resolveParentFunction(expr.getProperty())) {
@@ -631,11 +633,20 @@ void SemanticAnalyzer::visitPropertyGetExpression(
     expr.setIdentifierType(VellumValueType::Property);
     return;
   } else {
-    const VellumType objectType = expr.getObject()->getType();
-
     property = resolver->resolveProperty(objectType, expr.getProperty());
+
     if (objectType.isArray() && !property) {
       property = resolver->resolveFunction(objectType, expr.getProperty());
+    }
+
+    if (!property) {
+      property = resolver->resolveVariable(objectType, expr.getProperty());
+
+      if (property && objectType != resolver->getObjectType()) {
+        errorHandler->errorAt(
+            expr.getLocation(), CompilerErrorKind::PropertyNotAccessible,
+            "Variable '{}' is not accessible.", expr.getProperty().toString());
+      }
     }
   }
 
@@ -658,6 +669,10 @@ void SemanticAnalyzer::visitPropertyGetExpression(
     case VellumValueType::ScriptType:
       expr.setType(property->asScriptType());
       expr.setIdentifierType(VellumValueType::ScriptType);
+      break;
+    case VellumValueType::Variable:
+      expr.setType(property->asVariable().getType());
+      expr.setIdentifierType(VellumValueType::Variable);
       break;
     default:
       errorHandler->errorAt(
@@ -691,12 +706,24 @@ void SemanticAnalyzer::visitPropertySetExpression(
     }
   }
 
+  const VellumType objectType = expr.getObject()->getType();
+
   Opt<VellumValue> property;
   if (expr.getObject()->isSuperExpression()) {
     property = resolver->resolveParentProperty(expr.getProperty());
   } else {
-    property = resolver->resolveProperty(expr.getObject()->getType(),
-                                         expr.getProperty());
+    property = resolver->resolveProperty(objectType, expr.getProperty());
+
+    if (!property) {
+      property = resolver->resolveVariable(objectType, expr.getProperty());
+
+      if (objectType != resolver->getObjectType()) {
+        errorHandler->errorAt(expr.getPropertyLocation(),
+                              CompilerErrorKind::PropertyNotAccessible,
+                              "Variable '{}' is not accessible.",
+                              expr.getProperty().toString());
+      }
+    }
   }
 
   if (!property) {
@@ -728,6 +755,9 @@ void SemanticAnalyzer::visitPropertySetExpression(
                               expr.getProperty().toString());
       }
       expr.setType(property->asProperty().getType());
+      break;
+    case VellumValueType::Variable:
+      expr.setType(property->asVariable().getType());
       break;
     default:
       errorHandler->errorAt(
@@ -1065,7 +1095,7 @@ void SemanticAnalyzer::visitSelfExpression(ast::SelfExpression& expr) {
                           "self is not allowed in a static function.");
     return;
   }
-  expr.setType(resolver->getObject().getType());
+  expr.setType(resolver->getObjectType());
 }
 
 void SemanticAnalyzer::visitSuperExpression(ast::SuperExpression& expr) {

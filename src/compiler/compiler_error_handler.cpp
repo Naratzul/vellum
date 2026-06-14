@@ -21,7 +21,11 @@ void CompilerErrorHandler::errorAt(const Token& token,
 
   if (common::isDebuggerPresent()) {
     printError(token, message);
+
+#ifndef VELLUM_TESTS
     common::debugBreak();
+#endif  // !VELLUM_TESTS
+
     return;
   }
 
@@ -37,7 +41,7 @@ bool CompilerErrorHandler::hasError(CompilerErrorKind kind) {
 }
 
 void CompilerErrorHandler::printErrors() {
-  for (const auto& error: errors) {
+  for (const auto& error : errors) {
     printError(error.token, error.message);
   }
 }

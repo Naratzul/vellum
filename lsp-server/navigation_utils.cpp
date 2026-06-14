@@ -206,7 +206,7 @@ const Resolver* resolverForType(const Resolver& currentResolver,
     return nullptr;
   }
   const VellumIdentifier typeId = type.asIdentifier();
-  if (currentResolver.getObject().getType() == type) {
+  if (currentResolver.getObjectType() == type) {
     return &currentResolver;
   }
   if (const Resolver* scriptResolver =
@@ -309,7 +309,7 @@ Opt<lsp::DefinitionLink> definitionForTypeMember(
 
   const Resolver& resolver = *navigation.resolver;
   const Opt<VellumIdentifier> currentScript =
-      identifierFromType(resolver.getObject().getType());
+      identifierFromType(resolver.getObjectType());
 
   VellumType curType = objectType;
   for (int depth = 0; depth < 64; ++depth) {

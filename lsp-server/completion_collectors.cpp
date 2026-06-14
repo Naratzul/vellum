@@ -580,7 +580,7 @@ void enumerateTypeMembers(const Resolver& rootResolver, VellumType objectType,
         }
       }
       if (out.size() == before && localAst &&
-          rootResolver.getObject().getType() == curType) {
+          rootResolver.getObjectType() == curType) {
         addMembersFromAst(*localAst, out, seen);
       }
     }
@@ -1149,7 +1149,7 @@ VellumType normalizeTypeForMemberAccess(const Resolver& resolver,
 Opt<VellumType> resolveKeywordQualifier(VellumIdentifier id,
                                         const Resolver& resolver) {
   if (namesMatch(id, VellumIdentifier("self"))) {
-    return resolver.getObject().getType();
+    return resolver.getObjectType();
   }
   if (namesMatch(id, VellumIdentifier("super"))) {
     return resolver.getParentType();
@@ -1475,7 +1475,7 @@ void collectTypes(const NavigationContext& navigation,
 
   if (navigation.parseOk && navigation.resolver) {
     if (const auto currentId =
-            identifierFromType(navigation.resolver->getObject().getType())) {
+            identifierFromType(navigation.resolver->getObjectType())) {
       addCandidate(out, std::string(currentId->toString()),
                    lsp::CompletionItemKind::Class, "current script", "2_");
     }

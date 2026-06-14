@@ -142,7 +142,7 @@ Opt<lsp::DefinitionLink> resolveIdentifierTarget(
           break;
         }
         if (const auto currentScript =
-                identifierFromType(resolver.getObject().getType());
+                identifierFromType(resolver.getObjectType());
             currentScript && *scriptName == *currentScript) {
           return definitionInAst(navigation.parseResult, filePath, target.token,
                                  *scriptName, MemberKind::Script);
@@ -268,7 +268,7 @@ Opt<lsp::DefinitionLink> resolveCallCalleeTarget(
 
   const VellumIdentifier name = *target.identifier;
   const Resolver& resolver = *navigation.resolver;
-  const VellumType objectType = resolver.getObject().getType();
+  const VellumType objectType = resolver.getObjectType();
 
   if (!resolver.resolveFunction(objectType, name)) {
     return std::nullopt;
@@ -296,7 +296,7 @@ Opt<lsp::DefinitionLink> resolveScriptTypeTarget(
   }
 
   if (const auto currentScript =
-          identifierFromType(navigation.resolver->getObject().getType());
+          identifierFromType(navigation.resolver->getObjectType());
       currentScript && scriptId == *currentScript) {
     if (const auto link = definitionInAst(navigation.parseResult, filePath,
                                           target.token, scriptId,

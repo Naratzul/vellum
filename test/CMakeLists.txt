@@ -18,6 +18,8 @@ add_executable(tests
     unit/utils.cpp
 )
 
+target_compile_definitions(tests INTERFACE VELLUM_TESTS)
+
 target_link_libraries(tests PRIVATE
     vellum_compiler
     Catch2::Catch2WithMain

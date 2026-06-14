@@ -31,6 +31,7 @@ class Resolver {
 
   void setObject(const VellumObject& obj) { object = obj; }
   const VellumObject& getObject() const { return object; }
+  VellumType getObjectType() const { return object.getType(); }
 
   void setParentType(Opt<VellumType> type) { parentType = std::move(type); }
   Opt<VellumType> getParentType() const { return parentType; }
@@ -91,7 +92,8 @@ class Resolver {
 
   Opt<VellumValue> resolveParentProperty(VellumIdentifier member) const;
 
-  Opt<VellumVariable> resolveVariable(VellumIdentifier name) const;
+  Opt<VellumVariable> resolveVariable(VellumType type,
+                                      VellumIdentifier name) const;
 
   Opt<VellumType> resolveScriptType(VellumIdentifier identifier) const;
 
@@ -100,8 +102,7 @@ class Resolver {
   const Resolver* findScriptResolver(VellumIdentifier scriptName) const;
 
   /// True if script `derived` is `base` or extends `base` (transitive).
-  bool isScriptSubtypeOf(VellumIdentifier derived,
-                         VellumIdentifier base) const;
+  bool isScriptSubtypeOf(VellumIdentifier derived, VellumIdentifier base) const;
 
  private:
   VellumObject object;

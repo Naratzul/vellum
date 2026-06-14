@@ -235,13 +235,27 @@ Opt<VellumValue> Resolver::resolveParentProperty(
   return std::nullopt;
 }
 
-Opt<VellumVariable> Resolver::resolveVariable(VellumIdentifier name) const {
+Opt<VellumVariable> Resolver::resolveVariable(VellumType type,
+                                              VellumIdentifier name) const {
   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
     if (auto var = it->getVariable(name)) {
       return var;
     }
   }
-  return object.findVariable(name);
+
+  if (type == object.getType()) {
+    return object.findVariable(name);
+  }
+
+  if (type.getState() == VellumTypeState::Identifier) {
+    if (auto module = importLibrary->findModule(type.asIdentifier())) {
+      if (auto resolver = module->getResolver()) {
+        return resolver->getObject().findVariable(name);
+      }
+    }
+  }
+
+  return std::nullopt;
 }
 
 Opt<VellumType> Resolver::resolveScriptType(VellumIdentifier identifier) const {
