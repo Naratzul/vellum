@@ -152,6 +152,7 @@ class ExpressionExtentCollector : public ast::ExpressionVisitor {
   void visitCastExpression(ast::CastExpression& expr) override {
     mergeExtent(extent, expr.getLocation());
     expr.getExpression()->accept(*this);
+    mergeExtent(extent, expr.getTargetExpression()->getLocation());
   }
   void visitArrayIndexExpression(ast::ArrayIndexExpression& expr) override {
     mergeExtent(extent, expr.getLocation());
@@ -187,7 +188,40 @@ class ExpressionExtentCollector : public ast::ExpressionVisitor {
 LocationRange expressionExtent(ast::Expression& expression) {
   ExpressionExtentCollector collector;
   collector.collect(expression);
-  return collector.extent;
+  LocationRange extent = collector.extent;
+  if (auto* grouping = dynamic_cast<ast::GroupingExpression*>(&expression)) {
+    mergeExtent(extent, grouping->getLocation());
+  }
+  return extent;
+}
+
+bool dotFollowsExtent(std::string_view line, size_t dotIndex,
+                      const LocationRange& extent, int lineIndex) {
+  if (extent.start.line == 0 && extent.end.line == 0) {
+    return false;
+  }
+  if (lineIndex != extent.end.line) {
+    return false;
+  }
+  size_t pos = static_cast<size_t>(extent.end.position + 1);
+  if (pos == dotIndex) {
+    return true;
+  }
+  if (dotIndex <= pos) {
+    return false;
+  }
+  while (pos < dotIndex && pos < line.size() &&
+         (line[pos] == ' ' || line[pos] == '\t')) {
+    pos++;
+  }
+  if (pos < dotIndex && pos < line.size() && line[pos] == ')') {
+    pos++;
+    while (pos < dotIndex && pos < line.size() &&
+           (line[pos] == ' ' || line[pos] == '\t')) {
+      pos++;
+    }
+  }
+  return pos == dotIndex;
 }
 
 class StatementExtentCollector : public ast::StatementVisitor {
@@ -585,7 +619,8 @@ Opt<size_t> dotIndexAtOrBeforeCursor(std::string_view line, size_t cursor) {
 
 Opt<std::string> identifierTextBeforeDot(std::string_view line, size_t dotIndex) {
   size_t end = dotIndex;
-  while (end > 0 && (line[end - 1] == ' ' || line[end - 1] == '\t')) {
+  while (end > 0 && (line[end - 1] == ' ' || line[end - 1] == '\t' ||
+                     line[end - 1] == ')' || line[end - 1] == ']')) {
     end--;
   }
   size_t start = end;
@@ -648,6 +683,295 @@ bool functionContainsUse(ast::FunctionDeclaration& declaration,
   }
   return blockContainsUse(*declaration.getBody(), usePos) ||
          blockSpansPosition(*declaration.getBody(), usePos);
+}
+
+bool expressionContainsPosition(ast::Expression& expression, lsp::Position pos) {
+  return positionInRange(pos, expressionExtent(expression));
+}
+
+class ExpressionTypeAtDotVisitor : public ast::ExpressionVisitor {
+ public:
+  ExpressionTypeAtDotVisitor(lsp::Position cursor, size_t dotIndex,
+                             std::string_view sourceLine)
+      : cursor_(cursor), dotIndex_(dotIndex), sourceLine_(sourceLine) {}
+
+  Opt<VellumType> result() const { return result_; }
+
+  void visitExpression(ast::Expression& expression, int childDepth) {
+    const int saved = depth_;
+    depth_ = childDepth;
+    expression.accept(*this);
+    depth_ = saved;
+  }
+
+  void visitIdentifierExpression(ast::IdentifierExpression& expr) override {
+    considerLeaf(expr);
+  }
+
+  void visitSelfExpression(ast::SelfExpression& expr) override {
+    considerLeaf(expr);
+  }
+
+  void visitSuperExpression(ast::SuperExpression& expr) override {
+    considerLeaf(expr);
+  }
+
+  void visitPropertyGetExpression(ast::PropertyGetExpression& expr) override {
+    if (!cursorAtOrAfterDot()) {
+      return;
+    }
+    const LocationRange objectExtent = expressionExtent(*expr.getObject());
+    if (dotFollowsExtent(sourceLine_, dotIndex_, objectExtent,
+                         static_cast<int>(cursor_.line)) &&
+        expr.getObject()->hasResolvedType()) {
+      setResult(expr.getObject()->getType(), depth_);
+    }
+    visitExpression(*expr.getObject(), depth_ + 1);
+  }
+
+  void visitCallExpression(ast::CallExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    visitExpression(*expr.getCallee(), depth_ + 1);
+    for (const auto& arg : expr.getArguments()) {
+      visitExpression(*arg, depth_ + 1);
+    }
+  }
+
+  void visitPropertySetExpression(ast::PropertySetExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    visitExpression(*expr.getObject(), depth_ + 1);
+    visitExpression(*expr.getValue(), depth_ + 1);
+  }
+
+  void visitAssignExpression(ast::AssignExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    visitExpression(*expr.getName(), depth_ + 1);
+    visitExpression(*expr.getValue(), depth_ + 1);
+  }
+
+  void visitBinaryExpression(ast::BinaryExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    visitExpression(*expr.getLeft(), depth_ + 1);
+    visitExpression(*expr.getRight(), depth_ + 1);
+  }
+
+  void visitUnaryExpression(ast::UnaryExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    visitExpression(*expr.getOperand(), depth_ + 1);
+  }
+
+  void visitCastExpression(ast::CastExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    considerLeaf(expr);
+    visitExpression(*expr.getExpression(), depth_ + 1);
+  }
+
+  void visitArrayIndexExpression(ast::ArrayIndexExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    visitExpression(*expr.getArray(), depth_ + 1);
+    visitExpression(*expr.getIndex(), depth_ + 1);
+  }
+
+  void visitArrayIndexSetExpression(
+      ast::ArrayIndexSetExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    visitExpression(*expr.getArray(), depth_ + 1);
+    visitExpression(*expr.getIndex(), depth_ + 1);
+    visitExpression(*expr.getValue(), depth_ + 1);
+  }
+
+  void visitNewArrayExpression(ast::NewArrayExpression&) override {}
+  void visitTernaryExpression(ast::TernaryExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    visitExpression(*expr.getCondition(), depth_ + 1);
+    visitExpression(*expr.getLeft(), depth_ + 1);
+    visitExpression(*expr.getRight(), depth_ + 1);
+  }
+
+ private:
+  lsp::Position cursor_;
+  size_t dotIndex_;
+  std::string_view sourceLine_;
+  Opt<VellumType> result_;
+  int depth_{0};
+  int bestDepth_{-1};
+
+  bool cursorAtOrAfterDot() const { return cursor_.character >= dotIndex_; }
+
+  void setResult(const VellumType& type, int depth) {
+    if (depth < bestDepth_) {
+      return;
+    }
+    bestDepth_ = depth;
+    result_ = type;
+  }
+
+  void considerLeaf(ast::Expression& expr) {
+    if (!expr.hasResolvedType()) {
+      return;
+    }
+    if (!dotFollowsExtent(sourceLine_, dotIndex_, expressionExtent(expr),
+                          static_cast<int>(cursor_.line))) {
+      return;
+    }
+    if (!cursorAtOrAfterDot()) {
+      return;
+    }
+    setResult(expr.getType(), depth_);
+  }
+};
+
+class ExpressionTypeBeforeDotFinder : public ast::DeclarationVisitor,
+                                      public ast::StatementVisitor {
+ public:
+  ExpressionTypeBeforeDotFinder(lsp::Position cursor, size_t dotIndex,
+                                std::string_view sourceLine)
+      : visitor_(cursor, dotIndex, sourceLine), cursor_(cursor) {}
+
+  Opt<VellumType> collect(
+      common::Vec<common::Unique<ast::Declaration>>& declarations) {
+    for (auto& decl : declarations) {
+      decl->accept(*this);
+    }
+    return visitor_.result();
+  }
+
+  void visitImportDeclaration(ast::ImportDeclaration&) override {}
+  void visitScriptDeclaration(ast::ScriptDeclaration& declaration) override {
+    for (const auto& memberDecl : declaration.getMemberDecls()) {
+      memberDecl->accept(*this);
+    }
+  }
+  void visitStateDeclaration(ast::StateDeclaration& declaration) override {
+    for (const auto& memberDecl : declaration.getMemberDecls()) {
+      memberDecl->accept(*this);
+    }
+  }
+  void visitVariableDeclaration(ast::GlobalVariableDeclaration&) override {}
+  void visitPropertyDeclaration(ast::PropertyDeclaration& declaration) override {
+    if (const auto& getBlock = declaration.getGetAccessor()) {
+      if (blockContainsUse(*getBlock.value(), cursor_)) {
+        searchBlock(getBlock.value()->getStatements());
+      }
+    }
+    if (const auto& setBlock = declaration.getSetAccessor()) {
+      if (blockContainsUse(*setBlock.value(), cursor_)) {
+        searchBlock(setBlock.value()->getStatements());
+      }
+    }
+  }
+  void visitFunctionDeclaration(
+      ast::FunctionDeclaration& declaration) override {
+    if (!functionContainsUse(declaration, cursor_)) {
+      return;
+    }
+    if (declaration.getBody()) {
+      searchBlock(declaration.getBody()->getStatements());
+    }
+  }
+
+  void visitExpressionStatement(ast::ExpressionStatement& statement) override {
+    visitor_.visitExpression(*statement.getExpression(), 0);
+  }
+  void visitReturnStatement(ast::ReturnStatement& statement) override {
+    if (statement.getExpression()) {
+      visitor_.visitExpression(*statement.getExpression(), 0);
+    }
+  }
+  void visitIfStatement(ast::IfStatement& statement) override {
+    if (expressionContainsPosition(*statement.getCondition(), cursor_)) {
+      visitor_.visitExpression(*statement.getCondition(), 0);
+      return;
+    }
+    if (statementContainsUse(*statement.getThenBlock(), cursor_)) {
+      searchStatement(*statement.getThenBlock());
+      return;
+    }
+    if (statement.getElseBlock() &&
+        statementContainsUse(*statement.getElseBlock(), cursor_)) {
+      searchStatement(*statement.getElseBlock());
+    }
+  }
+  void visitLocalVariableStatement(
+      ast::LocalVariableStatement& statement) override {
+    if (statement.getInitializer()) {
+      visitor_.visitExpression(*statement.getInitializer(), 0);
+    }
+  }
+  void visitWhileStatement(ast::WhileStatement& statement) override {
+    if (expressionContainsPosition(*statement.getCondition(), cursor_)) {
+      visitor_.visitExpression(*statement.getCondition(), 0);
+      return;
+    }
+    searchStatement(*statement.getBody());
+  }
+  void visitBreakStatement(ast::BreakStatement&) override {}
+  void visitContinueStatement(ast::ContinueStatement&) override {}
+  void visitForStatement(ast::ForStatement& statement) override {
+    if (statementContainsUse(*statement.getBody(), cursor_)) {
+      searchStatement(*statement.getBody());
+      return;
+    }
+    if (expressionContainsPosition(*statement.getArray(), cursor_)) {
+      visitor_.visitExpression(*statement.getArray(), 0);
+      return;
+    }
+    if (statement.getVariableName()->isIdentifierExpression() &&
+        expressionContainsPosition(*statement.getVariableName(), cursor_)) {
+      visitor_.visitExpression(*statement.getVariableName(), 0);
+    }
+  }
+  void visitBlockStatement(ast::BlockStatement& statement) override {
+    searchBlock(statement.getStatements());
+  }
+
+ private:
+  ExpressionTypeAtDotVisitor visitor_;
+  lsp::Position cursor_;
+
+  void searchBlock(const common::Vec<common::Unique<ast::Statement>>& statements) {
+    for (const auto& stmt : statements) {
+      if (statementStartsAfterUse(*stmt, cursor_)) {
+        break;
+      }
+      if (statementEndsBeforeUse(*stmt, cursor_)) {
+        continue;
+      }
+      searchStatement(*stmt);
+      return;
+    }
+  }
+
+  void searchStatement(ast::Statement& statement) { statement.accept(*this); }
+};
+
+Opt<VellumType> resolveExpressionTypeBeforeDot(const ParserResult& parseResult,
+                                               lsp::Position pos,
+                                               size_t dotIndex,
+                                               std::string_view sourceLine) {
+  ExpressionTypeBeforeDotFinder finder(pos, dotIndex, sourceLine);
+  auto& declarations =
+      const_cast<common::Vec<common::Unique<ast::Declaration>>&>(
+          parseResult.declarations);
+  return finder.collect(declarations);
 }
 
 class LocalScopeCollector : public ast::DeclarationVisitor {
@@ -823,15 +1147,20 @@ VellumType normalizeTypeForMemberAccess(const Resolver& resolver,
   return type;
 }
 
+Opt<VellumType> resolveKeywordQualifier(VellumIdentifier id,
+                                        const Resolver& resolver) {
+  if (namesMatch(id, VellumIdentifier("self"))) {
+    return resolver.getObject().getType();
+  }
+  if (namesMatch(id, VellumIdentifier("super"))) {
+    return resolver.getParentType();
+  }
+  return std::nullopt;
+}
+
 Opt<VellumType> resolveTypeBeforeDot(const NavigationContext& navigation,
                                      const Resolver& resolver, lsp::Position pos,
                                      std::string_view line, size_t dotIndex) {
-  const Opt<std::string> name = identifierTextBeforeDot(line, dotIndex);
-  if (!name) {
-    return std::nullopt;
-  }
-
-  const VellumIdentifier id(*name);
   auto finish = [&](VellumType type) -> Opt<VellumType> {
     type = normalizeTypeForMemberAccess(resolver, type);
     if (type.getState() == VellumTypeState::Identifier || type.isArray()) {
@@ -839,6 +1168,22 @@ Opt<VellumType> resolveTypeBeforeDot(const NavigationContext& navigation,
     }
     return std::nullopt;
   };
+
+  if (navigation.parseOk) {
+    if (const Opt<VellumType> astType = resolveExpressionTypeBeforeDot(
+            navigation.parseResult, pos, dotIndex, line)) {
+      if (const Opt<VellumType> finished = finish(*astType)) {
+        return finished;
+      }
+    }
+  }
+
+  const Opt<std::string> name = identifierTextBeforeDot(line, dotIndex);
+  if (!name) {
+    return std::nullopt;
+  }
+
+  const VellumIdentifier id(*name);
 
   if (const auto value = resolver.resolveIdentifier(id)) {
     switch (value->getType()) {
@@ -862,6 +1207,10 @@ Opt<VellumType> resolveTypeBeforeDot(const NavigationContext& navigation,
     if (const Opt<VellumType> localType = localLookup.lookupType(id)) {
       return finish(*localType);
     }
+  }
+
+  if (const Opt<VellumType> keywordType = resolveKeywordQualifier(id, resolver)) {
+    return finish(*keywordType);
   }
 
   if (const auto scriptType = resolver.resolveScriptType(id)) {

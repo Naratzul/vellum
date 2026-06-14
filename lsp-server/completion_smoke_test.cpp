@@ -37,6 +37,25 @@ static lsp::CompletionList getCompletionsAt(DocumentStore& store,
   return {};
 }
 
+static lsp::CompletionList getDotCompletionsAt(DocumentStore& store,
+                                               const common::fs::path& filePath,
+                                               const Shared<ImportLibrary>& lib,
+                                               unsigned line,
+                                               unsigned character) {
+  lsp::requests::TextDocument_Completion::Params params;
+  params.textDocument.uri = pathToUri(filePath);
+  params.position = lsp::Position{.line = line, .character = character};
+  params.context = lsp::CompletionContext{
+      .triggerKind = lsp::CompletionTriggerKind::TriggerCharacter,
+      .triggerCharacter = "."};
+  const auto result =
+      CompletionsProvider().getCompletions(filePath, params, store, lib);
+  if (const auto* list = std::get_if<lsp::CompletionList>(&result)) {
+    return *list;
+  }
+  return {};
+}
+
 int main() {
   static constexpr const char* kSource = R"(script TrainingMannequin {
 	var itemTypeBow = 7
@@ -243,6 +262,130 @@ int main() {
     }
     if (mathDotList && hasLabel(*mathDotList, "chance")) {
       std::cerr << "Math. must not include MathEx.chance when Math.psc exists\n";
+      failures++;
+    }
+  }
+
+  static constexpr const char* kSelfDot = R"(script TrainingMannequin {
+  var itemTypeBow = 7
+  fun onHit() {
+    self.
+  }
+}
+)";
+
+  static constexpr const char* kSelfInlineDot = R"(script TrainingMannequin {
+  var itemTypeBow = 7
+  fun onHit() {
+    self.GoToState
+  }
+}
+)";
+
+  static constexpr const char* kSuperDot = R"(script TrainingMannequin : ObjectReference {
+  fun foo() {
+    super.
+  }
+}
+)";
+
+  static constexpr const char* kSuperInlineDot = R"(script TrainingMannequin : ObjectReference {
+  fun foo() {
+    super.Enable
+  }
+}
+)";
+
+  store.openOrUpdate(filePath, kSelfDot);
+  store.getOrAnalyze(filePath, importLibrary);
+  const auto selfDotList =
+      getDotCompletionsAt(store, filePath, importLibrary, 3, 9);
+  if (!hasLabel(selfDotList, "itemTypeBow")) {
+    std::cerr << "Expected script member itemTypeBow for self.\n";
+    failures++;
+  }
+
+  store.openOrUpdate(filePath, kSelfInlineDot);
+  store.getOrAnalyze(filePath, importLibrary);
+  const auto selfInlineDotList =
+      getDotCompletionsAt(store, filePath, importLibrary, 3, 9);
+  if (!hasLabel(selfInlineDotList, "itemTypeBow")) {
+    std::cerr << "Expected script member itemTypeBow for inline self.\n";
+    failures++;
+  }
+
+  if (common::fs::exists(scriptsPath / "ObjectReference.psc")) {
+    auto importWithScripts = common::makeShared<ImportLibrary>(
+        common::Vec<common::fs::path>{scriptsPath});
+    store.openOrUpdate(filePath, kSuperDot);
+    store.getOrAnalyze(filePath, importWithScripts);
+
+    const auto superDotList =
+        getDotCompletionsAt(store, filePath, importWithScripts, 2, 10);
+    if (!hasLabel(superDotList, "Enable")) {
+      std::cerr << "Expected ObjectReference.Enable for super.\n";
+      failures++;
+    }
+
+    store.openOrUpdate(filePath, kSuperInlineDot);
+    store.getOrAnalyze(filePath, importWithScripts);
+    const auto superInlineDotList =
+        getDotCompletionsAt(store, filePath, importWithScripts, 2, 10);
+    if (!hasLabel(superInlineDotList, "Enable")) {
+      std::cerr << "Expected ObjectReference.Enable for inline super.\n";
+      failures++;
+    }
+  }
+
+  static constexpr const char* kCastDot = R"(script TrainingMannequin {
+  event onHit(source: Form) {
+    source as Weapon.
+  }
+}
+)";
+
+  static constexpr const char* kCastParenDot = R"(script TrainingMannequin {
+  event onHit(source: Form) {
+    (source as Weapon).
+  }
+}
+)";
+
+  static constexpr const char* kCastInlineDot = R"(script TrainingMannequin {
+  event onHit(source: Form) {
+    source as Weapon.Fire
+  }
+}
+)";
+
+  if (common::fs::exists(scriptsPath / "Weapon.psc")) {
+    auto importWithScripts = common::makeShared<ImportLibrary>(
+        common::Vec<common::fs::path>{scriptsPath});
+    store.openOrUpdate(filePath, kCastDot);
+    store.getOrAnalyze(filePath, importWithScripts);
+
+    const auto castDotList =
+        getDotCompletionsAt(store, filePath, importWithScripts, 2, 21);
+    if (!hasLabel(castDotList, "Fire")) {
+      std::cerr << "Expected Weapon.Fire for source as Weapon.\n";
+      failures++;
+    }
+
+    store.openOrUpdate(filePath, kCastParenDot);
+    store.getOrAnalyze(filePath, importWithScripts);
+    const auto castParenDotList =
+        getDotCompletionsAt(store, filePath, importWithScripts, 2, 23);
+    if (!hasLabel(castParenDotList, "Fire")) {
+      std::cerr << "Expected Weapon.Fire for (source as Weapon).\n";
+      failures++;
+    }
+
+    store.openOrUpdate(filePath, kCastInlineDot);
+    store.getOrAnalyze(filePath, importWithScripts);
+    const auto castInlineDotList =
+        getDotCompletionsAt(store, filePath, importWithScripts, 2, 21);
+    if (!hasLabel(castInlineDotList, "Fire")) {
+      std::cerr << "Expected Weapon.Fire for inline cast member access.\n";
       failures++;
     }
   }
