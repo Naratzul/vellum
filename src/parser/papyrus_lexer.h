@@ -15,8 +15,8 @@ class PapyrusLexer : public ILexer {
  private:
   const char* start;
   const char* current;
-  int line = 1;
-  int position = 1;
+  int line = 0;
+  int position = 0;
 
   Token makeToken(TokenType type,
                   common::Opt<VellumLiteral> value = std::nullopt) const;
