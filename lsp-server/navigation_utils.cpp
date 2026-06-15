@@ -108,8 +108,9 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
     considerPropertyGet(expr);
   }
   void visitPropertySetExpression(ast::PropertySetExpression& expr) override {
-    expr.getObject()->accept(*this);
-    expr.getValue()->accept(*this);
+    visitExpression(*expr.getObject(), depth + 1);
+    considerPropertySet(expr);
+    visitExpression(*expr.getValue(), depth + 1);
   }
   void visitAssignExpression(ast::AssignExpression& expr) override {
     expr.getName()->accept(*this);
@@ -151,14 +152,28 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
   int bestDepth{-1};
 
   void considerPropertyGet(ast::PropertyGetExpression& expr) {
-    const bool inRange = positionInRange(pos, expr.getLocation().location);
+    considerMemberAccess(expr.getLocation(), expr.getProperty(), *expr.getObject(),
+                         expr.getIdentifierType());
+  }
+
+  void considerPropertySet(ast::PropertySetExpression& expr) {
+    considerMemberAccess(expr.getPropertyLocation(), expr.getProperty(),
+                         *expr.getObject());
+  }
+
+  void considerMemberAccess(const Token& memberLocation,
+                            VellumIdentifier property,
+                            const ast::Expression& object,
+                            VellumValueType identifierType =
+                                VellumValueType::Identifier) {
+    const bool inRange = positionInRange(pos, memberLocation.location);
     const bool atMember =
-        member && namesMatch(*member, expr.getProperty()) && inRange;
+        member && namesMatch(*member, property) && inRange;
     const bool anyMember = !member && inRange;
     if (!atMember && !anyMember) {
       return;
     }
-    if (!expr.getObject()->hasResolvedType()) {
+    if (!object.hasResolvedType()) {
       return;
     }
     if (depth < bestDepth) {
@@ -166,13 +181,21 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
     }
 
     bestDepth = depth;
-    result.isSuper = expr.getObject()->isSuperExpression();
-    result.objectType = expr.getObject()->getType();
+    result.isSuper = object.isSuperExpression();
+    result.objectType = object.getType();
     result.memberKind = std::nullopt;
-    if (expr.getIdentifierType() == VellumValueType::Function) {
-      result.memberKind = MemberKind::Function;
-    } else if (expr.getIdentifierType() == VellumValueType::Property) {
-      result.memberKind = MemberKind::Property;
+    switch (identifierType) {
+      case VellumValueType::Function:
+        result.memberKind = MemberKind::Function;
+        break;
+      case VellumValueType::Property:
+        result.memberKind = MemberKind::Property;
+        break;
+      case VellumValueType::Variable:
+        result.memberKind = MemberKind::GlobalVariable;
+        break;
+      default:
+        break;
     }
     result.found = true;
   }
@@ -293,6 +316,10 @@ Opt<MemberKind> memberKindForTypeMember(const Resolver& resolver,
 
   if (resolver.resolveFunction(objectType, member)) {
     return MemberKind::Function;
+  }
+
+  if (resolver.resolveVariable(objectType, member)) {
+    return MemberKind::GlobalVariable;
   }
 
   return std::nullopt;
