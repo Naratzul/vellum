@@ -37,4 +37,4 @@ FetchContent_Declare(
   GIT_TAG        66e12ebcbcf87d1ff50d18e998efa35f130339b3
 )
 FetchContent_MakeAvailable(lsp-framework)
-add_subdirectory(lsp-server)
+add_subdirectory(apps/vellum-lsp)
