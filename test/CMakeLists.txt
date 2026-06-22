@@ -26,7 +26,7 @@ target_link_libraries(tests PRIVATE
 )
 
 target_include_directories(tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/libs/vellum-compiler
 )
 
 add_test(NAME VellumTests COMMAND tests)

@@ -20,9 +20,9 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 **Files to modify**:
 
-- `src/ast/decl/declaration.h` - Ensure `FunctionDeclaration` tracks native flag
-- `src/compiler/pex_object_compiler.cpp` - Set native flag in PEX output
-- `src/analyze/semantic_analyzer.cpp` - Validate native functions have no body
+- `libs/vellum-compiler/ast/decl/declaration.h` - Ensure `FunctionDeclaration` tracks native flag
+- `libs/vellum-compiler/compiler/pex_object_compiler.cpp` - Set native flag in PEX output
+- `libs/vellum-compiler/analyze/semantic_analyzer.cpp` - Validate native functions have no body
 
 #### Hidden and Conditional Modifier Keywords
 
@@ -39,10 +39,10 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 **Files to modify**:
 
-- `src/lexer/lexer.cpp` or `src/lexer/token.h` - Add `HIDDEN`, `CONDITIONAL` tokens
-- `src/parser/parser.cpp` - Consume modifier keywords before `script` / `var` / `property` in declaration parsing
-- `src/ast/decl/declaration.h` - Add `hidden`, `conditional` (or flags enum) to script, variable, property declarations
-- `src/compiler/pex_object_compiler.cpp` - Set PEX user flags for Hidden/Conditional when emitting objects, variables, properties
+- `libs/vellum-compiler/lexer/lexer.cpp` or `libs/vellum-compiler/lexer/token.h` - Add `HIDDEN`, `CONDITIONAL` tokens
+- `libs/vellum-compiler/parser/parser.cpp` - Consume modifier keywords before `script` / `var` / `property` in declaration parsing
+- `libs/vellum-compiler/ast/decl/declaration.h` - Add `hidden`, `conditional` (or flags enum) to script, variable, property declarations
+- `libs/vellum-compiler/compiler/pex_object_compiler.cpp` - Set PEX user flags for Hidden/Conditional when emitting objects, variables, properties
 
 ### Vellum New Features (Priority: Medium)
 
@@ -59,11 +59,11 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 **Files to modify**:
 
-- `src/lexer/lexer.cpp` - Handle format placeholders in string literals
-- `src/parser/parser.cpp` - Parse format expressions
-- `src/ast/expression/expression.h` - Add `StringFormatExpression` class
-- `src/analyze/semantic_analyzer.cpp` - Validate format strings
-- `src/compiler/pex_function_compiler.cpp` - Compile format expressions
+- `libs/vellum-compiler/lexer/lexer.cpp` - Handle format placeholders in string literals
+- `libs/vellum-compiler/parser/parser.cpp` - Parse format expressions
+- `libs/vellum-compiler/ast/expression/expression.h` - Add `StringFormatExpression` class
+- `libs/vellum-compiler/analyze/semantic_analyzer.cpp` - Validate format strings
+- `libs/vellum-compiler/compiler/pex_function_compiler.cpp` - Compile format expressions
 
 #### State Pattern Matching
 
@@ -78,10 +78,10 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 
 **Files to modify**:
 
-- `src/parser/parser.cpp` - Add pattern matching syntax
-- `src/ast/expression/expression.h` - Add `MatchExpression` class
-- `src/analyze/semantic_analyzer.cpp` - Validate pattern matches
-- `src/compiler/pex_function_compiler.cpp` - Compile matches
+- `libs/vellum-compiler/parser/parser.cpp` - Add pattern matching syntax
+- `libs/vellum-compiler/ast/expression/expression.h` - Add `MatchExpression` class
+- `libs/vellum-compiler/analyze/semantic_analyzer.cpp` - Validate pattern matches
+- `libs/vellum-compiler/compiler/pex_function_compiler.cpp` - Compile matches
 
 ## Completed Features
 
@@ -151,7 +151,7 @@ Vellum is a modern language compiler targeting Papyrus PEX format. This roadmap 
 ## Notes
 
 - The codebase has a solid foundation with comprehensive AST, semantic analysis, and PEX compilation infrastructure
-- Many PEX instructions already exist in `src/pex/pex_instruction.h` that can be leveraged
+- Many PEX instructions already exist in `libs/vellum-compiler/pex/pex_instruction.h` that can be leveraged
 - The parser uses recursive descent with good error recovery
 - Type system is well-structured and extensible
 - Ternary operator has layered unit tests in `test/unit/` (lexer through compiler); add similar coverage for other new features

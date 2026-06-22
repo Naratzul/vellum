@@ -25,7 +25,7 @@ add_executable(vellum-lsp
 target_link_libraries(vellum-lsp PUBLIC lsp vellum_compiler)
 
 target_include_directories(vellum-lsp PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/libs/vellum-compiler
 )
 
 set(VELLUM_LSP_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/bin/${PROJECT_NAME}")
@@ -59,5 +59,5 @@ add_executable(vellum-lsp-completion-smoke
 )
 target_link_libraries(vellum-lsp-completion-smoke PUBLIC lsp vellum_compiler)
 target_include_directories(vellum-lsp-completion-smoke PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/libs/vellum-compiler
 )

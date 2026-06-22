@@ -36,4 +36,4 @@ cmake -B "${BUILD_DIR}" \
 
 cmake --build "${BUILD_DIR}" --config RelWithDebInfo --parallel
 
-echo "Production build complete: ${BUILD_DIR}/src/vellum"
+echo "Production build complete: ${BUILD_DIR}/libs/vellum-compiler/vellum"
