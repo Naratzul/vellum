@@ -28,5 +28,10 @@ add_subdirectory(test)
 set(LSP_USE_SANITIZERS OFF CACHE BOOL
     "Use address and undefined behavior sanitizers for lsp-framework Debug builds"
     FORCE)
-add_subdirectory(external/lsp-framework)
+FetchContent_Declare(
+  lsp-framework
+  GIT_REPOSITORY https://github.com/leon-bckl/lsp-framework.git
+  GIT_TAG        66e12ebcbcf87d1ff50d18e998efa35f130339b3
+)
+FetchContent_MakeAvailable(lsp-framework)
 add_subdirectory(lsp-server)

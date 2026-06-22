@@ -30,8 +30,8 @@ Full docs (language, usage, examples): https://naratzul.github.io/vellum/
 
 - CMake 3.12+
 - C++23 toolchain (MSVC on Windows matches CI)
-- Git with submodules (`git clone --recursive`)
-- First CMake configure may download more dependencies (network required)
+- Git
+- First CMake configure downloads dependencies via CMake FetchContent (network required)
 
 ## Building the documentation site
 
