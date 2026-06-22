@@ -6,7 +6,7 @@
 	"version": "0.1.0",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Naratzul/vellum/tree/main/vscode-ext"
+		"url": "https://github.com/Naratzul/vellum/tree/main/tools/editors/vscode"
 	},
 	"keywords": [
 		"multi-root ready"

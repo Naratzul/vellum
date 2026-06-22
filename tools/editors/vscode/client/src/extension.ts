@@ -37,7 +37,7 @@ export function activate(context: ExtensionContext) {
 		.map(p => path.normalize(p))
 
 	const serverModule = context.asAbsolutePath(
-		path.join('..', 'bin', 'vellum-lsp', getServerExecutableName()),
+		path.join('..', '..', '..', '..', 'bin', 'vellum-lsp', getServerExecutableName()),
 	);
 
 	// If the extension is launched in debug mode then the debug server options are used
