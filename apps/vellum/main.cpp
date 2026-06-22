@@ -1,20 +1,18 @@
 #include "common/os.h"
 #define CXXOPTS_VECTOR_DELIMITER ';'
 
-#include <cpptrace/from_current.hpp>
 #include <cstdlib>
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
 
 #include "common/fs.h"
-#include "common/sentry_report.h"
 #include "common/string_utils.h"
 #include "common/types.h"
+#include "run_guarded.h"
+#include "sentry_report.h"
+#include "sentry_session.h"
 #include "vellum/vellum.h"
-
-#define SENTRY_BUILD_STATIC 1
-#include <sentry.h>
 
 #ifndef VELLUM_VERSION
 #error VELLUM_VERSION must be defined by CMake (project VERSION)
@@ -26,7 +24,9 @@
 using vellum::common::Vec;
 
 namespace {
-fs::path sanitizeCliPath(const fs::path &path) {
+namespace fs = std::filesystem;
+
+fs::path sanitizeCliPath(const fs::path& path) {
   using namespace vellum::common;
 
   auto raw = pathToUtf8(path);
@@ -39,7 +39,22 @@ fs::path sanitizeCliPath(const fs::path &path) {
   return fs::path(raw);
 }
 
-int entryPoint(int argc, char *argv[]) {
+vellum::diag::CrashReportingOptions crashReportingOptions(bool enabled) {
+  vellum::diag::CrashReportingOptions options{
+      .appName = "vellum",
+      .release = VELLUM_SENTRY_RELEASE,
+      .enabled = enabled,
+  };
+#ifdef VELLUM_SENTRY_DSN
+  options.dsn = VELLUM_SENTRY_DSN;
+#endif
+#ifdef VELLUM_SENTRY_ENVIRONMENT
+  options.environment = VELLUM_SENTRY_ENVIRONMENT;
+#endif
+  return options;
+}
+
+int entryPoint(int argc, char* argv[]) {
   cxxopts::Options options("vellum", "Vellum Compiler");
   options.add_options()("h,help", "Print help")("v,version", "Print version")(
       "f,file", "Input file", cxxopts::value<fs::path>())(
@@ -51,45 +66,8 @@ int entryPoint(int argc, char *argv[]) {
       cxxopts::value<bool>()->default_value("false"));
 
   auto result = options.parse(argc, argv);
-  sentry_options_t *sentry_opts = nullptr;
-  if (!result["disable-crash-reporting"].as<bool>()) {
-    sentry_opts = sentry_options_new();
-#ifdef VELLUM_SENTRY_DSN
-    sentry_options_set_dsn(sentry_opts, VELLUM_SENTRY_DSN);
-#else
-    if (const char *dsn = std::getenv("SENTRY_DSN")) {
-      sentry_options_set_dsn(sentry_opts, dsn);
-    }
-#endif
-    sentry_options_set_release(sentry_opts, VELLUM_SENTRY_RELEASE);
-#ifdef _WIN32
-    sentry_options_set_database_pathw(
-        sentry_opts, vellum::common::getSentryDatabasePathW(L"vellum").c_str());
-#else
-    sentry_options_set_database_path(
-        sentry_opts, vellum::common::getSentryDatabasePath("vellum").c_str());
-#endif
-#ifdef VELLUM_SENTRY_ENVIRONMENT
-    sentry_options_set_environment(sentry_opts, VELLUM_SENTRY_ENVIRONMENT);
-#else
-    const char *env = std::getenv("SENTRY_ENVIRONMENT");
-    sentry_options_set_environment(sentry_opts,
-                                   env && env[0] ? env : "development");
-#endif
-#ifndef NDEBUG
-    sentry_options_set_debug(sentry_opts, 1);
-#endif
-    if (sentry_init(sentry_opts) == 0) {
-      vellum::common::setSentryManualCaptureEnabled(true);
-    }
-  }
-
-  struct SentryShutdown {
-    ~SentryShutdown() {
-      vellum::common::setSentryManualCaptureEnabled(false);
-      sentry_close();
-    }
-  } sentryShutdown;
+  const vellum::diag::SentrySession sentrySession(crashReportingOptions(
+      !result["disable-crash-reporting"].as<bool>()));
 
   if (result.count("help")) {
     std::cout << options.help() << std::endl;
@@ -110,12 +88,12 @@ int entryPoint(int argc, char *argv[]) {
   if (result.count("import")) {
     importPaths = result["import"].as<Vec<fs::path>>();
 
-    for (auto &path : importPaths) {
+    for (auto& path : importPaths) {
       path = sanitizeCliPath(path);
     }
 
     std::cout << "Import paths: ";
-    for (const auto &path : importPaths) {
+    for (const auto& path : importPaths) {
       std::cout << "- " << path << std::endl;
     }
   }
@@ -132,17 +110,17 @@ int entryPoint(int argc, char *argv[]) {
 
   bool runResult = false;
 
-  cpptrace::try_catch(
+  vellum::diag::runGuarded(
       [&] {
         runResult = vellum::Vellum().run(inputFile, importPaths, emitDebugInfo);
       },
-      [&](const std::exception &e) {
+      [&](const std::exception& e) {
         std::cerr << e.what() << std::endl;
-        vellum::common::captureSentryException(e, "main");
+        vellum::diag::captureException(e, "main");
       },
       [&] {
         std::cerr << "Non-std exception" << std::endl;
-        vellum::common::captureSentryUnknown("main");
+        vellum::diag::captureUnknown("main");
       });
 
   return runResult ? EXIT_SUCCESS : EXIT_FAILURE;
@@ -150,7 +128,7 @@ int entryPoint(int argc, char *argv[]) {
 }  // namespace
 
 #ifdef _WIN32
-int wmain(int argc, wchar_t *argv[]) {
+int wmain(int argc, wchar_t* argv[]) {
   Vec<std::string> argsUtf8;
   argsUtf8.reserve(argc);
 
@@ -162,15 +140,15 @@ int wmain(int argc, wchar_t *argv[]) {
     }
   }
 
-  Vec<char *> argsUtf8Ptr;
+  Vec<char*> argsUtf8Ptr;
   argsUtf8Ptr.reserve(argsUtf8.size());
 
-  for (auto &str : argsUtf8) {
+  for (auto& str : argsUtf8) {
     argsUtf8Ptr.push_back(str.data());
   }
 
   return entryPoint(argsUtf8Ptr.size(), argsUtf8Ptr.data());
 }
 #else
-int main(int argc, char *argv[]) { return entryPoint(argc, argv); }
+int main(int argc, char* argv[]) { return entryPoint(argc, argv); }
 #endif

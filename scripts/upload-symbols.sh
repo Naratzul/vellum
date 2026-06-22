@@ -10,13 +10,13 @@
 #   1. Copy local-sentry-upload.example to local/sentry-upload, edit org/project
 #   2. Run: ./scripts/upload-symbols.sh [path]
 #
-# Path defaults to build/libs/vellum-compiler (contains vellum exe + PDB on Windows, or vellum + dSYM on macOS).
+# Path defaults to build/apps/vellum (contains vellum exe + PDB on Windows, or vellum + dSYM on macOS).
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-BUILD_SRC="${PROJECT_ROOT}/build/libs/vellum-compiler"
+BUILD_SRC="${PROJECT_ROOT}/build/apps/vellum"
 CONFIG_FILE="${PROJECT_ROOT}/local/sentry-upload"
 UPLOAD_PATH="${1:-${BUILD_SRC}}"
 

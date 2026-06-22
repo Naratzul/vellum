@@ -5,7 +5,6 @@
 #include <Windows.h>
 #include <debugapi.h>
 #include <lmcons.h>
-#include <shlobj_core.h>
 #elif defined __APPLE__
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -45,31 +44,6 @@ std::string getComputerName() {
 void debugBreak() { DebugBreak(); }
 bool isDebuggerPresent() { return IsDebuggerPresent(); }
 
-std::wstring getSentryDatabasePathW(std::wstring_view appName) {
-  wchar_t* localAppData = nullptr;
-  if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr,
-                                     &localAppData))) {
-    std::wstring result =
-        (fs::path(localAppData) / L"Vellum" / appName / L".sentry-native")
-            .wstring();
-    CoTaskMemFree(localAppData);
-    return result;
-  }
-
-  if (const wchar_t* userProfile = _wgetenv(L"USERPROFILE")) {
-    return (fs::path(userProfile) / L"AppData" / L"Local" / L"Vellum" /
-            appName / L".sentry-native")
-        .wstring();
-  }
-
-  return (fs::path(L".") / L".sentry-native").wstring();
-}
-
-std::string getSentryDatabasePath(std::string_view appName) {
-  return pathToUtf8(
-      fs::path(getSentryDatabasePathW(fs::path(appName).wstring())));
-}
-
 #elif defined __APPLE__
 std::string getUserName() { return std::string(); }
 std::string getComputerName() { return std::string(); }
@@ -103,14 +77,6 @@ bool isDebuggerPresent() {
   // We're being debugged if the P_TRACED flag is set.
 
   return ((info.kp_proc.p_flag & P_TRACED) != 0);
-}
-
-std::string getSentryDatabasePath(std::string_view appName) {
-  if (const char* home = getenv("HOME")) {
-    return pathToUtf8(fs::path(home) / "Library" / "Caches" / "Vellum" /
-                      appName / ".sentry-native");
-  }
-  return pathToUtf8(fs::path(".") / ".sentry-native");
 }
 
 #else

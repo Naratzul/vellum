@@ -23,6 +23,8 @@ message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "C++ compiler flags: ${CMAKE_CXX_FLAGS}")
 
 add_subdirectory(libs/vellum-compiler)
+add_subdirectory(libs/vellum-diag)
+add_subdirectory(apps/vellum)
 add_subdirectory(tools/parse-psc)
 add_subdirectory(test) 
 

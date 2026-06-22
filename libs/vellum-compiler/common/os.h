@@ -18,11 +18,5 @@ std::string getComputerName();
 void debugBreak();
 bool isDebuggerPresent();
 
-std::string getSentryDatabasePath(std::string_view appName);
-
-#ifdef _WIN32
-std::wstring getSentryDatabasePathW(std::wstring_view appName);
-#endif
-
 }  // namespace common
 }  // namespace vellum

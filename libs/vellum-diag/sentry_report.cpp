@@ -1,4 +1,4 @@
-#include "common/sentry_report.h"
+#include "sentry_report.h"
 
 #include <cpptrace/from_current.hpp>
 
@@ -10,10 +10,10 @@
 #define SENTRY_BUILD_STATIC 1
 #include <sentry.h>
 
-namespace vellum::common {
+namespace vellum::diag {
 
 namespace {
-std::atomic<bool> g_sentryManualCapture{false};
+std::atomic<bool> g_manualCapture{false};
 
 void applyExceptionCpptraceStack(sentry_value_t exc,
                                  const cpptrace::stacktrace& st) {
@@ -49,12 +49,12 @@ void setEventExtra(sentry_value_t event, const char* context,
 }
 }  // namespace
 
-void setSentryManualCaptureEnabled(bool enabled) {
-  g_sentryManualCapture.store(enabled, std::memory_order_relaxed);
+void setManualCaptureEnabled(bool enabled) {
+  g_manualCapture.store(enabled, std::memory_order_relaxed);
 }
 
-void captureSentryException(const std::exception& e, const char* context) {
-  if (!g_sentryManualCapture.load(std::memory_order_relaxed)) {
+void captureException(const std::exception& e, const char* context) {
+  if (!g_manualCapture.load(std::memory_order_relaxed)) {
     return;
   }
   const cpptrace::stacktrace& st = cpptrace::from_current_exception();
@@ -68,8 +68,8 @@ void captureSentryException(const std::exception& e, const char* context) {
   sentry_flush(2000);
 }
 
-void captureSentryUnknown(const char* context) {
-  if (!g_sentryManualCapture.load(std::memory_order_relaxed)) {
+void captureUnknown(const char* context) {
+  if (!g_manualCapture.load(std::memory_order_relaxed)) {
     return;
   }
   const cpptrace::stacktrace& st = cpptrace::from_current_exception();
@@ -83,4 +83,4 @@ void captureSentryUnknown(const char* context) {
   sentry_flush(2000);
 }
 
-}  // namespace vellum::common
+}  // namespace vellum::diag
