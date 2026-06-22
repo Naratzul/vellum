@@ -23,6 +23,7 @@ message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "C++ compiler flags: ${CMAKE_CXX_FLAGS}")
 
 add_subdirectory(src)
+add_subdirectory(tools/parse-psc)
 add_subdirectory(test) 
 
 set(LSP_USE_SANITIZERS OFF CACHE BOOL
