@@ -8,14 +8,14 @@
 #
 # Usage:
 #   1. Copy local-sentry-upload.example to local/sentry-upload, edit org/project
-#   2. Run: ./scripts/upload-symbols.sh [path]
+#   2. Run: ./tools/scripts/upload-symbols.sh [path]
 #
 # Path defaults to build/apps/vellum (contains vellum exe + PDB on Windows, or vellum + dSYM on macOS).
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 BUILD_SRC="${PROJECT_ROOT}/build/apps/vellum"
 CONFIG_FILE="${PROJECT_ROOT}/local/sentry-upload"
 UPLOAD_PATH="${1:-${BUILD_SRC}}"
@@ -54,7 +54,7 @@ fi
 
 if [[ ! -d "${UPLOAD_PATH}" ]]; then
   echo "Error: Upload path not found: ${UPLOAD_PATH}"
-  echo "Build the project first (e.g. ./scripts/build-prod.sh)"
+  echo "Build the project first (e.g. ./tools/scripts/build-prod.sh)"
   exit 1
 fi
 

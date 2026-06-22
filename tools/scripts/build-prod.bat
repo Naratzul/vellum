@@ -4,7 +4,7 @@ REM Sensitive config (DSN) lives in local\, which is gitignored.
 REM
 REM Usage:
 REM   1. Create local\sentry-dsn with your DSN (one line, no quotes)
-REM   2. Run: scripts\build-prod.bat
+REM   2. Run: tools\scripts\build-prod.bat
 REM
 REM Or set VELLUM_SENTRY_DSN env var to override the config file.
 
@@ -12,7 +12,7 @@ setlocal enabledelayedexpansion
 
 set "SCRIPT_DIR=%~dp0"
 set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
-set "PROJECT_ROOT=%SCRIPT_DIR%\.."
+set "PROJECT_ROOT=%SCRIPT_DIR%\..\.."
 set "BUILD_DIR=%PROJECT_ROOT%\build"
 set "CONFIG_FILE=%PROJECT_ROOT%\local\sentry-dsn"
 
@@ -39,5 +39,5 @@ if errorlevel 1 exit /b 1
 cmake --build "%BUILD_DIR%" --config RelWithDebInfo --parallel
 if errorlevel 1 exit /b 1
 
-echo Production build complete. See %BUILD_DIR%\src
+echo Production build complete. See %BUILD_DIR%\apps\vellum
 endlocal

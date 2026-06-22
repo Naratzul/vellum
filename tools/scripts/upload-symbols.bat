@@ -8,7 +8,7 @@ REM   - SENTRY_AUTH_TOKEN env var (create at sentry.io ^> Settings ^> Auth Token
 REM
 REM Usage:
 REM   1. Copy local-sentry-upload.example to local\sentry-upload, edit org/project
-REM   2. Run: scripts\upload-symbols.bat [path]
+REM   2. Run: tools\scripts\upload-symbols.bat [path]
 REM
 REM Path defaults to build\src (contains vellum.exe + vellum.pdb).
 
@@ -16,7 +16,7 @@ setlocal enabledelayedexpansion
 
 set "SCRIPT_DIR=%~dp0"
 set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
-set "PROJECT_ROOT=%SCRIPT_DIR%\.."
+set "PROJECT_ROOT=%SCRIPT_DIR%\..\.."
 set "BUILD_SRC=%PROJECT_ROOT%\releases\v0.1.0"
 set "CONFIG_FILE=%PROJECT_ROOT%\local\sentry-upload"
 
@@ -43,7 +43,7 @@ if not defined SENTRY_PROJECT (
 
 if not exist "%UPLOAD_PATH%" (
   echo Error: Upload path not found: %UPLOAD_PATH%
-  echo Build the project first ^(e.g. scripts\build-prod.bat^)
+  echo Build the project first ^(e.g. tools\scripts\build-prod.bat^)
   exit /b 1
 )
 

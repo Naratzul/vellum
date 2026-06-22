@@ -4,14 +4,14 @@
 #
 # Usage:
 #   1. Create local/sentry-dsn with your DSN (one line, no quotes)
-#   2. Run: ./scripts/build-prod.sh
+#   2. Run: ./tools/scripts/build-prod.sh
 #
 # Or set VELLUM_SENTRY_DSN env var to override the config file.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 BUILD_DIR="${PROJECT_ROOT}/build"
 CONFIG_FILE="${PROJECT_ROOT}/local/sentry-dsn"
 
