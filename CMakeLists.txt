@@ -26,7 +26,6 @@ add_subdirectory(libs/vellum-compiler)
 add_subdirectory(libs/vellum-diag)
 add_subdirectory(apps/vellum)
 add_subdirectory(tools/parse-psc)
-add_subdirectory(test) 
 
 set(LSP_USE_SANITIZERS OFF CACHE BOOL
     "Use address and undefined behavior sanitizers for lsp-framework Debug builds"
@@ -37,4 +36,6 @@ FetchContent_Declare(
   GIT_TAG        66e12ebcbcf87d1ff50d18e998efa35f130339b3
 )
 FetchContent_MakeAvailable(lsp-framework)
+add_subdirectory(libs/vellum-lsp)
 add_subdirectory(apps/vellum-lsp)
+add_subdirectory(test)
