@@ -18,6 +18,7 @@ add_executable(tests
     unit/utils.cpp
 
     unit/lsp/completion_tests.cpp
+    unit/lsp/definition_tests.cpp
 )
 
 target_compile_definitions(tests
