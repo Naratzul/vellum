@@ -22,7 +22,8 @@ add_executable(vellum-lsp
      
     server.h server.cpp
 )
-target_link_libraries(vellum-lsp PUBLIC lsp vellum_compiler)
+target_link_libraries(vellum-lsp PRIVATE lsp vellum_compiler)
+vellum_target_sentry(vellum-lsp "vellum-lsp@${PROJECT_VERSION}")
 
 target_include_directories(vellum-lsp PRIVATE
     ${CMAKE_SOURCE_DIR}/libs/vellum-compiler
