@@ -1,5 +1,9 @@
 #include "server.h"
 
+#ifndef VELLUM_LSP_VERSION
+#error VELLUM_LSP_VERSION must be defined by CMake (apps/vellum-lsp project VERSION)
+#endif
+
 #include "analyze/import_library.h"
 #include "common/fs.h"
 #include "common/os.h"
@@ -149,7 +153,8 @@ void LspServer::registerHandlers() {
                              .full = true},
                      .diagnosticProvider = lsp::DiagnosticOptions{}},
                 .serverInfo = lsp::InitializeResultServerInfo{
-                    .name = "Vellum Language Server", .version = "0.1.0"}};
+                    .name = "Vellum Language Server",
+                    .version = VELLUM_LSP_VERSION}};
           })
       .add<lsp::notifications::Workspace_DidChangeConfiguration>(
           [this](lsp::notifications::Workspace_DidChangeConfiguration::Params&&
