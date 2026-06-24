@@ -19,6 +19,7 @@ add_executable(tests
 
     unit/lsp/completion_tests.cpp
     unit/lsp/definition_tests.cpp
+    unit/lsp/diagnostics_tests.cpp
     unit/lsp/document_store_tests.cpp
 )
 
