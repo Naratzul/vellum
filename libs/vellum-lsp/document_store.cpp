@@ -1,9 +1,10 @@
 #include "document_store.h"
 
 #include <stdexcept>
-#include <string_view>
+#include <utility>
 
 #include "common/fs.h"
+#include "lsp_utf16.h"
 
 namespace vellum {
 using common::filenameWithoutExt;
@@ -20,6 +21,27 @@ void DocumentStore::openOrUpdate(const path& filePath, std::string text) {
   ++doc.version;
   doc.cache.reset();
 }
+
+void DocumentStore::applyChange(const path& filePath, const lsp::Range& range,
+                                std::string replacementText) {
+  const auto it = documents.find(filePath);
+  if (it == documents.end()) {
+    throw std::out_of_range("DocumentStore::applyChange: unknown document");
+  }
+
+  auto& doc = it->second;
+  size_t start = utf8ByteOffsetAtLspPosition(doc.text, range.start);
+  size_t end = utf8ByteOffsetAtLspPosition(doc.text, range.end);
+  if (start > end) {
+    std::swap(start, end);
+  }
+
+  doc.text.replace(start, end - start, replacementText);
+  ++doc.version;
+  doc.cache.reset();
+}
+
+void DocumentStore::close(const path& filePath) { documents.erase(filePath); }
 
 bool DocumentStore::has(const path& filePath) const {
   return documents.contains(filePath);

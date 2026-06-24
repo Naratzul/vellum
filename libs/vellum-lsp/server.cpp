@@ -172,6 +172,12 @@ void LspServer::registerHandlers() {
               handleDocumentChange(params.textDocument.uri, change);
             }
           })
+      .add<lsp::notifications::TextDocument_DidClose>(
+          [this](lsp::notifications::TextDocument_DidClose::Params&& params) {
+            const path filePath = pathFromDocumentUri(params.textDocument.uri);
+            logMsg("Closed file: {}", filePath.string());
+            documentStore.close(filePath);
+          })
       .add<lsp::requests::TextDocument_Diagnostic>(
           [this](lsp::requests::TextDocument_Diagnostic::Params&& params) {
             const path filePath = pathFromDocumentUri(params.textDocument.uri);
@@ -249,7 +255,10 @@ void LspServer::handleDocumentChange(
             const path filePath = pathFromDocumentUri(uri);
             documentStore.openOrUpdate(filePath, text.text);
           },
-          [&](const lsp::TextDocumentContentChangeEvent_Range_Text& text) {}},
+          [&](const lsp::TextDocumentContentChangeEvent_Range_Text& text) {
+            const path filePath = pathFromDocumentUri(uri);
+            documentStore.applyChange(filePath, text.range, text.text);
+          }},
       changeEvent);
 }
 }  // namespace vellum

@@ -1,3 +1,5 @@
+project(vellum VERSION 0.1.0 LANGUAGES CXX)
+
 include(FetchContent)
 FetchContent_Declare(
   cxxopts

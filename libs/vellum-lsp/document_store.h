@@ -33,6 +33,9 @@ struct CachedAnalysis {
 class DocumentStore {
  public:
   void openOrUpdate(const path& filePath, std::string text);
+  void applyChange(const path& filePath, const lsp::Range& range,
+                   std::string replacementText);
+  void close(const path& filePath);
   bool has(const path& filePath) const;
   std::string_view text(const path& filePath) const;
   std::string_view scriptName(const path& filePath) const;

@@ -9,6 +9,7 @@ add_library(vellum_lsp STATIC
     diagnostics.cpp
     document_analyzer.cpp
     document_store.cpp
+    lsp_utf16.cpp
     lsp_locations.cpp
     navigation_utils.cpp
     semantic_tokens.cpp

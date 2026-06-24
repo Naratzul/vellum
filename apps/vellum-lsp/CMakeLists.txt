@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
-project(vellum-lsp)
+project(vellum-lsp VERSION 0.1.0 LANGUAGES CXX)
 
 add_executable(vellum-lsp main.cpp)
 target_link_libraries(vellum-lsp PRIVATE vellum_lsp)
