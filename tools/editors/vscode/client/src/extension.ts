@@ -1,5 +1,6 @@
+import * as fs from 'fs';
 import * as path from 'path';
-import { window, workspace, WorkspaceFolder, ExtensionContext } from 'vscode';
+import { window, workspace, WorkspaceFolder, ExtensionContext, WorkspaceConfiguration } from 'vscode';
 import * as process from 'process'
 
 import {
@@ -8,7 +9,6 @@ import {
 	ServerOptions,
 	TransportKind
 } from 'vscode-languageclient/node';
-import { assert } from 'console';
 
 let client: LanguageClient;
 
@@ -17,13 +17,43 @@ function expandWorkspaceFolder(input: string, wsFolder: WorkspaceFolder | undefi
   	return input.replace(/\$\{workspaceFolder\}/g, wsFolder.uri.fsPath);
 }
 
-function getServerExecutableName() {
+function getServerPlatformDir(): string {
+	if (process.platform === 'win32') {
+		return 'win32-x64';
+	} else if (process.platform === 'darwin') {
+		return process.arch === 'arm64' ? 'darwin-arm64' : 'darwin-x64';
+	} else if (process.platform === 'linux') {
+		return process.arch === 'arm64' ? 'linux-arm64' : 'linux-x64';
+	}
+	throw new Error(`Unsupported platform: ${process.platform}`);
+}
+
+function getServerExecutableName(): string {
 	if (process.platform == "win32") {
 		return "vellum-lsp.exe";
 	} else if (process.platform == "darwin" || process.platform == "linux") {
 		return "vellum-lsp";
 	}
-	assert(false, "Unsupported platform");
+	throw new Error(`Unsupported platform: ${process.platform}`);
+}
+
+function resolveServerModule(context: ExtensionContext, cfg: WorkspaceConfiguration): string | undefined {
+	const override = cfg.get<string>('languageServerPath', '').trim();
+	if (override) {
+		return path.normalize(override);
+	}
+
+	let platformDir: string;
+	try {
+		platformDir = getServerPlatformDir();
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		void window.showErrorMessage(`Vellum: ${message}`);
+		return undefined;
+	}
+
+	const serverDir = path.join(context.extensionPath, 'server', platformDir);
+	return path.join(serverDir, getServerExecutableName());
 }
 
 export function activate(context: ExtensionContext) {
@@ -36,9 +66,17 @@ export function activate(context: ExtensionContext) {
 		.map(p => expandWorkspaceFolder(p, wsFolder))
 		.map(p => path.normalize(p))
 
-	const serverModule = context.asAbsolutePath(
-		path.join('..', '..', '..', 'bin', 'vellum-lsp', getServerExecutableName()),
-	);
+	const serverModule = resolveServerModule(context, cfg);
+	if (!serverModule) {
+		return;
+	}
+
+	if (!fs.existsSync(serverModule)) {
+		void window.showErrorMessage(
+			`Vellum language server not found at: ${serverModule}`,
+		);
+		return;
+	}
 
 	// If the extension is launched in debug mode then the debug server options are used
 	// Otherwise the run options are used

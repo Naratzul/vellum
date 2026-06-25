@@ -1,11 +1,20 @@
+# Editor / repo config
 .vscode/**
+.gitignore
+
+# TypeScript sources (compiled client/out is shipped)
+client/src/**
 **/*.ts
 **/*.map
-.gitignore
 **/tsconfig.json
 **/tsconfig.base.json
-contributing.md
-.travis.yml
+**/tsconfig.tsbuildinfo
+
+# Root dev dependencies
+node_modules/**
+package-lock.json
+
+# Client dev dependencies — exclude all, then whitelist runtime packages
 client/node_modules/**
 !client/node_modules/vscode-jsonrpc/**
 !client/node_modules/vscode-languageclient/**
@@ -13,3 +22,17 @@ client/node_modules/**
 !client/node_modules/vscode-languageserver-types/**
 !client/node_modules/{minimatch,brace-expansion,concat-map,balanced-match}/**
 !client/node_modules/{semver,lru-cache,yallist}/**
+
+# Tests and fixtures
+client/testFixture/**
+client/out/test/**
+client/package-lock.json
+
+# Lint / build tooling
+eslint.config.mjs
+
+# Bundled native server (staged at package time; explicit include for safety)
+!server/**
+!server/win32-x64/**
+!server/win32-x64/vellum-lsp.exe
+!server/win32-x64/*.dll

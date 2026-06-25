@@ -46,6 +46,12 @@
 					"default": [],
 					"items": {"type": "string"},
 					"description": "Additional directories to search for Vellum imports. Supports absolute paths and ${workspaceFolder}."
+				},
+				"vellum.languageServerPath": {
+					"scope": "window",
+					"type": "string",
+					"default": "",
+					"description": "Optional path to the vellum-lsp executable. When empty, the extension uses the bundled server under server/<platform>."
 				}
 			}
 		},
