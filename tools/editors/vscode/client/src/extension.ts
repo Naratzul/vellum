@@ -78,21 +78,14 @@ export function activate(context: ExtensionContext) {
 		return;
 	}
 
-	// If the extension is launched in debug mode then the debug server options are used
-	// Otherwise the run options are used
 	const serverOptions: ServerOptions = {
-		run: { command: serverModule, transport: TransportKind.stdio },
-		debug: {
-			command: serverModule,
-			transport: TransportKind.stdio,
-		}
+		command: serverModule,
+		transport: TransportKind.stdio,
 	};
 
-	var output = window.createOutputChannel("Vellum Language Server")
-	output.appendLine("Vellum Language Server logs:")
-	output.show()
+	const output = window.createOutputChannel('Vellum Language Server');
+	output.appendLine('Vellum Language Server logs:');
 
-	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: 'file', language: 'vellum' }],
 		initializationOptions: {
@@ -103,22 +96,6 @@ export function activate(context: ExtensionContext) {
 		},
 		workspaceFolder: wsFolder,
 		outputChannel: output,
-		middleware: {
-			provideDefinition: (document, position, token, next) => {
-				output.appendLine(
-					`[client] textDocument/definition ${document.uri.fsPath} ` +
-					`@ ${position.line}:${position.character}`,
-				);
-				return next(document, position, token);
-			},
-			provideCompletionItem: (document, position, context, token, next) => {
-				output.appendLine(
-					`[client] textDocument/completion ${document.uri.fsPath} ` +
-					`@ ${position.line}:${position.character}`,
-				);
-				return next(document, position, context, token);
-			},
-		},
 	};
 
 	// Create the language client and start the client.
@@ -129,15 +106,11 @@ export function activate(context: ExtensionContext) {
 		clientOptions
 	);
 
-	// Start the client. This will also launch the server
-	void client.start().then(() => {
-		const caps = client.initializeResult?.capabilities;
-		output.appendLine(
-			`[client] server definitionProvider: ${JSON.stringify(caps?.definitionProvider ?? null)}`,
-		);
-		output.appendLine(
-			`[client] server completionProvider: ${JSON.stringify(caps?.completionProvider ?? null)}`,
-		);
+	void client.start().catch((err: unknown) => {
+		const message = err instanceof Error ? err.message : String(err);
+		output.appendLine(`Failed to start language server: ${message}`);
+		output.show();
+		void window.showErrorMessage(`Vellum: failed to start language server — ${message}`);
 	});
 }
 
