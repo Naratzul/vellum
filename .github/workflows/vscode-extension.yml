@@ -8,9 +8,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
   package:
     runs-on: windows-latest
@@ -20,20 +17,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set build parameters
+        id: build
+        shell: pwsh
+        run: |
+          $isRelease = '${{ github.ref }}' -match '^refs/tags/vscode-v'
+          if ($isRelease) {
+            "config=RelWithDebInfo" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            "config=Release" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+          "is_release=$($isRelease.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Configure CMake
-        if: "!startsWith(github.ref, 'refs/tags/vscode-v')"
-        run: cmake -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        if: steps.build.outputs.is_release != 'true'
+        run: cmake -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=${{ steps.build.outputs.config }}
 
       - name: Configure CMake (release)
-        if: startsWith(github.ref, 'refs/tags/vscode-v')
+        if: steps.build.outputs.is_release == 'true'
         run: >
           cmake -B ${{ github.workspace }}/build
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          -DCMAKE_BUILD_TYPE=${{ steps.build.outputs.config }}
           -DVELLUM_LSP_SENTRY_DSN=${{ secrets.VELLUM_LSP_SENTRY_DSN }}
           -DVELLUM_SENTRY_ENVIRONMENT=${{ secrets.VELLUM_SENTRY_ENVIRONMENT }}
 
       - name: Build
-        run: cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }}
+        run: cmake --build ${{ github.workspace }}/build --config ${{ steps.build.outputs.config }}
+
+      - name: Read Sentry release
+        if: steps.build.outputs.is_release == 'true'
+        id: sentry_release
+        shell: pwsh
+        run: |
+          $version = & "${{ github.workspace }}/tools/scripts/read-cmake-project-version.ps1" `
+            -CMakeListsPath "${{ github.workspace }}/apps/vellum-lsp/CMakeLists.txt"
+          "name=vellum-lsp@$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - uses: getsentry/action-setup-cli@v1
+        if: steps.build.outputs.is_release == 'true'
+
+      - name: Upload debug symbols to Sentry
+        if: steps.build.outputs.is_release == 'true'
+        shell: pwsh
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          sentry-cli debug-files upload `
+            --org "${{ secrets.SENTRY_ORG }}" `
+            --project "${{ secrets.SENTRY_LSP_PROJECT }}" `
+            --release "${{ steps.sentry_release.outputs.name }}" `
+            "${{ github.workspace }}/build/apps/vellum-lsp/${{ steps.build.outputs.config }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
