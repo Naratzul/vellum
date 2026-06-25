@@ -15,4 +15,4 @@ target_include_directories(vellum PRIVATE
     ${cxxopts_SOURCE_DIR}/include)
 target_compile_definitions(vellum PRIVATE
     "VELLUM_VERSION=\"${PROJECT_VERSION}\"")
-vellum_target_sentry(vellum "vellum@${PROJECT_VERSION}")
+vellum_target_sentry(vellum "vellum@${PROJECT_VERSION}" DSN VELLUM_SENTRY_DSN)
