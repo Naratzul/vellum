@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <style type="text/css">
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@600&amp;display=swap");
+    </style>
+  </defs>
+  <rect width="512" height="512" fill="#0B0B0C"/>
+  <text x="256" y="292" text-anchor="middle" font-family="Inter, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif" font-size="86" font-weight="600" fill="#F0F0F0">Vellum</text>
+</svg>

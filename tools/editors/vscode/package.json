@@ -1,6 +1,12 @@
 {
 	"name": "vellum-lsp",
-	"description": "Vellum language server",
+	"displayName": "Vellum",
+	"description": "Language support for Vellum — a scripting language for Creation Kit–era games",
+	"publisher": "naratzul",
+	"icon": "images/icon.png",
+	"categories": [
+		"Programming Languages"
+	],
 	"author": "Naratzul",
 	"license": "MIT",
 	"version": "0.1.0",
@@ -38,7 +44,9 @@
 					"scope": "resource",
 					"type": "array",
 					"default": [],
-					"items": {"type": "string"},
+					"items": {
+						"type": "string"
+					},
 					"description": "Additional directories to search for Vellum imports. Supports absolute paths and ${workspaceFolder}."
 				},
 				"vellum.languageServerPath": {
@@ -74,23 +82,57 @@
 			{
 				"language": "vellum",
 				"scopes": {
-					"keyword": ["keyword.control.vellum"],
-					"string": ["string.quoted.double.vellum"],
-					"number": ["constant.numeric.vellum"],
-					"operator": ["keyword.operator.vellum"],
-					"variable": ["variable.other.vellum"],
-					"variable.declaration": ["variable.other.vellum"],
-					"class": ["entity.name.type.class.vellum"],
-					"class.declaration": ["entity.name.type.class.vellum"],
-					"type": ["storage.type.vellum"],
-					"function": ["entity.name.function.vellum"],
-					"function.declaration": ["entity.name.function.vellum"],
-					"function.static": ["entity.name.function.vellum"],
-					"property": ["variable.other.property.vellum"],
-					"property.declaration": ["variable.other.property.vellum"],
-					"property.readonly": ["variable.other.constant.property.vellum"],
-					"parameter": ["variable.parameter.vellum"],
-					"parameter.declaration": ["variable.parameter.vellum"]
+					"keyword": [
+						"keyword.control.vellum"
+					],
+					"string": [
+						"string.quoted.double.vellum"
+					],
+					"number": [
+						"constant.numeric.vellum"
+					],
+					"operator": [
+						"keyword.operator.vellum"
+					],
+					"variable": [
+						"variable.other.vellum"
+					],
+					"variable.declaration": [
+						"variable.other.vellum"
+					],
+					"class": [
+						"entity.name.type.class.vellum"
+					],
+					"class.declaration": [
+						"entity.name.type.class.vellum"
+					],
+					"type": [
+						"storage.type.vellum"
+					],
+					"function": [
+						"entity.name.function.vellum"
+					],
+					"function.declaration": [
+						"entity.name.function.vellum"
+					],
+					"function.static": [
+						"entity.name.function.vellum"
+					],
+					"property": [
+						"variable.other.property.vellum"
+					],
+					"property.declaration": [
+						"variable.other.property.vellum"
+					],
+					"property.readonly": [
+						"variable.other.constant.property.vellum"
+					],
+					"parameter": [
+						"variable.parameter.vellum"
+					],
+					"parameter.declaration": [
+						"variable.parameter.vellum"
+					]
 				}
 			}
 		]
@@ -100,6 +142,7 @@
 		"compile": "tsc -b",
 		"watch": "tsc -b -w",
 		"lint": "eslint",
+		"package": "npm run compile && node scripts/package.js",
 		"postinstall": "cd client && npm install && cd ..",
 		"test": "sh ./tools/scripts/e2e.sh"
 	},
@@ -108,6 +151,7 @@
 		"@stylistic/eslint-plugin": "^2.9.0",
 		"@types/mocha": "^10.0.6",
 		"@types/node": "^20",
+		"@vscode/vsce": "^3.9.2",
 		"eslint": "^9.13.0",
 		"mocha": "^10.3.0",
 		"typescript": "^5.8.2",

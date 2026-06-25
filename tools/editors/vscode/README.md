@@ -1,37 +1,76 @@
-# LSP Example
+# Vellum
 
-Heavily documented sample code for https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
+[Vellum](https://github.com/Naratzul/vellum) is a scripting language for Creation Kit–era games. This extension adds editor support for Vellum (`.vel`, `.vellum`) in Visual Studio Code via the bundled `vellum-lsp` language server.
 
-## Functionality
+**Windows x64 only** for the initial release. Linux and macOS binaries are not bundled yet.
 
-This Language Server works for plain text file. It has the following language features:
-- Completions
-- Diagnostics regenerated on each file change or configuration change
+## Features
 
-It also includes an End-to-End test.
+- Syntax highlighting and semantic tokens for Vellum
+- Diagnostics on edit
+- Code completion
+- Go to definition
 
-## Structure
+## Installation
 
+Install from a VSIX (not published on the VS Code Marketplace yet):
+
+1. Download `vellum-<version>.vsix` from a [GitHub Release](https://github.com/Naratzul/vellum/releases) or build one locally (see below).
+2. In VS Code, run **Extensions: Install from VSIX…** and select the file.
+3. Open a `.vel` or `.vellum` file.
+
+## Configuration
+
+| Setting | Description |
+| --- | --- |
+| `vellum.importPaths` | Extra directories to search for Vellum imports. Supports absolute paths and `${workspaceFolder}`. |
+| `vellum.trace.server` | Trace LSP traffic (`off`, `messages`, `verbose`). |
+| `vellum.languageServerPath` | Optional path to a `vellum-lsp` executable. When empty, the bundled server under `server/<platform>` is used. |
+
+Example `settings.json` for a Skyrim mod project:
+
+```json
+{
+  "vellum.importPaths": [
+    "${workspaceFolder}/Scripts/Source",
+    "C:/Program Files (x86)/Steam/steamapps/common/Skyrim Special Edition/Data/Source/Scripts"
+  ]
+}
 ```
-.
-├── client // Language Client
-│   ├── src
-│   │   ├── test // End to End tests for Language Client / Server
-│   │   └── extension.ts // Language Client entry point
-├── package.json // The extension manifest.
-└── server // Language Server
-    └── src
-        └── server.ts // Language Server entry point
+
+## Building a VSIX
+
+From the monorepo root, build the language server in Release, then package the extension:
+
+```bat
+cmake --build build --config Release
+cd tools\editors\vscode
+npm install
+npm run package
 ```
 
-## Running the Sample
+The VSIX is written to `dist/vellum-<version>.vsix`.
 
-- Run `npm install` in this folder. This installs all necessary npm modules in both the client and server folder
-- Open VS Code on this folder.
-- Press Ctrl+Shift+B to start compiling the client and server in [watch mode](https://code.visualstudio.com/docs/editor/tasks#:~:text=The%20first%20entry%20executes,the%20HelloWorld.js%20file.).
-- Switch to the Run and Debug View in the Sidebar (Ctrl+Shift+D).
-- Select `Launch Client` from the drop down (if it is not already).
-- Press ▷ to run the launch config (F5).
-- In the [Extension Development Host](https://code.visualstudio.com/api/get-started/your-first-extension#:~:text=Then%2C%20inside%20the%20editor%2C%20press%20F5.%20This%20will%20compile%20and%20run%20the%20extension%20in%20a%20new%20Extension%20Development%20Host%20window.) instance of VSCode, open a document in 'plain text' language mode.
-  - Type `j` or `t` to see `Javascript` and `TypeScript` completion.
-  - Enter text content such as `AAA aaa BBB`. The extension will emit diagnostics for all words in all-uppercase.
+To point at a custom server binary:
+
+```bat
+node scripts/package.js --server-path ..\..\..\bin\vellum-lsp\vellum-lsp.exe
+```
+
+## Development
+
+1. `npm install` in `tools/editors/vscode`
+2. Build `vellum-lsp` (Release) so `bin/vellum-lsp/vellum-lsp.exe` exists
+3. Set `vellum.languageServerPath` in workspace settings to that executable
+4. Press **F5** to launch an Extension Development Host
+
+Use `npm run watch` to recompile the client on change.
+
+## Links
+
+- [Vellum repository](https://github.com/Naratzul/vellum)
+- [Documentation](https://naratzul.github.io/vellum/)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
