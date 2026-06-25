@@ -55,8 +55,14 @@ jobs:
             -CMakeListsPath "${{ github.workspace }}/apps/vellum/CMakeLists.txt"
           "name=vellum@$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - uses: getsentry/action-setup-cli@v1
+      - name: Install sentry-cli
         if: steps.build.outputs.is_release == 'true'
+        shell: bash
+        run: |
+          export INSTALL_DIR="$GITHUB_WORKSPACE/.sentry-cli"
+          export SENTRY_CLI_VERSION="2.39.1"
+          curl -sL https://sentry.io/get-cli/ | bash
+          echo "$INSTALL_DIR" >> "$GITHUB_PATH"
 
       - name: Upload debug symbols to Sentry
         if: steps.build.outputs.is_release == 'true'
