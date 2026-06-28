@@ -71,6 +71,8 @@ class BlockStatement : public Statement {
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
 
+  bool IsEmpty() const { return statements.empty(); }
+
  private:
   Vec<Unique<Statement>> statements;
 };

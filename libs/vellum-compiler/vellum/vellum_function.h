@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 
+#include "common/flags.h"
 #include "common/types.h"
 #include "vellum_identifier.h"
 #include "vellum_type.h"
@@ -14,6 +15,14 @@ using common::Opt;
 using common::Vec;
 
 enum class IntrinsicKind { None, ArrayLength, ArrayFind, ArrayRFind };
+
+enum class VellumFunctionModifierBits {
+  None = 0,
+  Static = 1 << 0,
+  Native = 1 << 1
+};
+
+using VellumFunctionModifier = common::Flags<VellumFunctionModifierBits>;
 
 class VellumFunctionCall {
  public:
@@ -62,19 +71,29 @@ std::ostream& operator<<(std::ostream& os, const VellumFunctionCall& value);
 class VellumFunction {
  public:
   VellumFunction(VellumIdentifier name, VellumType returnType,
-                 const Vec<VellumVariable>& parameters, bool staticFunc)
+                 const Vec<VellumVariable>& parameters,
+                 VellumFunctionModifier modifiers)
       : name(name),
         returnType(returnType),
         parameters(parameters),
-        staticFunc(staticFunc),
+        modifiers(modifiers),
         intrinsicKind(IntrinsicKind::None) {}
 
   VellumIdentifier getName() const { return name; }
   VellumType getReturnType() const { return returnType; }
   const Vec<VellumVariable>& getParameters() const { return parameters; }
 
-  int getArity() const { return parameters.size(); }
-  bool isStatic() const { return staticFunc; }
+  int getArity() const { return (int)parameters.size(); }
+
+  bool isStatic() const {
+    return modifiers & VellumFunctionModifierBits::Static;
+  }
+
+  bool isNative() const {
+    return modifiers & VellumFunctionModifierBits::Native;
+  }
+
+  VellumFunctionModifier getModifiers() const { return modifiers; }
 
   IntrinsicKind getIntrinsicKind() const { return intrinsicKind; }
   void setIntrinsicKind(IntrinsicKind kind) { intrinsicKind = kind; }
@@ -85,7 +104,7 @@ class VellumFunction {
   VellumIdentifier name;
   VellumType returnType;
   Vec<VellumVariable> parameters;
-  bool staticFunc;
+  VellumFunctionModifier modifiers;
   IntrinsicKind intrinsicKind;
 };
 

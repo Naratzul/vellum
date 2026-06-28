@@ -169,6 +169,14 @@ void SemanticAnalyzer::visitFunctionDeclaration(
     }
   }
 
+  if (declaration.isNative() && !declaration.getBody()->IsEmpty()) {
+    errorHandler->errorAt(declaration.getNameLocation().value_or(Token{}),
+                          CompilerErrorKind::NativeFunctionWithBody,
+                          "Native function '{}' shouldn't contain a body.",
+                          declaration.getName().value_or(""));
+    return;
+  }
+
   inStaticContext = declaration.isStatic();
   resolver->startFunction(func.value());
   declaration.getBody()->accept(*this);

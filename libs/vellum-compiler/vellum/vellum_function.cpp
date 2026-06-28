@@ -56,7 +56,7 @@ std::ostream& operator<<(std::ostream& os, const VellumFunction& value) {
 }
 
 bool VellumFunction::matchSignature(const VellumFunction& other) const {
-  if (staticFunc != other.staticFunc) {
+  if (modifiers != other.modifiers) {
     return false;
   }
 

@@ -76,9 +76,13 @@ class Parser {
   void consume(TokenType type, CompilerErrorKind error,
                std::format_string<Args...> fmt, Args&&... args);
 
+  bool checkFunctionModifier() const;
+
+  VellumFunctionModifier parseFunctionModifiers();
+
   Unique<ast::Declaration> variableDeclaration();
-  Unique<ast::Declaration> functionDeclaration(FunctionType functionType,
-                                               bool isStatic);
+  Unique<ast::Declaration> functionDeclaration(
+      FunctionType functionType, VellumFunctionModifier modifiers = {});
   Unique<ast::Declaration> propertyDeclaration(std::string_view name,
                                                const Token& nameLocation,
                                                const VellumType& type,

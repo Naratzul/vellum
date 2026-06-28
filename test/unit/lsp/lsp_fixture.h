@@ -154,11 +154,12 @@ class LspTestFixture {
   }
 
   static VellumFunction staticFunction(VellumIdentifier name) {
-    return VellumFunction(name, VellumType::none(), {}, true);
+    return VellumFunction(name, VellumType::none(), {},
+                          VellumFunctionModifier{VellumFunctionModifierBits::Static});
   }
 
   static VellumFunction instanceFunction(VellumIdentifier name) {
-    return VellumFunction(name, VellumType::none(), {}, false);
+    return VellumFunction(name, VellumType::none(), {}, VellumFunctionModifier{});
   }
 
  protected:

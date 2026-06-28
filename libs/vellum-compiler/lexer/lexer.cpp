@@ -227,7 +227,15 @@ TokenType Lexer::identifierType() const {
       }
       break;
     case 'n':
-      return checkKeyword(1, 3, "one", TokenType::NONE);
+      if (current - start > 1) {
+        switch (start[1]) {
+          case 'a':
+            return checkKeyword(2, 4, "tive", TokenType::NATIVE);
+          case 'o':
+            return checkKeyword(2, 2, "ne", TokenType::NONE);
+        }
+      }
+      break;
     case 'r':
       return checkKeyword(1, 5, "eturn", TokenType::RETURN);
     case 's':

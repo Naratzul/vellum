@@ -17,13 +17,26 @@ class Flags {
     return Flags<BitsType>(mask | rhs.mask);
   }
 
-  constexpr Flags<BitsType>& operator|=(
-      const Flags<BitsType>& rhs) noexcept {
+  constexpr Flags<BitsType>& operator|=(const Flags<BitsType>& rhs) noexcept {
     mask |= rhs.mask;
     return *this;
   }
 
+  constexpr Flags<BitsType> operator&(
+      const Flags<BitsType>& rhs) const noexcept {
+    return Flags(mask & rhs.mask);
+  }
+
+  constexpr Flags<BitsType>& operator&=(const Flags<BitsType>& rhs) noexcept {
+    mask &= rhs.mask;
+    return *this;
+  }
+
   explicit constexpr operator MaskType() const noexcept { return mask; }
+
+  constexpr operator bool() const noexcept { return !!mask; }
+
+  constexpr auto operator<=>(const Flags<BitsType>& rhs) const noexcept = default;
 
  private:
   MaskType mask{0};

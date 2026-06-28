@@ -97,6 +97,43 @@ bool Parser::checkAny(std::initializer_list<TokenType> types) const {
   return false;
 }
 
+bool Parser::checkFunctionModifier() const {
+  return checkAny({TokenType::NATIVE, TokenType::STATIC});
+}
+
+VellumFunctionModifier Parser::parseFunctionModifiers() {
+  VellumFunctionModifier modifiers{VellumFunctionModifierBits::None};
+  Vec<Token> tokens;
+
+  while (checkFunctionModifier()) {
+    bool duplicate = false;
+    for (const Token& token : tokens) {
+      if (token.type == current.type) {
+        errorHandler->errorAt(current,
+                              CompilerErrorKind::FunctionDuplicateModifier,
+                              "Duplicate modifier '{}'.", current.lexeme);
+        duplicate = true;
+        break;
+      }
+    }
+
+    if (duplicate) {
+      advance();
+      continue;
+    }
+
+    if (match(TokenType::NATIVE)) {
+      modifiers |= VellumFunctionModifierBits::Native;
+      tokens.push_back(previous);
+    } else if (match(TokenType::STATIC)) {
+      modifiers |= VellumFunctionModifierBits::Static;
+      tokens.push_back(previous);
+    }
+  }
+
+  return modifiers;
+}
+
 Unique<ast::Declaration> Parser::scriptDeclaration() {
   if (!match(TokenType::IDENTIFIER)) {
     errorHandler->errorAt(current, "Expect a script's name after 'script'.");
@@ -180,13 +217,14 @@ Unique<ast::Declaration> Parser::scriptMemberDeclaration() {
   if (match(TokenType::VAR)) {
     return variableDeclaration();
   } else if (match(TokenType::FUN)) {
-    return functionDeclaration(FunctionType::Function, false);
+    return functionDeclaration(FunctionType::Function);
   } else if (match(TokenType::EVENT)) {
-    return functionDeclaration(FunctionType::Event, false);
-  } else if (match(TokenType::STATIC)) {
+    return functionDeclaration(FunctionType::Event);
+  } else if (checkFunctionModifier()) {
+    VellumFunctionModifier modifiers = parseFunctionModifiers();
     consume(TokenType::FUN, CompilerErrorKind::ExpectDeclaration,
-            "Expect function declaration after 'static'.");
-    return functionDeclaration(FunctionType::Function, true);
+            "Expect function declaration after modifiers.");
+    return functionDeclaration(FunctionType::Function, modifiers);
   }
 
   throw ParseException(current,
@@ -242,8 +280,8 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
       name, typeName, std::move(initializer), nameLocation, typeLocation);
 }
 
-Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
-                                                     bool isStatic) {
+Unique<ast::Declaration> Parser::functionDeclaration(
+    FunctionType functionType, VellumFunctionModifier modifiers) {
   const std::string functionTypeName =
       functionType == FunctionType::Function ? "function" : "event";
 
@@ -318,8 +356,18 @@ Unique<ast::Declaration> Parser::functionDeclaration(FunctionType functionType,
     }
   }
 
+  Unique<ast::BlockStatement> body;
+  if (modifiers & VellumFunctionModifierBits::Native) {
+    body = makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{});
+    if (check(TokenType::LEFT_BRACE)) {
+      body = parseBlockStatement();
+    }
+  } else {
+    body = parseBlockStatement();
+  }
+
   return makeUnique<ast::FunctionDeclaration>(name, parameters, returnTypeName,
-                                              parseBlockStatement(), isStatic,
+                                              std::move(body), modifiers,
                                               nameLocation, returnTypeLocation);
 }
 
@@ -888,6 +936,8 @@ void Parser::synchronizeDeclaration() {
       case TokenType::FUN:
       case TokenType::EVENT:
       case TokenType::VAR:
+      case TokenType::NATIVE:
+      case TokenType::STATIC:
         return;
       default:
         break;

@@ -211,7 +211,7 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_NoReturn") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "foo", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{})));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -916,7 +916,7 @@ TEST_CASE("ParserFunctionDeclaration_Params_NoReturn") {
 
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
-      "bar", params, VellumType::none(), makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
+      "bar", params, VellumType::none(), makeUnique<ast::BlockStatement>(ast::FunctionBody{})));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -1071,7 +1071,7 @@ TEST_CASE("ParserFunctionDeclaration_NoParams_WithReturn") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "baz", Vec<ast::FunctionParameter>{}, VellumType::unresolved("String"),
-      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{})));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -1110,7 +1110,7 @@ TEST_CASE("ParserFunctionDeclaration_Params_WithReturn") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "qux", params, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{})));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -1157,7 +1157,7 @@ TEST_CASE("ParserFunctionDeclaration_MultipleParams_MixedTypes") {
 
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
-      "mix", params, VellumType::none(), makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false));
+      "mix", params, VellumType::none(), makeUnique<ast::BlockStatement>(ast::FunctionBody{})));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -1393,7 +1393,7 @@ TEST_CASE("ParserCall_NoArgs") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      makeUnique<ast::BlockStatement>(std::move(expected_body)), false));
+      makeUnique<ast::BlockStatement>(std::move(expected_body))));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -1444,7 +1444,7 @@ TEST_CASE("ParserCall_WithArgs") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      makeUnique<ast::BlockStatement>(std::move(expected_body)), false));
+      makeUnique<ast::BlockStatement>(std::move(expected_body))));
 
   ast::ScriptDeclaration expected(VellumType::identifier("TestScript"),
                                   tokens[1], VellumType::none(), {},
@@ -2023,4 +2023,212 @@ TEST_CASE("ParserCall_ChainedMethodCall") {
               ->asIdentifier()
               .getIdentifier()
               .toString() == "obj");
+}
+
+namespace {
+const ast::FunctionDeclaration* getScriptFunction(
+    const ParserResult& result, size_t memberIndex = 0) {
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() > memberIndex);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[memberIndex].get());
+  REQUIRE(funcDecl != nullptr);
+  return funcDecl;
+}
+}  // namespace
+
+TEST_CASE("ParserFunctionModifiers_StaticFun") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::STATIC, 1, "static"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* funcDecl = getScriptFunction(result);
+  CHECK(funcDecl->isStatic());
+  CHECK_FALSE(funcDecl->isNative());
+  CHECK(funcDecl->getModifiers() == staticFunctionModifier);
+}
+
+TEST_CASE("ParserFunctionModifiers_NativeFun_NoBody") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::NATIVE, 1, "native"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "getPlayer"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::ARROW, 1, "->"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Actor"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* funcDecl = getScriptFunction(result);
+  CHECK(funcDecl->isNative());
+  CHECK_FALSE(funcDecl->isStatic());
+  CHECK(funcDecl->getModifiers() == nativeFunctionModifier);
+  CHECK(funcDecl->getBody()->getStatements().empty());
+}
+
+TEST_CASE("ParserFunctionModifiers_StaticNativeFun") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::NATIVE, 1, "native"),
+                    makeToken(TokenType::STATIC, 1, "static"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* funcDecl = getScriptFunction(result);
+  CHECK(funcDecl->isStatic());
+  CHECK(funcDecl->isNative());
+  CHECK(funcDecl->getModifiers() == staticNativeFunctionModifier);
+}
+
+TEST_CASE("ParserFunctionModifiers_DuplicateStatic") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::STATIC, 1, "static"),
+                    makeToken(TokenType::STATIC, 1, "static"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::FunctionDuplicateModifier));
+  const auto* funcDecl = getScriptFunction(result);
+  CHECK(funcDecl->isStatic());
+  CHECK(funcDecl->getModifiers() == staticFunctionModifier);
+}
+
+TEST_CASE("ParserFunctionModifiers_NativeFunWithBody_ParsesNextMember") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::NATIVE, 1, "native"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "bar"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  REQUIRE(scriptDecl->getMemberDecls().size() == 2);
+
+  const auto* nativeFunc = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(nativeFunc != nullptr);
+  CHECK(nativeFunc->isNative());
+  REQUIRE(nativeFunc->getBody()->getStatements().size() == 1);
+  CHECK(dynamic_cast<const ast::ReturnStatement*>(
+            nativeFunc->getBody()->getStatements()[0].get()) != nullptr);
+
+  const auto* barFunc = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[1].get());
+  REQUIRE(barFunc != nullptr);
+  CHECK(barFunc->getName() == "bar");
+  CHECK_FALSE(barFunc->isNative());
+}
+
+TEST_CASE("ParserFunctionModifiers_NativeFun_EmptyBraces") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::NATIVE, 1, "native"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "foo"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* funcDecl = getScriptFunction(result);
+  CHECK(funcDecl->isNative());
+  CHECK(funcDecl->getBody()->getStatements().empty());
+}
+
+TEST_CASE("ParserFunctionModifiers_StaticEventRejected") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::STATIC, 1, "static"),
+                    makeToken(TokenType::EVENT, 1, "event"),
+                    makeToken(TokenType::IDENTIFIER, 1, "onActivate"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ExpectDeclaration));
 }

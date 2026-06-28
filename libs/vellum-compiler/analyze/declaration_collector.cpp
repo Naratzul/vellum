@@ -307,7 +307,7 @@ void DeclarationCollector::visitFunctionDeclaration(
     if (parentFunc->getArity() !=
             static_cast<int>(declaration.getParameters().size()) ||
         parentFunc->getReturnType() != declaration.getReturnTypeName() ||
-        parentFunc->isStatic() != declaration.isStatic()) {
+        parentFunc->getModifiers() != declaration.getModifiers()) {
       errorHandler->errorAt(funcLocation,
                             CompilerErrorKind::OverrideSignatureMismatch,
                             "Override of '{}' must match parent signature "
@@ -341,7 +341,7 @@ void DeclarationCollector::visitFunctionDeclaration(
   normalizedFunctionNameToOriginal[stateName].emplace(normalized, funcName);
 
   VellumFunction func(funcName, declaration.getReturnTypeName(),
-                      std::move(parameters), declaration.isStatic());
+                      std::move(parameters), declaration.getModifiers());
 
   if (state) {
     state->addFunction(func);

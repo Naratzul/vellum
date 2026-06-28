@@ -120,6 +120,10 @@ pex::PexFunction PexFunctionCompiler::compile(
   debugInfo_ = debugInfo;
   currentLine_ = 1;
 
+  if (func.isNative()) {
+    assert(func.getBody()->IsEmpty());
+  }
+
   func.getBody()->accept(*this);
 
   Opt<pex::PexString> name;
@@ -142,7 +146,7 @@ pex::PexFunction PexFunctionCompiler::compile(
 
   return pex::PexFunction(name, returnTypeName, documentationString, 0,
                           parameters, localVariables, instructions,
-                          func.isStatic(), false);
+                          func.isStatic(), func.isNative());
 }
 
 void PexFunctionCompiler::visitExpressionStatement(
@@ -753,8 +757,7 @@ pex::PexValue PexFunctionCompiler::compile(const ast::BinaryExpression& expr) {
       }
     } else if (promoteType.has_value() &&
                promoteType->getState() == VellumTypeState::Identifier) {
-      if (expr.getLeft()->getType().getState() ==
-              VellumTypeState::Identifier &&
+      if (expr.getLeft()->getType().getState() == VellumTypeState::Identifier &&
           expr.getLeft()->getType() != *promoteType) {
         pex::PexValue objTemp = makeTempVarId(*promoteType);
         setCurrentLocation(expr.getLeft()->getLocation());

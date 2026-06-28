@@ -53,6 +53,8 @@ enum class CompilerErrorKind {
   UndefinedVariable,
   FunctionArgumentsCountMismatch,
   FunctionArgumentTypeMismatch,
+  FunctionDuplicateModifier,
+  NativeFunctionWithBody,
   InvalidArgumentType,
   PropertyNotAccessible,
   NotAssignable,
