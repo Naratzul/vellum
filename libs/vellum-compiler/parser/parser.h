@@ -6,6 +6,7 @@
 #include "common/types.h"
 #include "compiler/compiler_error_handler.h"
 #include "lexer/ilexer.h"
+#include "vellum/vellum_modifier.h"
 
 namespace vellum {
 using common::Opt;
@@ -60,9 +61,9 @@ class Parser {
   void advance();
 
   Unique<ast::Declaration> topDeclaration();
-  Unique<ast::Declaration> importDeclaration();
-  Unique<ast::Declaration> scriptDeclaration();
-  Unique<ast::Declaration> stateDeclaration(bool isAuto);
+  Unique<ast::Declaration> importDeclaration(ParsedModifiers modifiers);
+  Unique<ast::Declaration> scriptDeclaration(ParsedModifiers modifiers);
+  Unique<ast::Declaration> stateDeclaration(ParsedModifiers modifiers);
 
   Unique<ast::Declaration> scriptMemberDeclaration();
 
@@ -76,17 +77,21 @@ class Parser {
   void consume(TokenType type, CompilerErrorKind error,
                std::format_string<Args...> fmt, Args&&... args);
 
-  bool checkFunctionModifier() const;
+  bool checkModifier() const;
+  void checkModifiersContext(ParsedModifiers modifiers,
+                             VellumModifierContext context);
+  void reportOrphanModifiers(const ParsedModifiers& modifiers);
 
-  VellumFunctionModifier parseFunctionModifiers();
+  ParsedModifiers parseModifiers();
 
-  Unique<ast::Declaration> variableDeclaration();
-  Unique<ast::Declaration> functionDeclaration(
-      FunctionType functionType, VellumFunctionModifier modifiers = {});
+  Unique<ast::Declaration> variableDeclaration(ParsedModifiers modifiers);
+  Unique<ast::Declaration> functionDeclaration(FunctionType functionType,
+                                               ParsedModifiers modifiers);
   Unique<ast::Declaration> propertyDeclaration(std::string_view name,
                                                const Token& nameLocation,
                                                const VellumType& type,
-                                               const Token& typeLocation);
+                                               const Token& typeLocation,
+                                               ParsedModifiers modifiers);
 
   Unique<ast::Statement> statement();
   Unique<ast::Statement> expressionStatement();

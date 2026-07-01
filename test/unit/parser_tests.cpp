@@ -2134,7 +2134,7 @@ TEST_CASE("ParserFunctionModifiers_DuplicateStatic") {
       Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
 
   REQUIRE(errorHandler->hadError());
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::FunctionDuplicateModifier));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::DuplicateModifier));
   const auto* funcDecl = getScriptFunction(result);
   CHECK(funcDecl->isStatic());
   CHECK(funcDecl->getModifiers() == staticFunctionModifier);
@@ -2230,5 +2230,5 @@ TEST_CASE("ParserFunctionModifiers_StaticEventRejected") {
   Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
 
   REQUIRE(errorHandler->hadError());
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::ExpectDeclaration));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidModifier));
 }

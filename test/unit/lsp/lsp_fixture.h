@@ -4,8 +4,8 @@
 #include <string>
 #include <string_view>
 
-#include "analyze/import_library.h"
 #include "analyze/declaration_collector.h"
+#include "analyze/import_library.h"
 #include "ast/decl/declaration.h"
 #include "common/fs.h"
 #include "common/types.h"
@@ -41,22 +41,25 @@ class LspTestFixture {
     importLibrary = makeShared<ImportLibrary>(paths);
   }
 
-  void openDoc(std::string_view source) { store.openOrUpdate(filePath, std::string(source)); }
+  void openDoc(std::string_view source) {
+    store.openOrUpdate(filePath, std::string(source));
+  }
 
   const CachedAnalysis& analyze() {
     return store.getOrAnalyze(filePath, importLibrary);
   }
 
-  lsp::CompletionList complete(unsigned line, unsigned character,
-                               std::optional<lsp::CompletionContext> context = std::nullopt) {
+  lsp::CompletionList complete(
+      unsigned line, unsigned character,
+      std::optional<lsp::CompletionContext> context = std::nullopt) {
     lsp::requests::TextDocument_Completion::Params params;
     params.textDocument.uri = pathToUri(filePath);
     params.position = lsp::Position{.line = line, .character = character};
     if (context) {
       params.context = *context;
     }
-    const auto result =
-        CompletionsProvider().getCompletions(filePath, params, store, importLibrary);
+    const auto result = CompletionsProvider().getCompletions(
+        filePath, params, store, importLibrary);
     if (const auto* list = std::get_if<lsp::CompletionList>(&result)) {
       return *list;
     }
@@ -64,10 +67,11 @@ class LspTestFixture {
   }
 
   lsp::CompletionList completeDot(unsigned line, unsigned character) {
-    return complete(line, character,
-                    lsp::CompletionContext{
-                        .triggerKind = lsp::CompletionTriggerKind::TriggerCharacter,
-                        .triggerCharacter = "."});
+    return complete(
+        line, character,
+        lsp::CompletionContext{
+            .triggerKind = lsp::CompletionTriggerKind::TriggerCharacter,
+            .triggerCharacter = "."});
   }
 
   lsp::Array<lsp::DefinitionLink> define(unsigned line, unsigned character) {
@@ -78,7 +82,8 @@ class LspTestFixture {
 
   const path& docPath() const { return filePath; }
 
-  static bool hasLabel(const lsp::CompletionList& list, std::string_view label) {
+  static bool hasLabel(const lsp::CompletionList& list,
+                       std::string_view label) {
     for (const auto& item : list.items) {
       if (item.label == label) {
         return true;
@@ -102,14 +107,15 @@ class LspTestFixture {
            targetPath.filename() == expectedPath.filename();
   }
 
-  void addScriptType(const VellumObject& object,
-                     std::optional<VellumIdentifier> parentName = std::nullopt) {
+  void addScriptType(
+      const VellumObject& object,
+      std::optional<VellumIdentifier> parentName = std::nullopt) {
     const VellumIdentifier name = object.getType().asIdentifier();
     auto module =
         makeShared<ImportModule>(name, ImportModuleType::Papyrus, path(""));
     auto builtinFunctions = makeShared<BuiltinFunctions>();
-    auto objectResolver =
-        makeShared<Resolver>(object, errorHandler, importLibrary, builtinFunctions);
+    auto objectResolver = makeShared<Resolver>(object, errorHandler,
+                                               importLibrary, builtinFunctions);
     if (parentName) {
       objectResolver->setParentType(VellumType::identifier(*parentName));
     }
@@ -118,9 +124,9 @@ class LspTestFixture {
     importLibrary->addTestModule(module);
   }
 
-  void addParsedVelModule(const path& modulePath, std::string_view source,
-                          std::optional<VellumIdentifier> parentName =
-                              std::nullopt) {
+  void addParsedVelModule(
+      const path& modulePath, std::string_view source,
+      std::optional<VellumIdentifier> parentName = std::nullopt) {
     auto parseErrors = makeShared<CompilerErrorHandler>();
     Parser parser(makeUnique<Lexer>(source), parseErrors);
     ParserResult parseResult = parser.parse();
@@ -134,9 +140,9 @@ class LspTestFixture {
     }
 
     auto builtinFunctions = makeShared<BuiltinFunctions>();
-    auto moduleResolver = makeShared<Resolver>(
-        VellumObject(VellumType::identifier(scriptName)), errorHandler,
-        importLibrary, builtinFunctions);
+    auto moduleResolver =
+        makeShared<Resolver>(VellumObject(VellumType::identifier(scriptName)),
+                             errorHandler, importLibrary, builtinFunctions);
     if (parentName) {
       moduleResolver->setParentType(VellumType::identifier(*parentName));
     }
@@ -145,8 +151,8 @@ class LspTestFixture {
                                    scriptName.toString());
     collector.collect(parseResult.declarations);
 
-    auto module =
-        makeShared<ImportModule>(scriptName, ImportModuleType::Vellum, modulePath);
+    auto module = makeShared<ImportModule>(scriptName, ImportModuleType::Vellum,
+                                           modulePath);
     module->setFileContent(std::string(source));
     module->setAst(std::move(parseResult));
     module->setResolver(moduleResolver);
@@ -155,18 +161,19 @@ class LspTestFixture {
 
   static VellumFunction staticFunction(VellumIdentifier name) {
     return VellumFunction(name, VellumType::none(), {},
-                          VellumFunctionModifier{VellumFunctionModifierBits::Static});
+                          VellumModifiers{VellumModifier::Static});
   }
 
   static VellumFunction instanceFunction(VellumIdentifier name) {
-    return VellumFunction(name, VellumType::none(), {}, VellumFunctionModifier{});
+    return VellumFunction(name, VellumType::none(), {}, VellumModifiers{});
   }
 
  protected:
   DocumentStore store;
   Shared<ImportLibrary> importLibrary;
   path filePath;
-  Shared<CompilerErrorHandler> errorHandler = makeShared<CompilerErrorHandler>();
+  Shared<CompilerErrorHandler> errorHandler =
+      makeShared<CompilerErrorHandler>();
 };
 
 }  // namespace vellum::lsp_test

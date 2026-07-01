@@ -9,20 +9,13 @@
 #include "vellum_identifier.h"
 #include "vellum_type.h"
 #include "vellum_variable.h"
+#include "vellum_modifier.h"
 
 namespace vellum {
 using common::Opt;
 using common::Vec;
 
 enum class IntrinsicKind { None, ArrayLength, ArrayFind, ArrayRFind };
-
-enum class VellumFunctionModifierBits {
-  None = 0,
-  Static = 1 << 0,
-  Native = 1 << 1
-};
-
-using VellumFunctionModifier = common::Flags<VellumFunctionModifierBits>;
 
 class VellumFunctionCall {
  public:
@@ -72,7 +65,7 @@ class VellumFunction {
  public:
   VellumFunction(VellumIdentifier name, VellumType returnType,
                  const Vec<VellumVariable>& parameters,
-                 VellumFunctionModifier modifiers)
+                 VellumModifiers modifiers)
       : name(name),
         returnType(returnType),
         parameters(parameters),
@@ -85,15 +78,13 @@ class VellumFunction {
 
   int getArity() const { return (int)parameters.size(); }
 
-  bool isStatic() const {
-    return modifiers & VellumFunctionModifierBits::Static;
+  bool isStatic() const { return modifiers & VellumModifier::Static;
   }
 
-  bool isNative() const {
-    return modifiers & VellumFunctionModifierBits::Native;
+  bool isNative() const { return modifiers & VellumModifier::Native;
   }
 
-  VellumFunctionModifier getModifiers() const { return modifiers; }
+  VellumModifiers getModifiers() const { return modifiers; }
 
   IntrinsicKind getIntrinsicKind() const { return intrinsicKind; }
   void setIntrinsicKind(IntrinsicKind kind) { intrinsicKind = kind; }
@@ -104,7 +95,7 @@ class VellumFunction {
   VellumIdentifier name;
   VellumType returnType;
   Vec<VellumVariable> parameters;
-  VellumFunctionModifier modifiers;
+  VellumModifiers modifiers;
   IntrinsicKind intrinsicKind;
 };
 

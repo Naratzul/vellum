@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include <compare>
 
 namespace vellum::common {
 template <typename BitsType>

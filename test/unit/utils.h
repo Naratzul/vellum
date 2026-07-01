@@ -10,14 +10,12 @@ using common::Opt;
 using common::Unique;
 using common::Vec;
 
-inline constexpr VellumFunctionModifier noFunctionModifiers{};
-inline constexpr VellumFunctionModifier staticFunctionModifier{
-    VellumFunctionModifierBits::Static};
-inline constexpr VellumFunctionModifier nativeFunctionModifier{
-    VellumFunctionModifierBits::Native};
-inline const VellumFunctionModifier staticNativeFunctionModifier =
-    VellumFunctionModifier{VellumFunctionModifierBits::Static} |
-    VellumFunctionModifier{VellumFunctionModifierBits::Native};
+inline constexpr VellumModifiers noFunctionModifiers{};
+inline constexpr VellumModifiers staticFunctionModifier{VellumModifier::Static};
+inline constexpr VellumModifiers nativeFunctionModifier{VellumModifier::Native};
+inline const auto staticNativeFunctionModifier =
+    VellumModifiers{VellumModifier::Static} |
+    VellumModifiers{VellumModifier::Native};
 
 Token makeToken(TokenType type, int line, std::string_view lexeme,
                 Opt<VellumLiteral> value = std::nullopt);

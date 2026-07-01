@@ -189,6 +189,9 @@ TokenType Lexer::identifierType() const {
     case 'b':
       return checkKeyword(1, 4, "reak", TokenType::BREAK);
     case 'c':
+      if (current - start > 3 && start[3] == 'd') {
+        return checkKeyword(1, 10, "onditional", TokenType::CONDITIONAL);
+      }
       return checkKeyword(1, 7, "ontinue", TokenType::CONTINUE);
     case 'e':
       if (current - start > 1) {
@@ -214,6 +217,8 @@ TokenType Lexer::identifierType() const {
       break;
     case 'g':
       return checkKeyword(1, 2, "et", TokenType::GET);
+    case 'h':
+      return checkKeyword(1, 5, "idden", TokenType::HIDDEN);
     case 'i':
       if (current - start > 1) {
         switch (start[1]) {

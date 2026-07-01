@@ -53,7 +53,6 @@ enum class CompilerErrorKind {
   UndefinedVariable,
   FunctionArgumentsCountMismatch,
   FunctionArgumentTypeMismatch,
-  FunctionDuplicateModifier,
   NativeFunctionWithBody,
   InvalidArgumentType,
   PropertyNotAccessible,
@@ -100,6 +99,9 @@ enum class CompilerErrorKind {
   VariableRedefinition,
 
   InvalidCallee,
+
+  DuplicateModifier,
+  InvalidModifier,
 };
 
 enum class CompilerWarningKind {};

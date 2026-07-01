@@ -200,7 +200,7 @@ class FunctionDeclaration : public Declaration {
   FunctionDeclaration(Opt<std::string_view> name,
                       Vec<FunctionParameter> parameters,
                       VellumType returnTypeName, Unique<BlockStatement> body,
-                      VellumFunctionModifier modifiers = {},
+                      VellumModifiers modifiers = {},
                       Opt<Token> nameLocation = std::nullopt,
                       Opt<Token> returnTypeLocation = std::nullopt)
       : name(name),
@@ -218,13 +218,10 @@ class FunctionDeclaration : public Declaration {
   VellumType& getReturnTypeName() { return returnTypeName; }
   const Unique<BlockStatement>& getBody() const { return body; }
   Unique<BlockStatement>& getBody() { return body; }
-  bool isStatic() const {
-    return modifiers & VellumFunctionModifierBits::Static;
-  }
-  bool isNative() const {
-    return modifiers & VellumFunctionModifierBits::Native;
-  }
-  VellumFunctionModifier getModifiers() const { return modifiers; }
+  bool isStatic() const { return modifiers & VellumModifier::Static; }
+  bool isNative() const { return modifiers & VellumModifier::Native; }
+
+  VellumModifiers getModifiers() const { return modifiers; }
   Opt<Token> getNameLocation() const { return nameLocation; }
   Opt<Token> getReturnTypeLocation() const { return returnTypeLocation; }
 
@@ -240,7 +237,7 @@ class FunctionDeclaration : public Declaration {
   Vec<FunctionParameter> parameters;
   VellumType returnTypeName;
   Unique<BlockStatement> body;
-  VellumFunctionModifier modifiers;
+  VellumModifiers modifiers;
   Opt<Token> nameLocation;
   Opt<Token> returnTypeLocation;
 };

@@ -44,6 +44,20 @@ TEST_CASE("LexerContinueKeyword") {
   CHECK(tokens[0].lexeme == "continue");
 }
 
+TEST_CASE("LexerHiddenKeyword") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("hidden"));
+  REQUIRE(tokens.size() >= 1);
+  CHECK(tokens[0].type == TokenType::HIDDEN);
+  CHECK(tokens[0].lexeme == "hidden");
+}
+
+TEST_CASE("LexerConditionalKeyword") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("conditional"));
+  REQUIRE(tokens.size() >= 1);
+  CHECK(tokens[0].type == TokenType::CONDITIONAL);
+  CHECK(tokens[0].lexeme == "conditional");
+}
+
 TEST_CASE("LexerForKeyword") {
   Vec<Token> tokens = scanTokens(makeUnique<Lexer>("for"));
   REQUIRE(tokens.size() >= 1);

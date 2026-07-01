@@ -57,6 +57,7 @@ bool isKeyword(TokenType type) {
     case TokenType::SCRIPTNAME:
     case TokenType::EXTENDS:
     case TokenType::HIDDEN:
+    case TokenType::CONDITIONAL:
     case TokenType::FUNCTION:
     case TokenType::ENDFUNCTION:
     case TokenType::ENDEVENT:

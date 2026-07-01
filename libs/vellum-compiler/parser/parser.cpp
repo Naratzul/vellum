@@ -50,18 +50,16 @@ void Parser::advance() {
 }
 
 Unique<ast::Declaration> Parser::topDeclaration() {
+  ParsedModifiers modifiers = parseModifiers();
   if (match(TokenType::IMPORT)) {
-    return importDeclaration();
+    return importDeclaration(modifiers);
   } else if (match(TokenType::SCRIPT)) {
-    return scriptDeclaration();
-  } else if (match(TokenType::AUTO)) {
-    consume(TokenType::STATE, CompilerErrorKind::ExpectDeclaration,
-            "Expect 'state' after 'auto'.");
-    return stateDeclaration(true);
+    return scriptDeclaration(modifiers);
   } else if (match(TokenType::STATE)) {
-    return stateDeclaration(false);
+    return stateDeclaration(modifiers);
   }
 
+  reportOrphanModifiers(modifiers);
   throw ParseException(
       previous, "Expect a top-level declaration: script, state or import.");
 }
@@ -97,20 +95,31 @@ bool Parser::checkAny(std::initializer_list<TokenType> types) const {
   return false;
 }
 
-bool Parser::checkFunctionModifier() const {
-  return checkAny({TokenType::NATIVE, TokenType::STATIC});
+bool Parser::checkModifier() const {
+  return checkAny({TokenType::AUTO, TokenType::CONDITIONAL, TokenType::HIDDEN,
+                   TokenType::NATIVE, TokenType::STATIC});
 }
 
-VellumFunctionModifier Parser::parseFunctionModifiers() {
-  VellumFunctionModifier modifiers{VellumFunctionModifierBits::None};
-  Vec<Token> tokens;
+void Parser::checkModifiersContext(ParsedModifiers modifiers,
+                                   VellumModifierContext context) {
+  const VellumModifiers allowed = allowedModifiersFor(context);
+  for (const ParsedModifier& parsed : modifiers) {
+    if (!(allowed & parsed.modifier)) {
+      errorHandler->errorAt(parsed.location, CompilerErrorKind::InvalidModifier,
+                            "Modifier '{}' is not valid here.",
+                            modifierName(parsed.modifier));
+    }
+  }
+}
 
-  while (checkFunctionModifier()) {
+ParsedModifiers Parser::parseModifiers() {
+  ParsedModifiers modifiers;
+
+  while (checkModifier()) {
     bool duplicate = false;
-    for (const Token& token : tokens) {
-      if (token.type == current.type) {
-        errorHandler->errorAt(current,
-                              CompilerErrorKind::FunctionDuplicateModifier,
+    for (const ParsedModifier& parsed : modifiers) {
+      if (parsed.location.type == current.type) {
+        errorHandler->errorAt(current, CompilerErrorKind::DuplicateModifier,
                               "Duplicate modifier '{}'.", current.lexeme);
         duplicate = true;
         break;
@@ -122,19 +131,33 @@ VellumFunctionModifier Parser::parseFunctionModifiers() {
       continue;
     }
 
-    if (match(TokenType::NATIVE)) {
-      modifiers |= VellumFunctionModifierBits::Native;
-      tokens.push_back(previous);
+    if (match(TokenType::AUTO)) {
+      modifiers.push_back({VellumModifier::Auto, previous});
+    } else if (match(TokenType::CONDITIONAL)) {
+      modifiers.push_back({VellumModifier::Conditional, previous});
+    } else if (match(TokenType::HIDDEN)) {
+      modifiers.push_back({VellumModifier::Hidden, previous});
+    } else if (match(TokenType::NATIVE)) {
+      modifiers.push_back({VellumModifier::Native, previous});
     } else if (match(TokenType::STATIC)) {
-      modifiers |= VellumFunctionModifierBits::Static;
-      tokens.push_back(previous);
+      modifiers.push_back({VellumModifier::Static, previous});
     }
   }
 
   return modifiers;
 }
 
-Unique<ast::Declaration> Parser::scriptDeclaration() {
+void Parser::reportOrphanModifiers(const ParsedModifiers& modifiers) {
+  for (const ParsedModifier& parsed : modifiers) {
+    errorHandler->errorAt(parsed.location, CompilerErrorKind::InvalidModifier,
+                          "Modifier '{}' is not attached to a declaration.",
+                          modifierName(parsed.modifier));
+  }
+}
+
+Unique<ast::Declaration> Parser::scriptDeclaration(ParsedModifiers modifiers) {
+  checkModifiersContext(modifiers, VellumModifierContext::Script);
+
   if (!match(TokenType::IDENTIFIER)) {
     errorHandler->errorAt(current, "Expect a script's name after 'script'.");
   }
@@ -177,14 +200,18 @@ Unique<ast::Declaration> Parser::scriptDeclaration() {
       parentScriptNameLocation, std::move(scriptMembers));
 }
 
-Unique<ast::Declaration> Parser::importDeclaration() {
+Unique<ast::Declaration> Parser::importDeclaration(ParsedModifiers modifiers) {
+  checkModifiersContext(modifiers, VellumModifierContext::Import);
+
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
           "Import name expected.");
   std::string_view importName = previous.lexeme;
   return makeUnique<ast::ImportDeclaration>(importName, previous);
 }
 
-Unique<ast::Declaration> Parser::stateDeclaration(bool isAuto) {
+Unique<ast::Declaration> Parser::stateDeclaration(ParsedModifiers modifiers) {
+  checkModifiersContext(modifiers, VellumModifierContext::State);
+
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectDeclaration,
           "Expect a state name after 'state'.");
   std::string_view stateName = previous.lexeme;
@@ -209,29 +236,29 @@ Unique<ast::Declaration> Parser::stateDeclaration(bool isAuto) {
     throw ParseException(current, "Unexpected token after state declaration.");
   }
 
-  return makeUnique<ast::StateDeclaration>(stateName, stateNameLocation, isAuto,
+  return makeUnique<ast::StateDeclaration>(stateName, stateNameLocation,
+                                           hasModifier(modifiers, VellumModifier::Auto),
                                            std::move(stateMembers));
 }
 
 Unique<ast::Declaration> Parser::scriptMemberDeclaration() {
+  ParsedModifiers modifiers = parseModifiers();
+
   if (match(TokenType::VAR)) {
-    return variableDeclaration();
+    return variableDeclaration(modifiers);
   } else if (match(TokenType::FUN)) {
-    return functionDeclaration(FunctionType::Function);
-  } else if (match(TokenType::EVENT)) {
-    return functionDeclaration(FunctionType::Event);
-  } else if (checkFunctionModifier()) {
-    VellumFunctionModifier modifiers = parseFunctionModifiers();
-    consume(TokenType::FUN, CompilerErrorKind::ExpectDeclaration,
-            "Expect function declaration after modifiers.");
     return functionDeclaration(FunctionType::Function, modifiers);
+  } else if (match(TokenType::EVENT)) {
+    return functionDeclaration(FunctionType::Event, modifiers);
   }
 
+  reportOrphanModifiers(modifiers);
   throw ParseException(current,
                        "Expect a declaraion: var, property or fun/event.");
 }
 
-Unique<ast::Declaration> Parser::variableDeclaration() {
+Unique<ast::Declaration> Parser::variableDeclaration(
+    ParsedModifiers modifiers) {
   consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
           "Expect a variable name.");
   const std::string_view name = previous.lexeme;
@@ -259,7 +286,7 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
 
   if (typeName.has_value() && check(TokenType::LEFT_BRACE)) {
     return propertyDeclaration(name, nameLocation, typeName.value(),
-                               typeLocation.value());
+                               typeLocation.value(), modifiers);
   }
 
   Unique<ast::Expression> initializer;
@@ -276,12 +303,14 @@ Unique<ast::Declaration> Parser::variableDeclaration() {
     throw ParseException(previous, "Type annotation is missing.");
   }
 
+  checkModifiersContext(modifiers, VellumModifierContext::Var);
+
   return makeUnique<ast::GlobalVariableDeclaration>(
       name, typeName, std::move(initializer), nameLocation, typeLocation);
 }
 
 Unique<ast::Declaration> Parser::functionDeclaration(
-    FunctionType functionType, VellumFunctionModifier modifiers) {
+    FunctionType functionType, ParsedModifiers modifiers) {
   const std::string functionTypeName =
       functionType == FunctionType::Function ? "function" : "event";
 
@@ -356,8 +385,14 @@ Unique<ast::Declaration> Parser::functionDeclaration(
     }
   }
 
+  checkModifiersContext(modifiers, functionType == FunctionType::Event
+                                       ? VellumModifierContext::Event
+                                       : VellumModifierContext::Function);
+
+  const VellumModifiers modifierFlags = modifiersBitmask(modifiers);
+
   Unique<ast::BlockStatement> body;
-  if (modifiers & VellumFunctionModifierBits::Native) {
+  if (modifierFlags & VellumModifier::Native) {
     body = makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{});
     if (check(TokenType::LEFT_BRACE)) {
       body = parseBlockStatement();
@@ -367,13 +402,15 @@ Unique<ast::Declaration> Parser::functionDeclaration(
   }
 
   return makeUnique<ast::FunctionDeclaration>(name, parameters, returnTypeName,
-                                              std::move(body), modifiers,
+                                              std::move(body), modifierFlags,
                                               nameLocation, returnTypeLocation);
 }
 
 Unique<ast::Declaration> Parser::propertyDeclaration(
     std::string_view name, const Token& nameLocation, const VellumType& type,
-    const Token& typeLocation) {
+    const Token& typeLocation, ParsedModifiers modifiers) {
+  checkModifiersContext(modifiers, VellumModifierContext::Property);
+
   consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
           "Expect '{{' after property type.");
 
@@ -916,8 +953,10 @@ bool Parser::canStartExpression(const Token& token) {
 void Parser::synchronizeTopDeclaration() {
   errorHandler->disablePanicMode();
   while (!check(TokenType::END_OF_FILE)) {
+    if (checkModifier()) {
+      return;
+    }
     switch (current.type) {
-      case TokenType::AUTO:
       case TokenType::IMPORT:
       case TokenType::SCRIPT:
       case TokenType::STATE:
@@ -932,12 +971,13 @@ void Parser::synchronizeTopDeclaration() {
 void Parser::synchronizeDeclaration() {
   errorHandler->disablePanicMode();
   while (!check(TokenType::END_OF_FILE)) {
+    if (checkModifier()) {
+      return;
+    }
     switch (current.type) {
       case TokenType::FUN:
       case TokenType::EVENT:
       case TokenType::VAR:
-      case TokenType::NATIVE:
-      case TokenType::STATIC:
         return;
       default:
         break;

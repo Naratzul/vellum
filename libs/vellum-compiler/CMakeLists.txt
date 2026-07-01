@@ -40,13 +40,13 @@ add_library(vellum_compiler STATIC
     vellum/vellum_function.cpp
     vellum/vellum_identifier.cpp
     vellum/vellum_literal.cpp
+    vellum/vellum_modifier.cpp
     vellum/vellum_object.cpp
     vellum/vellum_property.cpp
     vellum/vellum_type.cpp
     vellum/vellum_value.cpp
     vellum/vellum_variable.cpp
-    vellum/vellum.cpp
-)
+    vellum/vellum.cpp)
 
 target_compile_options(vellum_compiler PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W0>
