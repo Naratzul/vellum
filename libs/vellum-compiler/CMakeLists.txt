@@ -1,7 +1,9 @@
 add_library(vellum_compiler STATIC
+    analyze/declaration_analysis.cpp
     analyze/declaration_collector.cpp
     analyze/import_library.cpp
     analyze/import_resolver.cpp
+    analyze/modifier_validator.cpp
     analyze/semantic_analyzer.cpp
     analyze/type_checker.cpp
     analyze/type_collector.cpp

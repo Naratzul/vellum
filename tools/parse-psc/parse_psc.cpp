@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include "analyze/declaration_collector.h"
+#include "analyze/declaration_analysis.h"
 #include "analyze/import_resolver.h"
 #include "analyze/type_collector.h"
 #include "common/fs.h"
@@ -61,8 +61,7 @@ int run(const fs::path& inputPath) {
 
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
 
-  DeclarationCollector collector(errorHandler, resolver, filename);
-  collector.collect(result.declarations);
+  collectDeclarations(result.declarations, errorHandler, resolver, filename);
 
   if (errorHandler->hadError()) {
     errorHandler->printErrors();

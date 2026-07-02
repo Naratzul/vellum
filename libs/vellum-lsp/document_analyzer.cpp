@@ -1,6 +1,5 @@
 #include "document_analyzer.h"
 
-#include "analyze/declaration_collector.h"
 #include "analyze/import_resolver.h"
 #include "analyze/semantic_analyzer.h"
 #include "analyze/type_collector.h"
@@ -56,9 +55,6 @@ FullAnalyzeOutcome analyzeFull(
   typeCollector.collect(navigation.parseResult.declarations);
 
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
-
-  DeclarationCollector collector(errorHandler, resolver, scriptName);
-  collector.collect(navigation.parseResult.declarations);
 
   SemanticAnalyzer semantic(errorHandler, resolver, scriptName);
   auto semanticResult =

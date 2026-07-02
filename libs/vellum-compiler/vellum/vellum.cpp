@@ -2,7 +2,6 @@
 
 #include <ctime>
 
-#include "analyze/declaration_collector.h"
 #include "analyze/import_library.h"
 #include "analyze/import_resolver.h"
 #include "analyze/semantic_analyzer.h"
@@ -51,14 +50,6 @@ bool Vellum::run(const fs::path& inputFile,
   typeCollector.collect(parseResult.declarations);
 
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
-
-  DeclarationCollector collector(errorHandler, resolver, filename);
-  collector.collect(parseResult.declarations);
-
-  if (errorHandler->hadError()) {
-    errorHandler->printErrors();
-    return false;
-  }
 
   SemanticAnalyzer semantic(errorHandler, resolver, filename);
   const SemanticAnalyzeResult semanticResult =

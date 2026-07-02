@@ -44,7 +44,7 @@ bool StateDeclaration::equals(const Declaration& other_) const {
     return false;
   }
 
-  if (isAuto != other.isAuto) {
+  if (getIsAuto() != other.getIsAuto()) {
     return false;
   }
 
@@ -98,7 +98,8 @@ void FunctionDeclaration::accept(DeclarationVisitor& visitor) {
 
 bool FunctionDeclaration::equals(const Declaration& other_) const {
   auto& other = static_cast<const FunctionDeclaration&>(other_);
-  if (getModifiers() != other.getModifiers()) {
+  if (modifiersBitmask(getModifiers()) !=
+      modifiersBitmask(other.getModifiers())) {
     return false;
   }
 

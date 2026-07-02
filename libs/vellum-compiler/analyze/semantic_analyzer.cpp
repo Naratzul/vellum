@@ -4,6 +4,7 @@
 #include <format>
 #include <optional>
 
+#include "analyze/declaration_analysis.h"
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
 #include "common/string_set.h"
@@ -14,6 +15,7 @@
 #include "lexer/token.h"
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_identifier.h"
+#include "vellum/vellum_modifier.h"
 #include "vellum/vellum_property.h"
 
 namespace vellum {
@@ -47,6 +49,9 @@ SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
 SemanticAnalyzeResult SemanticAnalyzer::analyze(
     Vec<Unique<ast::Declaration>>&& declarations) {
   errorHandler->setCanEnterPanicMode(false);
+  errorHandler->disablePanicMode();
+
+  collectDeclarations(declarations, errorHandler, resolver, scriptFilename);
 
   for (auto& declaration : declarations) {
     declaration->accept(*this);
@@ -70,6 +75,11 @@ void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
 
 void SemanticAnalyzer::visitStateDeclaration(
     ast::StateDeclaration& declaration) {
+  if (!modifiersAreValid(declaration.getModifiers(),
+                         VellumModifierContext::State)) {
+    return;
+  }
+
   VellumIdentifier stateName(declaration.getStateName());
   state = resolver->getState(stateName);
   assert(state);
@@ -98,11 +108,22 @@ void SemanticAnalyzer::visitStateDeclaration(
 
 void SemanticAnalyzer::visitVariableDeclaration(
     ast::GlobalVariableDeclaration& statement) {
+  if (!modifiersAreValid(statement.getModifiers(),
+                         VellumModifierContext::Var)) {
+    return;
+  }
   (void)statement;
 }
 
 void SemanticAnalyzer::visitFunctionDeclaration(
     ast::FunctionDeclaration& declaration) {
+  const VellumModifierContext modifierContext =
+      declaration.isEvent() ? VellumModifierContext::Event
+                            : VellumModifierContext::Function;
+  if (!modifiersAreValid(declaration.getModifiers(), modifierContext)) {
+    return;
+  }
+
   assert(declaration.getName().has_value());
   VellumIdentifier funcName(declaration.getName().value());
 
@@ -113,7 +134,9 @@ void SemanticAnalyzer::visitFunctionDeclaration(
     func = resolver->getFunction(funcName);
   }
 
-  assert(func.has_value());
+  if (!func.has_value()) {
+    return;
+  }
 
   Opt<VellumFunction> rootFunc;
   if (state.has_value()) {
@@ -187,6 +210,11 @@ void SemanticAnalyzer::visitFunctionDeclaration(
 
 void SemanticAnalyzer::visitPropertyDeclaration(
     ast::PropertyDeclaration& declaration) {
+  if (!modifiersAreValid(declaration.getModifiers(),
+                         VellumModifierContext::Property)) {
+    return;
+  }
+
   if (auto& getBlock = declaration.getGetAccessor()) {
     VellumFunction dummyFunc(VellumIdentifier(declaration.getName()),
                              declaration.getTypeName(), {}, false);

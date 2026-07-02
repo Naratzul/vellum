@@ -8,6 +8,7 @@
 #include "ast/statement/statement.h"
 #include "common/types.h"
 #include "lexer/token.h"
+#include "vellum/vellum_modifier.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -39,11 +40,15 @@ bool operator!=(const Declaration& lhs, const Declaration& rhs);
 
 class ImportDeclaration : public Declaration {
  public:
-  ImportDeclaration(std::string_view importName, Token importNameLocation)
-      : importName(importName), importNameLocation(importNameLocation) {}
+  ImportDeclaration(std::string_view importName, Token importNameLocation,
+                    ParsedModifiers modifiers = {})
+      : importName(importName),
+        importNameLocation(importNameLocation),
+        modifiers_(std::move(modifiers)) {}
 
   std::string_view getImportName() const { return importName; }
   Token getImportNameLocation() const { return importNameLocation; }
+  const ParsedModifiers& getModifiers() const { return modifiers_; }
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
@@ -55,6 +60,7 @@ class ImportDeclaration : public Declaration {
  private:
   std::string_view importName;
   Token importNameLocation;
+  ParsedModifiers modifiers_;
 };
 
 class ScriptDeclaration : public Declaration {
@@ -62,12 +68,14 @@ class ScriptDeclaration : public Declaration {
   ScriptDeclaration(VellumType scriptName, Token scriptNameLocation,
                     VellumType parentScriptName,
                     Opt<Token> parentScriptNameLocation,
-                    Vec<Unique<ast::Declaration>> members)
+                    Vec<Unique<ast::Declaration>> members,
+                    ParsedModifiers modifiers = {})
       : scriptName(scriptName),
         parentScriptName(parentScriptName),
         scriptNameLocation(scriptNameLocation),
         parentScriptNameLocation(parentScriptNameLocation),
-        members(std::move(members)) {}
+        members(std::move(members)),
+        modifiers_(std::move(modifiers)) {}
 
   VellumType getScriptName() const { return scriptName; }
   VellumType getParentScriptName() const { return parentScriptName; }
@@ -80,6 +88,8 @@ class ScriptDeclaration : public Declaration {
   const Vec<Unique<ast::Declaration>>& getMemberDecls() const {
     return members;
   }
+
+  const ParsedModifiers& getModifiers() const { return modifiers_; }
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
@@ -96,20 +106,26 @@ class ScriptDeclaration : public Declaration {
   Opt<Token> parentScriptNameLocation;
 
   Vec<Unique<ast::Declaration>> members;
+  ParsedModifiers modifiers_;
 };
 
 class StateDeclaration : public Declaration {
  public:
   StateDeclaration(std::string_view stateName, Token stateNameLocation,
-                   bool isAuto, Vec<Unique<ast::Declaration>> members)
+                   ParsedModifiers modifiers,
+                   Vec<Unique<ast::Declaration>> members)
       : stateName(stateName),
         stateNameLocation(stateNameLocation),
-        isAuto(isAuto),
+        modifiers_(std::move(modifiers)),
         members(std::move(members)) {}
 
   std::string_view getStateName() const { return stateName; }
   Token getStateNameLocation() const { return stateNameLocation; }
-  bool getIsAuto() const { return isAuto; }
+  bool getIsAuto() const {
+    return hasModifier(modifiers_, VellumModifier::Auto);
+  }
+
+  const ParsedModifiers& getModifiers() const { return modifiers_; }
 
   const Vec<Unique<ast::Declaration>>& getMemberDecls() const {
     return members;
@@ -125,7 +141,7 @@ class StateDeclaration : public Declaration {
  private:
   std::string_view stateName;
   Token stateNameLocation;
-  bool isAuto;
+  ParsedModifiers modifiers_;
   Vec<Unique<ast::Declaration>> members;
 };
 
@@ -134,12 +150,14 @@ class GlobalVariableDeclaration : public Declaration {
   GlobalVariableDeclaration(std::string_view name, Opt<VellumType> typeName,
                             Unique<Expression> initializer,
                             Opt<Token> nameLocation = std::nullopt,
-                            Opt<Token> typeLocation = std::nullopt)
+                            Opt<Token> typeLocation = std::nullopt,
+                            ParsedModifiers modifiers = {})
       : name_(name),
         typeName_(typeName),
         initializer_(std::move(initializer)),
         nameLocation_(nameLocation),
-        typeLocation_(typeLocation) {}
+        typeLocation_(typeLocation),
+        modifiers_(std::move(modifiers)) {}
 
   std::string_view name() const { return name_; }
   Opt<VellumType> typeName() const { return typeName_; }
@@ -147,6 +165,7 @@ class GlobalVariableDeclaration : public Declaration {
   const Unique<Expression>& initializer() const { return initializer_; }
   Opt<Token> getNameLocation() const { return nameLocation_; }
   Opt<Token> getTypeLocation() const { return typeLocation_; }
+  const ParsedModifiers& getModifiers() const { return modifiers_; }
 
   VellumValue getValue() const;
 
@@ -163,6 +182,7 @@ class GlobalVariableDeclaration : public Declaration {
   Unique<Expression> initializer_;
   Opt<Token> nameLocation_;
   Opt<Token> typeLocation_;
+  ParsedModifiers modifiers_;
 };
 
 struct FunctionParameter {
@@ -200,14 +220,16 @@ class FunctionDeclaration : public Declaration {
   FunctionDeclaration(Opt<std::string_view> name,
                       Vec<FunctionParameter> parameters,
                       VellumType returnTypeName, Unique<BlockStatement> body,
-                      VellumModifiers modifiers = {},
+                      ParsedModifiers modifiers = {},
                       Opt<Token> nameLocation = std::nullopt,
-                      Opt<Token> returnTypeLocation = std::nullopt)
+                      Opt<Token> returnTypeLocation = std::nullopt,
+                      bool isEvent = false)
       : name(name),
         parameters(std::move(parameters)),
         returnTypeName(returnTypeName),
         body(std::move(body)),
-        modifiers(modifiers),
+        modifiers_(std::move(modifiers)),
+        isEvent_(isEvent),
         nameLocation(nameLocation),
         returnTypeLocation(returnTypeLocation) {}
 
@@ -218,10 +240,15 @@ class FunctionDeclaration : public Declaration {
   VellumType& getReturnTypeName() { return returnTypeName; }
   const Unique<BlockStatement>& getBody() const { return body; }
   Unique<BlockStatement>& getBody() { return body; }
-  bool isStatic() const { return modifiers & VellumModifier::Static; }
-  bool isNative() const { return modifiers & VellumModifier::Native; }
+  bool isStatic() const {
+    return modifiersBitmask(modifiers_) & VellumModifier::Static;
+  }
+  bool isNative() const {
+    return modifiersBitmask(modifiers_) & VellumModifier::Native;
+  }
+  bool isEvent() const { return isEvent_; }
 
-  VellumModifiers getModifiers() const { return modifiers; }
+  const ParsedModifiers& getModifiers() const { return modifiers_; }
   Opt<Token> getNameLocation() const { return nameLocation; }
   Opt<Token> getReturnTypeLocation() const { return returnTypeLocation; }
 
@@ -237,7 +264,8 @@ class FunctionDeclaration : public Declaration {
   Vec<FunctionParameter> parameters;
   VellumType returnTypeName;
   Unique<BlockStatement> body;
-  VellumModifiers modifiers;
+  ParsedModifiers modifiers_;
+  bool isEvent_;
   Opt<Token> nameLocation;
   Opt<Token> returnTypeLocation;
 };
@@ -250,7 +278,8 @@ class PropertyDeclaration : public Declaration {
                       Opt<Unique<BlockStatement>> setAccessor,
                       Opt<VellumLiteral> defaultValue,
                       Token nameLocation = Token(),
-                      Token typeLocation = Token())
+                      Token typeLocation = Token(),
+                      ParsedModifiers modifiers = {})
       : name(name),
         typeName(typeName),
         documentationString(documentationString),
@@ -258,7 +287,8 @@ class PropertyDeclaration : public Declaration {
         setAccessor(std::move(setAccessor)),
         defaultValue(defaultValue),
         nameLocation(nameLocation),
-        typeLocation(typeLocation) {}
+        typeLocation(typeLocation),
+        modifiers_(std::move(modifiers)) {}
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
@@ -301,6 +331,7 @@ class PropertyDeclaration : public Declaration {
   Opt<VellumLiteral> getDefaultValue() const { return defaultValue; }
   Token getNameLocation() const { return nameLocation; }
   Token getTypeLocation() const { return typeLocation; }
+  const ParsedModifiers& getModifiers() const { return modifiers_; }
 
  private:
   std::string_view name;
@@ -313,6 +344,7 @@ class PropertyDeclaration : public Declaration {
   Opt<VellumLiteral> defaultValue;
   Token nameLocation;
   Token typeLocation;
+  ParsedModifiers modifiers_;
 };
 }  // namespace ast
 }  // namespace vellum

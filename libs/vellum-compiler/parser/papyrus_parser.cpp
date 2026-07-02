@@ -157,7 +157,12 @@ Unique<ast::Declaration> PapyrusParser::stateDeclaration(bool isAuto) {
 
   skipUntilEndState();
 
-  return makeUnique<ast::StateDeclaration>(stateName, nameLocation, isAuto,
+  ParsedModifiers modifiers;
+  if (isAuto) {
+    modifiers.push_back({VellumModifier::Auto, nameLocation});
+  }
+  return makeUnique<ast::StateDeclaration>(stateName, nameLocation,
+                                           std::move(modifiers),
                                            Vec<Unique<ast::Declaration>>{});
 }
 
@@ -187,10 +192,17 @@ Unique<ast::Declaration> PapyrusParser::functionDeclarationWithReturnType(
   }
 
   Opt<Token> returnTypeLocation = std::nullopt;
+  ParsedModifiers modifiers;
+  if (isNative) {
+    modifiers.push_back({VellumModifier::Native, Token{}});
+  }
+  if (isGlobal) {
+    modifiers.push_back({VellumModifier::Static, Token{}});
+  }
   return makeUnique<ast::FunctionDeclaration>(
       name, parameters, returnTypeName,
-      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), isGlobal,
-      nameLocation, returnTypeLocation);
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), std::move(modifiers),
+      nameLocation, returnTypeLocation, false);
 }
 
 Unique<ast::Declaration> PapyrusParser::eventDeclaration() {
@@ -219,10 +231,14 @@ Unique<ast::Declaration> PapyrusParser::eventDeclaration() {
   }
 
   Opt<Token> returnTypeLocation = std::nullopt;
+  ParsedModifiers modifiers;
+  if (isNative) {
+    modifiers.push_back({VellumModifier::Native, Token{}});
+  }
   return makeUnique<ast::FunctionDeclaration>(
       name, parameters, VellumType::none(),
-      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), false, nameLocation,
-      returnTypeLocation);
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), std::move(modifiers),
+      nameLocation, returnTypeLocation, true);
 }
 
 void PapyrusParser::consumePropertyUserFlags(bool& isAuto,

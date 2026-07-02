@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "analyze/declaration_collector.h"
+#include "analyze/declaration_analysis.h"
 #include "analyze/import_library.h"
 #include "ast/decl/declaration.h"
 #include "common/fs.h"
@@ -147,9 +147,8 @@ class LspTestFixture {
       moduleResolver->setParentType(VellumType::identifier(*parentName));
     }
 
-    DeclarationCollector collector(errorHandler, moduleResolver,
-                                   scriptName.toString());
-    collector.collect(parseResult.declarations);
+    collectDeclarations(parseResult.declarations, errorHandler, moduleResolver,
+                        scriptName.toString());
 
     auto module = makeShared<ImportModule>(scriptName, ImportModuleType::Vellum,
                                            modulePath);

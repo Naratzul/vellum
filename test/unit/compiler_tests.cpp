@@ -4,7 +4,6 @@
 #include <fstream>
 #include <optional>
 
-#include "analyze/declaration_collector.h"
 #include "analyze/import_library.h"
 #include "analyze/import_resolver.h"
 #include "analyze/semantic_analyzer.h"
@@ -142,7 +141,7 @@ TEST_CASE("CompileStateReopen_MergesIntoSinglePexState") {
         name, Vec<ast::FunctionParameter>{},
         VellumType::literal(VellumLiteralType::Int),
         makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
-        noFunctionModifiers,
+        noParsedModifiers,
         makeToken(TokenType::IDENTIFIER, line, name));
   };
 
@@ -161,19 +160,19 @@ TEST_CASE("CompileStateReopen_MergesIntoSinglePexState") {
   Vec<Unique<ast::Declaration>> mergedFirst;
   mergedFirst.emplace_back(makeIntFunc("funcA", 2));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), false,
+      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), noParsedModifiers,
       std::move(mergedFirst)));
 
   Vec<Unique<ast::Declaration>> mergedSecond;
   mergedSecond.emplace_back(makeIntFunc("funcB", 3));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), false,
+      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), noParsedModifiers,
       std::move(mergedSecond)));
 
   Vec<Unique<ast::Declaration>> otherMembers;
   otherMembers.emplace_back(makeIntFunc("funcC", 4));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Other", makeToken(TokenType::IDENTIFIER, 4, "Other"), false,
+      "Other", makeToken(TokenType::IDENTIFIER, 4, "Other"), noParsedModifiers,
       std::move(otherMembers)));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
@@ -208,7 +207,7 @@ TEST_CASE("CompileStateReopen_SetsAutoStateNameFromLaterFragment") {
         name, Vec<ast::FunctionParameter>{},
         VellumType::literal(VellumLiteralType::Int),
         makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
-        noFunctionModifiers,
+        noParsedModifiers,
         makeToken(TokenType::IDENTIFIER, line, name));
   };
 
@@ -224,10 +223,11 @@ TEST_CASE("CompileStateReopen_SetsAutoStateNameFromLaterFragment") {
   Vec<Unique<ast::Declaration>> first;
   first.emplace_back(makeIntFunc("myFunc", 2));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "S", makeToken(TokenType::IDENTIFIER, 2, "S"), false, std::move(first)));
+      "S", makeToken(TokenType::IDENTIFIER, 2, "S"), noParsedModifiers,
+      std::move(first)));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "S", makeToken(TokenType::IDENTIFIER, 3, "S"), true,
+      "S", makeToken(TokenType::IDENTIFIER, 3, "S"), autoParsedModifiers,
       Vec<Unique<ast::Declaration>>{}));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
@@ -527,10 +527,6 @@ TEST_CASE("CompileDefaultArgs_EndToEnd") {
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
 
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
-
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
@@ -589,10 +585,6 @@ TEST_CASE("CompileReturn_BareReturn_EmitsReturnWithNoneVar") {
   TypeCollector typeCollector;
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
-
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
 
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
@@ -660,10 +652,6 @@ TEST_CASE("CompileReturn_WithValue_EmitsReturnWithValue") {
   TypeCollector typeCollector;
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
-
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
 
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
@@ -738,10 +726,6 @@ TEST_CASE("CompileSelfExpression_CallMethodUsesSelf") {
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
 
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
-
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
@@ -813,10 +797,6 @@ TEST_CASE("CompileNegativeDefaultArgs_EndToEnd") {
   TypeCollector typeCollector;
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
-
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
 
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
@@ -896,10 +876,6 @@ TEST_CASE("CompileAutoProperty_WithInitializer") {
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
 
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
-
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
@@ -957,10 +933,6 @@ TEST_CASE("CompileFullProperty_CustomGetSet_PexAccessors") {
   TypeCollector typeCollector;
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
-
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
 
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
@@ -1099,10 +1071,6 @@ TEST_CASE("DebugInfo_Property_GetterSetterHaveDebugEntries") {
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
 
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
-
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
@@ -1193,8 +1161,6 @@ TEST_CASE("CompileCastAndIntFloatArithmetic") {
   auto resolver =
       makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
                            errorHandler, importLibrary, builtinFunctions);
-  auto collector =
-      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
   auto analyzer =
       makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
@@ -1220,7 +1186,6 @@ TEST_CASE("CompileCastAndIntFloatArithmetic") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       makeUnique<ast::BlockStatement>(std::move(body))));
 
-  collector->collect(ast);
   auto result = analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
@@ -1246,8 +1211,6 @@ TEST_CASE("CompileComparison_IntFloat_EmitsCastBeforeCmpEq") {
   auto resolver =
       makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
                            errorHandler, importLibrary, builtinFunctions);
-  auto collector =
-      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
   auto analyzer =
       makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
@@ -1263,7 +1226,6 @@ TEST_CASE("CompileComparison_IntFloat_EmitsCastBeforeCmpEq") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       makeUnique<ast::BlockStatement>(std::move(body))));
 
-  collector->collect(ast);
   auto result = analyzer->analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
 
@@ -1313,8 +1275,6 @@ TEST_CASE("CompileComparison_ScriptSubtype_EmitsCastBeforeCmpEq") {
   addModule(VellumObject(VellumType::identifier("ChildPexCmp")),
             VellumType::identifier("ParentPexCmp"));
 
-  auto collector =
-      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
   auto analyzer =
       makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
@@ -1334,7 +1294,6 @@ TEST_CASE("CompileComparison_ScriptSubtype_EmitsCastBeforeCmpEq") {
       "test", std::move(params), VellumType::none(),
       makeUnique<ast::BlockStatement>(std::move(body))));
 
-  collector->collect(ast);
   auto result = analyzer->analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
 
@@ -1366,8 +1325,6 @@ TEST_CASE("CompileComparison_IntInt_NoCastOpcode") {
   auto resolver =
       makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
                            errorHandler, importLibrary, builtinFunctions);
-  auto collector =
-      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
   auto analyzer =
       makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
@@ -1383,7 +1340,6 @@ TEST_CASE("CompileComparison_IntInt_NoCastOpcode") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
       makeUnique<ast::BlockStatement>(std::move(body))));
 
-  collector->collect(ast);
   auto result = analyzer->analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
 
@@ -1436,10 +1392,6 @@ TEST_CASE("CompileForIn_OpcodePatternAndMangledLocals") {
   TypeCollector typeCollector;
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
-
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
 
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
@@ -1534,10 +1486,6 @@ TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
   typeCollector.collect(ast);
   importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
 
-  DeclarationCollector collector(errorHandler, resolver, "testscript");
-  collector.collect(ast);
-  REQUIRE_FALSE(errorHandler->hadError());
-
   SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
   auto semanticResult = semantic.analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
@@ -1579,8 +1527,6 @@ TEST_CASE("CompileTernary_IntInt_JmpPattern_NoCast") {
   auto resolver =
       makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
                            errorHandler, importLibrary, builtinFunctions);
-  auto collector =
-      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
   auto analyzer =
       makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
@@ -1596,7 +1542,6 @@ TEST_CASE("CompileTernary_IntInt_JmpPattern_NoCast") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
       makeUnique<ast::BlockStatement>(std::move(body))));
 
-  collector->collect(ast);
   auto result = analyzer->analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
 
@@ -1626,8 +1571,6 @@ TEST_CASE("CompileTernary_IntFloat_Promotion_HasCast") {
   auto resolver =
       makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
                            errorHandler, importLibrary, builtinFunctions);
-  auto collector =
-      makeShared<DeclarationCollector>(errorHandler, resolver, "testscript");
   auto analyzer =
       makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
 
@@ -1643,7 +1586,6 @@ TEST_CASE("CompileTernary_IntFloat_Promotion_HasCast") {
       "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Float"),
       makeUnique<ast::BlockStatement>(std::move(body))));
 
-  collector->collect(ast);
   auto result = analyzer->analyze(std::move(ast));
   REQUIRE_FALSE(errorHandler->hadError());
 
@@ -1674,7 +1616,7 @@ TEST_CASE("CompileNativeFunctionPexOutput") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "getCount", params, VellumType::literal(VellumLiteralType::Int),
       makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
-      nativeFunctionModifier));
+      nativeParsedModifiers));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   pex::PexFile file =
@@ -1700,7 +1642,7 @@ TEST_CASE("CompileStaticNativeFunctionPexOutput") {
   ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "register", Vec<ast::FunctionParameter>{}, VellumType::none(),
       makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
-      staticNativeFunctionModifier));
+      staticNativeParsedModifiers));
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
   pex::PexFile file =

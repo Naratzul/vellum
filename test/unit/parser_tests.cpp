@@ -2061,7 +2061,7 @@ TEST_CASE("ParserFunctionModifiers_StaticFun") {
   const auto* funcDecl = getScriptFunction(result);
   CHECK(funcDecl->isStatic());
   CHECK_FALSE(funcDecl->isNative());
-  CHECK(funcDecl->getModifiers() == staticFunctionModifier);
+  CHECK(modifiersBitmask(funcDecl->getModifiers()) == staticFunctionModifier);
 }
 
 TEST_CASE("ParserFunctionModifiers_NativeFun_NoBody") {
@@ -2086,7 +2086,7 @@ TEST_CASE("ParserFunctionModifiers_NativeFun_NoBody") {
   const auto* funcDecl = getScriptFunction(result);
   CHECK(funcDecl->isNative());
   CHECK_FALSE(funcDecl->isStatic());
-  CHECK(funcDecl->getModifiers() == nativeFunctionModifier);
+  CHECK(modifiersBitmask(funcDecl->getModifiers()) == nativeFunctionModifier);
   CHECK(funcDecl->getBody()->getStatements().empty());
 }
 
@@ -2111,7 +2111,8 @@ TEST_CASE("ParserFunctionModifiers_StaticNativeFun") {
   const auto* funcDecl = getScriptFunction(result);
   CHECK(funcDecl->isStatic());
   CHECK(funcDecl->isNative());
-  CHECK(funcDecl->getModifiers() == staticNativeFunctionModifier);
+  CHECK(modifiersBitmask(funcDecl->getModifiers()) ==
+        staticNativeFunctionModifier);
 }
 
 TEST_CASE("ParserFunctionModifiers_DuplicateStatic") {
@@ -2137,7 +2138,7 @@ TEST_CASE("ParserFunctionModifiers_DuplicateStatic") {
   REQUIRE(errorHandler->hasError(CompilerErrorKind::DuplicateModifier));
   const auto* funcDecl = getScriptFunction(result);
   CHECK(funcDecl->isStatic());
-  CHECK(funcDecl->getModifiers() == staticFunctionModifier);
+  CHECK(modifiersBitmask(funcDecl->getModifiers()) == staticFunctionModifier);
 }
 
 TEST_CASE("ParserFunctionModifiers_NativeFunWithBody_ParsesNextMember") {
@@ -2212,7 +2213,7 @@ TEST_CASE("ParserFunctionModifiers_NativeFun_EmptyBraces") {
   CHECK(funcDecl->getBody()->getStatements().empty());
 }
 
-TEST_CASE("ParserFunctionModifiers_StaticEventRejected") {
+TEST_CASE("ParserFunctionModifiers_StaticEventParses") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
                     makeToken(TokenType::LEFT_BRACE, 1, "{"),
@@ -2227,8 +2228,11 @@ TEST_CASE("ParserFunctionModifiers_StaticEventRejected") {
                     makeToken(TokenType::END_OF_FILE, 1, "")};
 
   auto errorHandler = makeShared<CompilerErrorHandler>();
-  Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
 
-  REQUIRE(errorHandler->hadError());
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidModifier));
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* funcDecl = getScriptFunction(result);
+  CHECK(funcDecl->isStatic());
+  CHECK(funcDecl->isEvent());
 }

@@ -78,8 +78,6 @@ class Parser {
                std::format_string<Args...> fmt, Args&&... args);
 
   bool checkModifier() const;
-  void checkModifiersContext(ParsedModifiers modifiers,
-                             VellumModifierContext context);
   void reportOrphanModifiers(const ParsedModifiers& modifiers);
 
   ParsedModifiers parseModifiers();

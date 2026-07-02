@@ -1,5 +1,7 @@
 #include "vellum_modifier.h"
 
+#include "compiler/compiler_error_handler.h"
+
 namespace vellum {
 VellumModifiers allowedModifiersFor(VellumModifierContext context) {
   using enum VellumModifierContext;
@@ -65,5 +67,29 @@ Opt<Token> findModifierLocation(const ParsedModifiers& modifiers,
     }
   }
   return std::nullopt;
+}
+
+bool modifiersAreValid(const ParsedModifiers& modifiers,
+                       VellumModifierContext context) {
+  const VellumModifiers allowed = allowedModifiersFor(context);
+  for (const ParsedModifier& parsed : modifiers) {
+    if (!(allowed & parsed.modifier)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void validateModifiersContext(const ParsedModifiers& modifiers,
+                              VellumModifierContext context,
+                              CompilerErrorHandler& errorHandler) {
+  const VellumModifiers allowed = allowedModifiersFor(context);
+  for (const ParsedModifier& parsed : modifiers) {
+    if (!(allowed & parsed.modifier)) {
+      errorHandler.errorAt(parsed.location, CompilerErrorKind::InvalidModifier,
+                           "Modifier '{}' is not valid here.",
+                           modifierName(parsed.modifier));
+    }
+  }
 }
 }  // namespace vellum

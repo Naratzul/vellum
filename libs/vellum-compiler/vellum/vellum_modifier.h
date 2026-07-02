@@ -48,11 +48,18 @@ struct ParsedModifier {
 
 using ParsedModifiers = Vec<ParsedModifier>;
 
+class CompilerErrorHandler;
+
 VellumModifiers allowedModifiersFor(VellumModifierContext context);
 const char* modifierName(VellumModifier modifier);
 VellumModifiers modifiersBitmask(const ParsedModifiers& modifiers);
 bool hasModifier(const ParsedModifiers& modifiers, VellumModifier modifier);
 Opt<Token> findModifierLocation(const ParsedModifiers& modifiers,
                                 VellumModifier modifier);
+bool modifiersAreValid(const ParsedModifiers& modifiers,
+                       VellumModifierContext context);
+void validateModifiersContext(const ParsedModifiers& modifiers,
+                              VellumModifierContext context,
+                              CompilerErrorHandler& errorHandler);
 
 }  // namespace vellum

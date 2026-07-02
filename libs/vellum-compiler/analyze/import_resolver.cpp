@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <format>
 
-#include "analyze/declaration_collector.h"
+#include "analyze/declaration_analysis.h"
 #include "analyze/type_collector.h"
 #include "common/fs.h"
 #include "common/os.h"
@@ -97,8 +97,8 @@ void ImportResolver::doResolveAllModules() {
 
     module->setResolver(resolver);
 
-    DeclarationCollector collector(errorHandler, resolver, filename);
-    collector.collect(module->getAst().declarations);
+    collectDeclarations(module->getAst().declarations, errorHandler, resolver,
+                      filename);
   }
 }
 

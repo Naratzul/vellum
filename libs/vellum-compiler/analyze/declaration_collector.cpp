@@ -14,10 +14,12 @@
 #include "vellum/vellum_function.h"
 #include "vellum/vellum_identifier.h"
 #include "vellum/vellum_literal.h"
+#include "vellum/vellum_modifier.h"
 #include "vellum/vellum_property.h"
 #include "vellum/vellum_state.h"
 
 namespace vellum {
+
 void DeclarationCollector::collect(
     Vec<Unique<ast::Declaration>>& declarations) {
   for (auto& decl : declarations) {
@@ -57,7 +59,8 @@ void DeclarationCollector::visitScriptDeclaration(
   }
 
   auto scriptName = declaration.getScriptName();
-  if (common::normalizeToLower(scriptName.toString()) != common::normalizeToLower(scriptFilename)) {
+  if (common::normalizeToLower(scriptName.toString()) !=
+      common::normalizeToLower(scriptFilename)) {
     errorHandler->errorAt(declaration.getScriptNameLocation(),
                           CompilerErrorKind::FilenameMismatch,
                           "Filename '{}' doesn't match scriptname '{}'.",
@@ -307,7 +310,8 @@ void DeclarationCollector::visitFunctionDeclaration(
     if (parentFunc->getArity() !=
             static_cast<int>(declaration.getParameters().size()) ||
         parentFunc->getReturnType() != declaration.getReturnTypeName() ||
-        parentFunc->getModifiers() != declaration.getModifiers()) {
+        parentFunc->getModifiers() !=
+            modifiersBitmask(declaration.getModifiers())) {
       errorHandler->errorAt(funcLocation,
                             CompilerErrorKind::OverrideSignatureMismatch,
                             "Override of '{}' must match parent signature "
@@ -341,7 +345,8 @@ void DeclarationCollector::visitFunctionDeclaration(
   normalizedFunctionNameToOriginal[stateName].emplace(normalized, funcName);
 
   VellumFunction func(funcName, declaration.getReturnTypeName(),
-                      std::move(parameters), declaration.getModifiers());
+                      std::move(parameters),
+                      modifiersBitmask(declaration.getModifiers()));
 
   if (state) {
     state->addFunction(func);
