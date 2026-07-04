@@ -2236,3 +2236,204 @@ TEST_CASE("ParserFunctionModifiers_StaticEventParses") {
   CHECK(funcDecl->isStatic());
   CHECK(funcDecl->isEvent());
 }
+
+namespace {
+const ast::ScriptDeclaration* getScriptDeclaration(const ParserResult& result) {
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  return scriptDecl;
+}
+
+const ast::GlobalVariableDeclaration* getScriptVariable(
+    const ParserResult& result, size_t memberIndex = 0) {
+  const auto* scriptDecl = getScriptDeclaration(result);
+  REQUIRE(scriptDecl->getMemberDecls().size() > memberIndex);
+  const auto* varDecl = dynamic_cast<const ast::GlobalVariableDeclaration*>(
+      scriptDecl->getMemberDecls()[memberIndex].get());
+  REQUIRE(varDecl != nullptr);
+  return varDecl;
+}
+
+const ast::PropertyDeclaration* getScriptProperty(
+    const ParserResult& result, size_t memberIndex = 0) {
+  const auto* scriptDecl = getScriptDeclaration(result);
+  REQUIRE(scriptDecl->getMemberDecls().size() > memberIndex);
+  const auto* propDecl = dynamic_cast<const ast::PropertyDeclaration*>(
+      scriptDecl->getMemberDecls()[memberIndex].get());
+  REQUIRE(propDecl != nullptr);
+  return propDecl;
+}
+}  // namespace
+
+TEST_CASE("ParserModifiers_HiddenScript") {
+  Vec<Token> tokens{makeToken(TokenType::HIDDEN, 1, "hidden"),
+                    makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl = getScriptDeclaration(result);
+  CHECK(scriptDecl->isHidden());
+  CHECK_FALSE(scriptDecl->isConditional());
+  CHECK(modifiersBitmask(scriptDecl->getModifiers()) ==
+        VellumModifiers{VellumModifier::Hidden});
+}
+
+TEST_CASE("ParserModifiers_ConditionalVar") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::CONDITIONAL, 1, "conditional"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "stage"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* varDecl = getScriptVariable(result);
+  CHECK(modifiersBitmask(varDecl->getModifiers()) ==
+        VellumModifiers{VellumModifier::Conditional});
+}
+
+TEST_CASE("ParserModifiers_HiddenAndConditionalScript") {
+  Vec<Token> tokens{makeToken(TokenType::HIDDEN, 1, "hidden"),
+                    makeToken(TokenType::CONDITIONAL, 1, "conditional"),
+                    makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl = getScriptDeclaration(result);
+  CHECK(scriptDecl->isHidden());
+  CHECK(scriptDecl->isConditional());
+  CHECK(modifiersBitmask(scriptDecl->getModifiers()) ==
+        (VellumModifiers{VellumModifier::Hidden} |
+         VellumModifiers{VellumModifier::Conditional}));
+}
+
+TEST_CASE("ParserModifiers_HiddenProperty") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::HIDDEN, 1, "hidden"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "count"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::GET, 1, "get"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* propDecl = getScriptProperty(result);
+  CHECK(propDecl->isHidden());
+  CHECK_FALSE(propDecl->isConditional());
+}
+
+TEST_CASE("ParserModifiers_ConditionalAutoProperty") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::CONDITIONAL, 1, "conditional"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "flag"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Bool"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::GET, 1, "get"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::SET, 1, "set"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* propDecl = getScriptProperty(result);
+  CHECK(propDecl->isConditional());
+  CHECK(propDecl->isAutoProperty());
+}
+
+TEST_CASE("ParserModifiers_DuplicateHidden") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::HIDDEN, 1, "hidden"),
+                    makeToken(TokenType::HIDDEN, 1, "hidden"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::DuplicateModifier));
+  const auto* varDecl = getScriptVariable(result);
+  CHECK(modifiersBitmask(varDecl->getModifiers()) ==
+        VellumModifiers{VellumModifier::Hidden});
+}
+
+TEST_CASE("ParserModifiers_HiddenVarParses") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::HIDDEN, 1, "hidden"),
+                    makeToken(TokenType::VAR, 1, "var"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::COLON, 1, ":"),
+                    makeToken(TokenType::IDENTIFIER, 1, "Int"),
+                    makeToken(TokenType::EQUAL, 1, "="),
+                    makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* varDecl = getScriptVariable(result);
+  CHECK(modifiersBitmask(varDecl->getModifiers()) ==
+        VellumModifiers{VellumModifier::Hidden});
+}

@@ -10,17 +10,22 @@ class PexWriter;
 
 class PexVariable final {
  public:
-  PexVariable(PexString name, PexString typeName, PexValue defaultValue)
-      : name_(name), typeName_(typeName), defaultValue_(defaultValue) {}
+  PexVariable(PexString name, PexString typeName, PexUserFlags userFlags,
+              PexValue defaultValue)
+      : name_(name),
+        typeName_(typeName),
+        userFlags_(userFlags),
+        defaultValue_(defaultValue) {}
 
   PexString name() const { return name_; }
   PexString typeName() const { return typeName_; }
+  PexUserFlags userFlags() const { return userFlags_; }
   PexValue defaultValue() const { return defaultValue_; }
-  PexUserFlags userFlags() const { return PexUserFlags(); }
 
  private:
   PexString name_;
   PexString typeName_;
+  PexUserFlags userFlags_;
   PexValue defaultValue_;
 };
 

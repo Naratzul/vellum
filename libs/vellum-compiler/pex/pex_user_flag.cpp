@@ -6,16 +6,35 @@ namespace vellum {
 namespace pex {
 
 PexWriter& operator<<(PexWriter& writer, const PexUserFlags& flags) {
-  writer << flags.getValue();
+  writer << (uint32_t)flags;
   return writer;
 }
 
-bool operator==(const PexUserFlags& lhs, const PexUserFlags& rhs) {
-  return lhs.getValue() == rhs.getValue();
+std::string_view userFlagToString(PexUserFlag flag) {
+  switch (flag) {
+    case PexUserFlag::Hidden:
+      return "hidden";
+    case PexUserFlag::Conditional:
+      return "conditional";
+  }
+
+  assert(false && "Unknown PexUserFlag");
+
+  return "unknown";
 }
 
-bool operator!=(const PexUserFlags& lhs, const PexUserFlags& rhs) {
-  return !(lhs == rhs);
+uint8_t userFlagBitIndex(PexUserFlag flag) {
+  switch (flag) {
+    case PexUserFlag::Hidden:
+      return 0;
+    case PexUserFlag::Conditional:
+      return 1;
+  }
+
+  assert(false && "Unknown PexUserFlag");
+
+  return -1;
 }
+
 }  // namespace pex
 }  // namespace vellum

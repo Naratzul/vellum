@@ -5,6 +5,7 @@
 #include "common/flags.h"
 #include "common/types.h"
 #include "lexer/token.h"
+#include "pex/pex_user_flag.h"
 
 namespace vellum {
 using common::Opt;
@@ -61,5 +62,9 @@ bool modifiersAreValid(const ParsedModifiers& modifiers,
 void validateModifiersContext(const ParsedModifiers& modifiers,
                               VellumModifierContext context,
                               CompilerErrorHandler& errorHandler);
+
+pex::PexUserFlags buildPexFlags(const ParsedModifiers& modifiers);
+pex::PexUserFlags buildPropertyPexFlags(const ParsedModifiers& modifiers);
+pex::PexUserFlags buildVariablePexFlags(const ParsedModifiers& modifiers);
 
 }  // namespace vellum

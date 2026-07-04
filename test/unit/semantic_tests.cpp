@@ -258,7 +258,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticFunctionTest") {
 
   ast::FunctionDeclaration expected(
       "foo", {}, VellumType::literal(VellumLiteralType::Bool),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers);
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers);
   CHECK(expected == *result.declarations[0]);
 }
 
@@ -675,9 +676,9 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticAssign_ToProperty_Success") {
   Vec<Unique<ast::Declaration>> ast;
   // Create an object with a property
   VellumObject testObject(VellumType::identifier("TestObject"));
-  testObject.addProperty(
-      VellumProperty(VellumIdentifier("myProp"),
-                     VellumType::literal(VellumLiteralType::Int), noFunctionModifiers));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("myProp"), VellumType::literal(VellumLiteralType::Int),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   // test() { TestObject.myProp = 42; }
@@ -749,9 +750,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticComposedAssign_ReadonlyProperty_Error") {
   Vec<Unique<ast::Declaration>> ast;
   VellumObject testObject(VellumType::identifier("TestObject"));
-  testObject.addProperty(
-      VellumProperty(VellumIdentifier("readonlyProp"),
-                     VellumType::literal(VellumLiteralType::Int), staticFunctionModifier));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("readonlyProp"),
+      VellumType::literal(VellumLiteralType::Int), staticFunctionModifier));
   addTestObject(testObject);
 
   auto obj_expr =
@@ -928,9 +929,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> ast;
   // Create an object with an Int property
   VellumObject testObject(VellumType::identifier("TestObject"));
-  testObject.addProperty(
-      VellumProperty(VellumIdentifier("myProp"),
-                     VellumType::literal(VellumLiteralType::Int), noFunctionModifiers));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("myProp"), VellumType::literal(VellumLiteralType::Int),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   // test() { TestObject.myProp = "not an int"; }  // Error: type mismatch
@@ -1095,9 +1096,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> ast;
   // Create an object with an Int property
   VellumObject testObject(VellumType::identifier("TestObject"));
-  testObject.addProperty(
-      VellumProperty(VellumIdentifier("myProperty"),
-                     VellumType::literal(VellumLiteralType::Int), noFunctionModifiers));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("myProperty"),
+      VellumType::literal(VellumLiteralType::Int), noFunctionModifiers));
   addTestObject(testObject);
 
   // fun bar(): Int { return 42; }
@@ -1702,7 +1703,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayIndex_ValidIntIndex") {
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -1741,9 +1743,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> ast;
 
   VellumObject testObject(VellumType::identifier("TestObject"));
-  testObject.addProperty(
-      VellumProperty(VellumIdentifier("valueProp"),
-                     VellumType::literal(VellumLiteralType::Int), noFunctionModifiers));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("valueProp"),
+      VellumType::literal(VellumLiteralType::Int), noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -1774,7 +1776,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayIndex_NonIntIndex_Error") {
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -1806,7 +1809,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -1840,7 +1844,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -1870,9 +1875,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticInheritance_SuperCall_Resolves") {
   VellumObject parentObj(VellumType::identifier("ParentScript"));
-  parentObj.addFunction(
-      VellumFunction(VellumIdentifier("foo"),
-                     VellumType::literal(VellumLiteralType::Int), {}, noFunctionModifiers));
+  parentObj.addFunction(VellumFunction(
+      VellumIdentifier("foo"), VellumType::literal(VellumLiteralType::Int), {},
+      noFunctionModifiers));
   addTestObject(parentObj);
 
   Token scriptToken = makeToken(TokenType::IDENTIFIER, 1, "testscript");
@@ -1986,9 +1991,9 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticSelfExpression_HasScriptType") {
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticInheritance_PropertyShadow_Error") {
   VellumObject parentObj(VellumType::identifier("ParentScript"));
-  parentObj.addProperty(
-      VellumProperty(VellumIdentifier("X"),
-                     VellumType::literal(VellumLiteralType::Int), noFunctionModifiers));
+  parentObj.addProperty(VellumProperty(
+      VellumIdentifier("X"), VellumType::literal(VellumLiteralType::Int),
+      noFunctionModifiers));
   addTestObject(parentObj);
 
   Vec<Unique<ast::Declaration>> members;
@@ -2011,9 +2016,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticInheritance_CallInheritedFunction") {
   VellumObject parentObj(VellumType::identifier("ParentScript"));
-  parentObj.addFunction(
-      VellumFunction(VellumIdentifier("inherited"),
-                     VellumType::literal(VellumLiteralType::Bool), {}, noFunctionModifiers));
+  parentObj.addFunction(VellumFunction(
+      VellumIdentifier("inherited"),
+      VellumType::literal(VellumLiteralType::Bool), {}, noFunctionModifiers));
   addTestObject(parentObj);
 
   auto callExpr = makeUnique<ast::CallExpression>(
@@ -2223,10 +2228,13 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       errorHandler->hasError(CompilerErrorKind::NativeFunctionWithBody));
 }
 
-TEST_CASE_METHOD(SemanticTestsFixture, "Semantic_HiddenOnPropertyRejected") {
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Semantic_ConditionalOnAutoPropertyAccepted") {
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::PropertyDeclaration>(
-      "flag", VellumType::unresolved("Bool"), "", std::nullopt, std::nullopt,
+      "flag", VellumType::unresolved("Bool"), "",
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
       std::nullopt, Token{}, Token{},
       ParsedModifiers{{VellumModifier::Conditional,
                        makeToken(TokenType::CONDITIONAL, 1, "conditional")}}));
@@ -2239,7 +2247,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Semantic_HiddenOnPropertyRejected") {
 
   analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidModifier));
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE_FALSE(errorHandler->hasError(CompilerErrorKind::InvalidModifier));
 }
 
 // ============================================================================
@@ -2251,13 +2260,13 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_OnlyOneAutoState") {
 
   // First auto state - should be OK
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "State1", makeToken(TokenType::IDENTIFIER, 1, "State1"), autoParsedModifiers,
-      Vec<Unique<ast::Declaration>>{}));
+      "State1", makeToken(TokenType::IDENTIFIER, 1, "State1"),
+      autoParsedModifiers, Vec<Unique<ast::Declaration>>{}));
 
   // Second auto state - should error
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "State2", makeToken(TokenType::IDENTIFIER, 2, "State2"), autoParsedModifiers,
-      Vec<Unique<ast::Declaration>>{}));
+      "State2", makeToken(TokenType::IDENTIFIER, 2, "State2"),
+      autoParsedModifiers, Vec<Unique<ast::Declaration>>{}));
 
   analyzer->analyze(std::move(ast));
 
@@ -2275,8 +2284,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_OnlyFunctionsAllowed") {
       makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 1, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 1, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   analyzer->analyze(std::move(ast));
 
@@ -2294,8 +2303,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_PropertyNotAllowed") {
       std::nullopt, std::nullopt));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 1, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 1, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   analyzer->analyze(std::move(ast));
 
@@ -2310,12 +2319,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionMustBeInEmptyState") {
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 1, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 1, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 1, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 1, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2336,12 +2345,12 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "onBeginState", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2361,12 +2370,12 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "OnEndState", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "OnEndState")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "OnEndState")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2389,12 +2398,12 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       Vec<ast::FunctionParameter>{
           ast::FunctionParameter{"x", VellumType::unresolved("Int")}},
       VellumType::none(),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   analyzer->analyze(std::move(ast));
 
@@ -2415,12 +2424,12 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "onBeginState", Vec<ast::FunctionParameter>{},
       VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   analyzer->analyze(std::move(ast));
 
@@ -2435,8 +2444,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "onBeginState", Vec<ast::FunctionParameter>{},
       VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 1, "onBeginState")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 1, "onBeginState")));
 
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
       VellumType::identifier("testscript"),
@@ -2456,8 +2465,8 @@ TEST_CASE_METHOD(
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "onBeginState", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 1, "onBeginState")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 1, "onBeginState")));
 
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
       VellumType::identifier("testscript"),
@@ -2468,12 +2477,12 @@ TEST_CASE_METHOD(
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "onBeginState", Vec<ast::FunctionParameter>{},
       VellumType::unresolved("Bool"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onBeginState")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   analyzer->analyze(std::move(ast));
 
@@ -2488,8 +2497,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionSignatureMustMatch") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 1, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 1, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
       VellumType::identifier("testscript"),
@@ -2500,12 +2509,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionSignatureMustMatch") {
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Bool"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2535,12 +2544,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionParameterCountMismatch") {
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2573,12 +2582,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionParameterTypeMismatch") {
       Vec<ast::FunctionParameter>{
           ast::FunctionParameter{"x", VellumType::unresolved("Bool")}},
       VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2609,12 +2618,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionDefaultValueMismatch") {
       Vec<ast::FunctionParameter>{ast::FunctionParameter{
           "x", VellumType::unresolved("Int"), VellumLiteral(10)}},
       VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2630,7 +2639,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionStaticMismatch") {
   Vec<Unique<ast::Declaration>> scriptMembers;
   scriptMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), staticParsedModifiers));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      staticParsedModifiers));
 
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
       VellumType::identifier("testscript"),
@@ -2641,12 +2651,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_FunctionStaticMismatch") {
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2716,12 +2726,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_ValidStateWithFunction") {
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2747,12 +2757,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_ValidAutoState") {
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), autoParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      autoParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2779,23 +2789,23 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> state1Members;
   state1Members.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "State1", makeToken(TokenType::IDENTIFIER, 2, "State1"), noParsedModifiers,
-      std::move(state1Members)));
+      "State1", makeToken(TokenType::IDENTIFIER, 2, "State1"),
+      noParsedModifiers, std::move(state1Members)));
 
   // Define second state with matching function - should be OK
   Vec<Unique<ast::Declaration>> state2Members;
   state2Members.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "myFunc", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 3, "myFunc")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 3, "myFunc")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "State2", makeToken(TokenType::IDENTIFIER, 3, "State2"), noParsedModifiers,
-      std::move(state2Members)));
+      "State2", makeToken(TokenType::IDENTIFIER, 3, "State2"),
+      noParsedModifiers, std::move(state2Members)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2821,12 +2831,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_EventAllowedInState") {
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "onActivate", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "onActivate")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onActivate")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2845,8 +2855,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_EmptyStateAllowed") {
 
   // Define state with no functions - should be OK
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      Vec<Unique<ast::Declaration>>{}));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, Vec<Unique<ast::Declaration>>{}));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2875,16 +2885,16 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_MultipleFunctionsInState") {
   Vec<Unique<ast::Declaration>> stateMembers;
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "func1", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "func1")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "func1")));
   stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
       "func2", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Bool"),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-      makeToken(TokenType::IDENTIFIER, 2, "func2")));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "func2")));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"), noParsedModifiers,
-      std::move(stateMembers)));
+      "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));
 
@@ -2897,8 +2907,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   auto intFunc = [](std::string_view name, int line) {
     return makeUnique<ast::FunctionDeclaration>(
         name, Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-        makeToken(TokenType::IDENTIFIER, line, name));
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+        noParsedModifiers, makeToken(TokenType::IDENTIFIER, line, name));
   };
 
   Vec<Unique<ast::Declaration>> scriptMembers;
@@ -2916,14 +2926,14 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> mergedFirst;
   mergedFirst.emplace_back(intFunc("funcA", 2));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), noParsedModifiers,
-      std::move(mergedFirst)));
+      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"),
+      noParsedModifiers, std::move(mergedFirst)));
 
   Vec<Unique<ast::Declaration>> mergedSecond;
   mergedSecond.emplace_back(intFunc("funcB", 3));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), noParsedModifiers,
-      std::move(mergedSecond)));
+      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"),
+      noParsedModifiers, std::move(mergedSecond)));
 
   Vec<Unique<ast::Declaration>> otherMembers;
   otherMembers.emplace_back(intFunc("funcC", 4));
@@ -2946,8 +2956,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_Reopen_DuplicateFunction_Error") {
   auto intFunc = [](std::string_view name, int line) {
     return makeUnique<ast::FunctionDeclaration>(
         name, Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-        makeToken(TokenType::IDENTIFIER, line, name));
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+        noParsedModifiers, makeToken(TokenType::IDENTIFIER, line, name));
   };
 
   Vec<Unique<ast::Declaration>> scriptMembers;
@@ -2962,14 +2972,14 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_Reopen_DuplicateFunction_Error") {
   Vec<Unique<ast::Declaration>> s1;
   s1.emplace_back(intFunc("foo", 2));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), noParsedModifiers,
-      std::move(s1)));
+      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"),
+      noParsedModifiers, std::move(s1)));
 
   Vec<Unique<ast::Declaration>> s2;
   s2.emplace_back(intFunc("foo", 3));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), noParsedModifiers,
-      std::move(s2)));
+      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"),
+      noParsedModifiers, std::move(s2)));
 
   analyzer->analyze(std::move(ast));
 
@@ -2981,8 +2991,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   auto intFunc = [](std::string_view name, int line) {
     return makeUnique<ast::FunctionDeclaration>(
         name, Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-        makeToken(TokenType::IDENTIFIER, line, name));
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+        noParsedModifiers, makeToken(TokenType::IDENTIFIER, line, name));
   };
 
   Vec<Unique<ast::Declaration>> scriptMembers;
@@ -2997,14 +3007,14 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> s1;
   s1.emplace_back(intFunc("foo", 2));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), noParsedModifiers,
-      std::move(s1)));
+      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"),
+      noParsedModifiers, std::move(s1)));
 
   Vec<Unique<ast::Declaration>> s2;
   s2.emplace_back(intFunc("Foo", 3));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), noParsedModifiers,
-      std::move(s2)));
+      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"),
+      noParsedModifiers, std::move(s2)));
 
   analyzer->analyze(std::move(ast));
 
@@ -3016,8 +3026,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   auto intFunc = [](std::string_view name, int line) {
     return makeUnique<ast::FunctionDeclaration>(
         name, Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
-        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), noParsedModifiers,
-        makeToken(TokenType::IDENTIFIER, line, name));
+        makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+        noParsedModifiers, makeToken(TokenType::IDENTIFIER, line, name));
   };
 
   Vec<Unique<ast::Declaration>> scriptMembers;
@@ -3032,7 +3042,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> first;
   first.emplace_back(intFunc("myFunc", 2));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "S", makeToken(TokenType::IDENTIFIER, 2, "S"), noParsedModifiers, std::move(first)));
+      "S", makeToken(TokenType::IDENTIFIER, 2, "S"), noParsedModifiers,
+      std::move(first)));
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
       "S", makeToken(TokenType::IDENTIFIER, 3, "S"), autoParsedModifiers,
@@ -3052,7 +3063,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLength_Valid") {
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -3087,9 +3099,9 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLength_NonArray_Error") {
   Vec<Unique<ast::Declaration>> ast;
 
   VellumObject testObject(VellumType::identifier("TestObject"));
-  testObject.addProperty(
-      VellumProperty(VellumIdentifier("valueProp"),
-                     VellumType::literal(VellumLiteralType::Int), noFunctionModifiers));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("valueProp"),
+      VellumType::literal(VellumLiteralType::Int), noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -3117,7 +3129,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLength_Readonly_Error") {
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -3148,7 +3161,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayFind_Valid") {
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -3190,7 +3204,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayFind_WithStartIndex") {
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -3227,7 +3242,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayFind_WrongType_Error") {
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -3261,7 +3277,8 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayRFind_Valid") {
   VellumObject testObject(VellumType::identifier("TestObject"));
   testObject.addProperty(VellumProperty(
       VellumIdentifier("arrayProp"),
-      VellumType::array(VellumType::literal(VellumLiteralType::Int)), noFunctionModifiers));
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
   addTestObject(testObject);
 
   auto objExpr =
@@ -3433,7 +3450,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 TEST_CASE_METHOD(SemanticTestsFixture, "StaticContext_Super_Error") {
   VellumObject parentObj(VellumType::identifier("ParentScript"));
   parentObj.addFunction(VellumFunction(VellumIdentifier("parentMethod"),
-                                       VellumType::none(), {}, noFunctionModifiers));
+                                       VellumType::none(), {},
+                                       noFunctionModifiers));
   addTestObject(parentObj);
 
   Vec<Unique<ast::Declaration>> members;
@@ -4018,7 +4036,8 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   Vec<Unique<ast::Declaration>> members;
   members.push_back(makeUnique<ast::FunctionDeclaration>(
       "StaticHelper", Vec<ast::FunctionParameter>{}, VellumType::none(),
-      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}), staticParsedModifiers));
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      staticParsedModifiers));
   auto localInit = makeUnique<ast::LiteralExpression>(VellumLiteral(42));
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::LocalVariableStatement>(

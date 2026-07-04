@@ -15,7 +15,7 @@ VellumModifiers allowedModifiersFor(VellumModifierContext context) {
     case Var:
       return Conditional;
     case Property:
-      return Hidden;
+      return Hidden | Conditional;
     case Function:
       return Static | Native;
     case Event:
@@ -91,5 +91,56 @@ void validateModifiersContext(const ParsedModifiers& modifiers,
                            modifierName(parsed.modifier));
     }
   }
+}
+
+pex::PexUserFlags buildPexFlags(const ParsedModifiers& modifiers) {
+  pex::PexUserFlags flags{pex::PexUserFlag::None};
+
+  for (const auto& modifier : modifiers) {
+    switch (modifier.modifier) {
+      case VellumModifier::Conditional:
+        flags |= pex::PexUserFlag::Conditional;
+        break;
+      case VellumModifier::Hidden:
+        flags |= pex::PexUserFlag::Hidden;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return flags;
+}
+
+pex::PexUserFlags buildPropertyPexFlags(const ParsedModifiers& modifiers) {
+  pex::PexUserFlags flags{pex::PexUserFlag::None};
+
+  for (const auto& modifier : modifiers) {
+    switch (modifier.modifier) {
+      case VellumModifier::Hidden:
+        flags |= pex::PexUserFlag::Hidden;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return flags;
+}
+
+pex::PexUserFlags buildVariablePexFlags(const ParsedModifiers& modifiers) {
+  pex::PexUserFlags flags{pex::PexUserFlag::None};
+
+  for (const auto& modifier : modifiers) {
+    switch (modifier.modifier) {
+      case VellumModifier::Conditional:
+        flags |= pex::PexUserFlag::Conditional;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return flags;
 }
 }  // namespace vellum

@@ -51,7 +51,7 @@ TEST_CASE("CompileGlobalVarTest") {
   REQUIRE(file.objects()[0].getVariables().size() == 1);
 
   pex::PexVariable expected(file.getString("number"), file.getString("Int"),
-                            pex::PexValue(42));
+                            pex::PexUserFlag::None, pex::PexValue(42));
 
   const pex::PexVariable& var = file.objects()[0].getVariables()[0];
   CHECK(var == expected);
@@ -141,8 +141,7 @@ TEST_CASE("CompileStateReopen_MergesIntoSinglePexState") {
         name, Vec<ast::FunctionParameter>{},
         VellumType::literal(VellumLiteralType::Int),
         makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
-        noParsedModifiers,
-        makeToken(TokenType::IDENTIFIER, line, name));
+        noParsedModifiers, makeToken(TokenType::IDENTIFIER, line, name));
   };
 
   Vec<Unique<ast::Declaration>> scriptMembers;
@@ -160,14 +159,14 @@ TEST_CASE("CompileStateReopen_MergesIntoSinglePexState") {
   Vec<Unique<ast::Declaration>> mergedFirst;
   mergedFirst.emplace_back(makeIntFunc("funcA", 2));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"), noParsedModifiers,
-      std::move(mergedFirst)));
+      "Merged", makeToken(TokenType::IDENTIFIER, 2, "Merged"),
+      noParsedModifiers, std::move(mergedFirst)));
 
   Vec<Unique<ast::Declaration>> mergedSecond;
   mergedSecond.emplace_back(makeIntFunc("funcB", 3));
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
-      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"), noParsedModifiers,
-      std::move(mergedSecond)));
+      "Merged", makeToken(TokenType::IDENTIFIER, 3, "Merged"),
+      noParsedModifiers, std::move(mergedSecond)));
 
   Vec<Unique<ast::Declaration>> otherMembers;
   otherMembers.emplace_back(makeIntFunc("funcC", 4));
@@ -207,8 +206,7 @@ TEST_CASE("CompileStateReopen_SetsAutoStateNameFromLaterFragment") {
         name, Vec<ast::FunctionParameter>{},
         VellumType::literal(VellumLiteralType::Int),
         makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
-        noParsedModifiers,
-        makeToken(TokenType::IDENTIFIER, line, name));
+        noParsedModifiers, makeToken(TokenType::IDENTIFIER, line, name));
   };
 
   Vec<Unique<ast::Declaration>> scriptMembers;
@@ -846,7 +844,7 @@ TEST_CASE("CompileNegativeGlobalVar") {
   REQUIRE(file.objects()[0].getVariables().size() == 1);
 
   pex::PexVariable expected(file.getString("number"), file.getString("Int"),
-                            pex::PexValue(-42));
+                            pex::PexUserFlag::None, pex::PexValue(-42));
 
   const pex::PexVariable& var = file.objects()[0].getVariables()[0];
   CHECK(var == expected);
@@ -1679,4 +1677,146 @@ TEST_CASE("CompileNonNativeFunction_HasNoNativeFlag") {
   CHECK_FALSE(pexFunc.isNative());
   CHECK_FALSE(pexFunc.isGlobal());
   CHECK_FALSE(pexFunc.getInstructions().empty());
+}
+
+namespace {
+
+pex::PexFile compileScriptWithSemantic(
+    Vec<Unique<ast::Declaration>> scriptMembers,
+    ParsedModifiers scriptModifiers = {}) {
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers), std::move(scriptModifiers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  return Compiler(errorHandler)
+      .compile(ScriptMetadata(), semanticResult.declarations);
+}
+
+Opt<uint8_t> findRegisteredFlagBitIndex(const pex::PexFile& file,
+                                        std::string_view name) {
+  for (const auto& flag : file.registeredUserFlags()) {
+    if (file.stringTable().valueByIndex(flag.name.index()) == name) {
+      return flag.bitIndex;
+    }
+  }
+  return std::nullopt;
+}
+
+bool userFlagsContain(const pex::PexUserFlags& flags, pex::PexUserFlag flag) {
+  return static_cast<bool>(flags & flag);
+}
+
+}  // namespace
+
+TEST_CASE("CompileModifiers_HiddenScript") {
+  pex::PexFile file = compileScriptWithSemantic({}, hiddenParsedModifiers);
+
+  REQUIRE(file.objects().size() == 1);
+  const auto& object = file.objects()[0];
+  CHECK(userFlagsContain(object.getUserFlags(), pex::PexUserFlag::Hidden));
+  CHECK_FALSE(userFlagsContain(object.getUserFlags(), pex::PexUserFlag::Conditional));
+  REQUIRE(file.registeredUserFlags().size() == 1);
+  CHECK(findRegisteredFlagBitIndex(file, "hidden") == 0);
+}
+
+TEST_CASE("CompileModifiers_ConditionalVar") {
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "stage", VellumType::literal(VellumLiteralType::Int),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0)), std::nullopt,
+      std::nullopt, conditionalParsedModifiers));
+
+  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers));
+
+  REQUIRE(file.objects().size() == 1);
+  REQUIRE(file.objects()[0].getVariables().size() == 1);
+  CHECK(userFlagsContain(file.objects()[0].getVariables()[0].userFlags(),
+                         pex::PexUserFlag::Conditional));
+  REQUIRE(file.registeredUserFlags().size() == 1);
+  CHECK(findRegisteredFlagBitIndex(file, "conditional") == 1);
+}
+
+TEST_CASE("CompileModifiers_HiddenProperty") {
+  ast::FunctionBody getBody;
+  getBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "count", VellumType::literal(VellumLiteralType::Int), "",
+      makeUnique<ast::BlockStatement>(std::move(getBody)), std::nullopt,
+      std::nullopt, Token{}, Token{}, hiddenParsedModifiers));
+
+  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers));
+
+  REQUIRE(file.objects()[0].getProperties().size() == 1);
+  CHECK(userFlagsContain(file.objects()[0].getProperties()[0].getUserFlags(),
+                         pex::PexUserFlag::Hidden));
+  CHECK(file.objects()[0].getVariables().empty());
+  REQUIRE(file.registeredUserFlags().size() == 1);
+  CHECK(findRegisteredFlagBitIndex(file, "hidden") == 0);
+}
+
+TEST_CASE("CompileModifiers_ConditionalAutoProperty") {
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "flag", VellumType::literal(VellumLiteralType::Bool), "",
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}),
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), std::nullopt,
+      Token{}, Token{}, conditionalParsedModifiers));
+
+  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers));
+
+  const auto& object = file.objects()[0];
+  REQUIRE(object.getProperties().size() == 1);
+  CHECK_FALSE(userFlagsContain(object.getProperties()[0].getUserFlags(),
+                               pex::PexUserFlag::Conditional));
+  REQUIRE(object.getVariables().size() == 1);
+  CHECK(userFlagsContain(object.getVariables()[0].userFlags(),
+                         pex::PexUserFlag::Conditional));
+  REQUIRE(file.registeredUserFlags().size() == 1);
+  CHECK(findRegisteredFlagBitIndex(file, "conditional") == 1);
+}
+
+TEST_CASE("CompileModifiers_HiddenConditionalAutoProperty") {
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.emplace_back(makeUnique<ast::PropertyDeclaration>(
+      "flag", VellumType::literal(VellumLiteralType::Bool), "",
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}),
+      makeUnique<ast::BlockStatement>(ast::FunctionBody{}), std::nullopt,
+      Token{}, Token{}, hiddenConditionalParsedModifiers));
+
+  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers));
+
+  const auto& object = file.objects()[0];
+  REQUIRE(object.getProperties().size() == 1);
+  CHECK(userFlagsContain(object.getProperties()[0].getUserFlags(),
+                         pex::PexUserFlag::Hidden));
+  CHECK_FALSE(userFlagsContain(object.getProperties()[0].getUserFlags(),
+                               pex::PexUserFlag::Conditional));
+  REQUIRE(object.getVariables().size() == 1);
+  CHECK(userFlagsContain(object.getVariables()[0].userFlags(),
+                         pex::PexUserFlag::Conditional));
+  CHECK_FALSE(userFlagsContain(object.getVariables()[0].userFlags(),
+                               pex::PexUserFlag::Hidden));
+  REQUIRE(file.registeredUserFlags().size() == 2);
+  CHECK(findRegisteredFlagBitIndex(file, "hidden") == 0);
+  CHECK(findRegisteredFlagBitIndex(file, "conditional") == 1);
 }

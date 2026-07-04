@@ -53,6 +53,10 @@ void PexObjectCompiler::visitScriptDeclaration(
   object.setDocumentationString(file.getString(""));
   object.setAutoStateName(file.getString(""));
 
+  pex::PexUserFlags userFlags = buildPexFlags(declaration.getModifiers());
+  file.registerUserFlags(userFlags);
+  object.setUserFlags(userFlags);
+
   for (auto& member : declaration.getMemberDecls()) {
     member->accept(*this);
   }
@@ -97,8 +101,12 @@ void PexObjectCompiler::visitVariableDeclaration(
   const pex::PexString typeName =
       file.getString(declaration.typeName().value().toString());
 
+  const pex::PexUserFlags userFlags = buildPexFlags(declaration.getModifiers());
+  file.registerUserFlags(userFlags);
+
   const pex::PexValue defaultValue = makeValueFromToken(declaration.getValue());
-  object.getVariables().emplace_back(name, typeName, defaultValue);
+
+  object.getVariables().emplace_back(name, typeName, userFlags, defaultValue);
 }
 
 void PexObjectCompiler::visitFunctionDeclaration(
@@ -215,8 +223,12 @@ void PexObjectCompiler::visitPropertyDeclaration(
     }
   }
 
+  pex::PexUserFlags userFlags =
+      buildPropertyPexFlags(declaration.getModifiers());
+  file.registerUserFlags(userFlags);
+
   object.getProperties().emplace_back(name, typeName, documentationString,
-                                      pex::PexUserFlags(), getAccessorFunc,
+                                      userFlags, getAccessorFunc,
                                       setAccessorFunc, backedVariableName);
 }
 
@@ -240,8 +252,12 @@ pex::PexVariable PexObjectCompiler::makePropertyBackedVariable(
   auto defaultValueType =
       type.getState() == VellumTypeState::Literal ? type : VellumType::none();
 
+  pex::PexUserFlags userFlags =
+      buildVariablePexFlags(declaration.getModifiers());
+  file.registerUserFlags(userFlags);
+
   pex::PexVariable backedVariable(
-      file.getString(varName), typeName,
+      file.getString(varName), typeName, userFlags,
       makeValueFromToken(declaration.getDefaultValue().value_or(
           makeDefaultLiteral(defaultValueType.asLiteralType()))));
 

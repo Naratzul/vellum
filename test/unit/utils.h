@@ -27,6 +27,13 @@ inline const ParsedModifiers nativeParsedModifiers{
 inline const ParsedModifiers staticNativeParsedModifiers{
     {VellumModifier::Static, Token{}}, {VellumModifier::Native, Token{}}};
 inline const ParsedModifiers autoParsedModifiers{{VellumModifier::Auto, Token{}}};
+inline const ParsedModifiers hiddenParsedModifiers{
+    {VellumModifier::Hidden, Token{}}};
+inline const ParsedModifiers conditionalParsedModifiers{
+    {VellumModifier::Conditional, Token{}}};
+inline const ParsedModifiers hiddenConditionalParsedModifiers{
+    {VellumModifier::Hidden, Token{}},
+    {VellumModifier::Conditional, Token{}}};
 
 Token makeToken(TokenType type, int line, std::string_view lexeme,
                 Opt<VellumLiteral> value = std::nullopt);

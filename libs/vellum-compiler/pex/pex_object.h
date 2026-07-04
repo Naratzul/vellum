@@ -25,7 +25,9 @@ class PexObject final {
 
   // TODO: add object size calc
   uint32_t getObjectSize() const { return 0; }
-  PexUserFlags getUserFlags() const { return PexUserFlags(); }
+
+  PexUserFlags getUserFlags() const { return flags; }
+  void setUserFlags(PexUserFlags value) { flags = value; }
 
   PexString getDocumentationString() const { return documentationString; }
   void setDocumentationString(PexString docString) {
@@ -59,6 +61,7 @@ class PexObject final {
   PexString parentName;
   PexString documentationString;
   PexString autoStateName;
+  PexUserFlags flags;
 
   Vec<PexVariable> variables;
   Vec<PexProperty> properties;

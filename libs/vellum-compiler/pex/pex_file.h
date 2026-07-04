@@ -35,15 +35,15 @@ struct PexHeader {
 };
 #pragma pack(pop)
 
-struct PexUserFlagTableEntry {
+struct RegisteredUserFlag {
   PexString name;
-  uint8_t value;
+  uint8_t bitIndex;
 };
 
 class PexFile {
  public:
+  using RegisteredUserFlags = Vec<RegisteredUserFlag>;
   using Objects = Vec<PexObject>;
-  using PexUserFlagTable = Vec<PexUserFlagTableEntry>;
 
   PexHeader& header() { return header_; }
   const PexHeader& header() const { return header_; }
@@ -51,8 +51,12 @@ class PexFile {
   PexStringTable& stringTable() { return stringTable_; }
   const PexStringTable& stringTable() const { return stringTable_; }
 
-  PexUserFlagTable& userFlags() { return userFlags_; }
-  const PexUserFlagTable& userFlags() const { return userFlags_; }
+  void registerUserFlag(PexUserFlag flag);
+  void registerUserFlags(PexUserFlags flags);
+
+  const RegisteredUserFlags& registeredUserFlags() const {
+    return registeredFlags_;
+  }
 
   Objects& objects() { return objects_; }
   const Objects& objects() const { return objects_; }
@@ -73,7 +77,8 @@ class PexFile {
  private:
   PexHeader header_;
   PexStringTable stringTable_;
-  PexUserFlagTable userFlags_;
+  PexUserFlags registeredFlagsBits_;
+  RegisteredUserFlags registeredFlags_;
   Objects objects_;
   std::unique_ptr<PexDebugInfo> debugInfo_;
 

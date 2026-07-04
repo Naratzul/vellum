@@ -75,7 +75,7 @@ class ScriptDeclaration : public Declaration {
         scriptNameLocation(scriptNameLocation),
         parentScriptNameLocation(parentScriptNameLocation),
         members(std::move(members)),
-        modifiers_(std::move(modifiers)) {}
+        modifiers(std::move(modifiers)) {}
 
   VellumType getScriptName() const { return scriptName; }
   VellumType getParentScriptName() const { return parentScriptName; }
@@ -89,7 +89,15 @@ class ScriptDeclaration : public Declaration {
     return members;
   }
 
-  const ParsedModifiers& getModifiers() const { return modifiers_; }
+  const ParsedModifiers& getModifiers() const { return modifiers; }
+
+  bool isHidden() const {
+    return modifiersBitmask(modifiers) & VellumModifier::Hidden;
+  }
+
+  bool isConditional() const {
+    return modifiersBitmask(modifiers) & VellumModifier::Conditional;
+  }
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
@@ -106,7 +114,7 @@ class ScriptDeclaration : public Declaration {
   Opt<Token> parentScriptNameLocation;
 
   Vec<Unique<ast::Declaration>> members;
-  ParsedModifiers modifiers_;
+  ParsedModifiers modifiers;
 };
 
 class StateDeclaration : public Declaration {
@@ -288,7 +296,7 @@ class PropertyDeclaration : public Declaration {
         defaultValue(defaultValue),
         nameLocation(nameLocation),
         typeLocation(typeLocation),
-        modifiers_(std::move(modifiers)) {}
+        modifiers(std::move(modifiers)) {}
 
   void accept(DeclarationVisitor& visitor) override;
   bool equals(const Declaration& other) const override;
@@ -331,7 +339,15 @@ class PropertyDeclaration : public Declaration {
   Opt<VellumLiteral> getDefaultValue() const { return defaultValue; }
   Token getNameLocation() const { return nameLocation; }
   Token getTypeLocation() const { return typeLocation; }
-  const ParsedModifiers& getModifiers() const { return modifiers_; }
+  const ParsedModifiers& getModifiers() const { return modifiers; }
+
+  bool isConditional() const {
+    return modifiersBitmask(modifiers) & VellumModifier::Conditional;
+  }
+
+  bool isHidden() const {
+    return modifiersBitmask(modifiers) & VellumModifier::Hidden;
+  }
 
  private:
   std::string_view name;
@@ -344,7 +360,7 @@ class PropertyDeclaration : public Declaration {
   Opt<VellumLiteral> defaultValue;
   Token nameLocation;
   Token typeLocation;
-  ParsedModifiers modifiers_;
+  ParsedModifiers modifiers;
 };
 }  // namespace ast
 }  // namespace vellum

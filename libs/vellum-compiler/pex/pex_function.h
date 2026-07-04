@@ -33,7 +33,7 @@ class PexFunction {
   Opt<PexString> getName() const { return name; }
   PexString getReturnTypeName() const { return returnTypeName; }
   PexString getDocumentationString() const { return documentationString; }
-  PexUserFlags getUserFlags() const { return PexUserFlags(); }
+  PexUserFlags getUserFlags() const { return userFlags; }
 
   const Vec<PexFunctionParameter>& getParameters() const { return parameters; }
 

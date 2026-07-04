@@ -8,6 +8,24 @@
 
 namespace vellum {
 namespace pex {
+void PexFile::registerUserFlag(PexUserFlag flag) {
+  if (registeredFlagsBits_ & flag) {
+    return;
+  }
+
+  registeredFlagsBits_ |= flag;
+  registeredFlags_.emplace_back(getString(userFlagToString(flag)),
+                                userFlagBitIndex(flag));
+}
+
+void PexFile::registerUserFlags(PexUserFlags flags) {
+  for (auto flag : allUserFlags) {
+    if (flags & flag) {
+      registerUserFlag(flag);
+    }
+  }
+}
+
 void PexFile::writeToFile(const fs::path& path) const {
   std::ostringstream stream(std::ios::binary);
   PexWriter writer(stream, getEndianness());
@@ -25,9 +43,9 @@ void PexFile::writeToFile(const fs::path& path) const {
     write(*debugInfo_, writer);
   }
 
-  writer << (uint16_t)userFlags_.size();
-  for (const auto& entry : userFlags_) {
-    writer << entry.name << entry.value;
+  writer << (uint16_t)registeredFlags_.size();
+  for (auto flag : registeredFlags_) {
+    writer << flag.name << flag.bitIndex;
   }
 
   writer << objects_;

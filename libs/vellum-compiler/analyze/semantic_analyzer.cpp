@@ -215,6 +215,16 @@ void SemanticAnalyzer::visitPropertyDeclaration(
     return;
   }
 
+  if (declaration.isConditional() && !declaration.isAutoProperty()) {
+    for (const auto& mod : declaration.getModifiers()) {
+      if (mod.modifier & VellumModifier::Conditional) {
+        errorHandler->errorAt(
+            mod.location, CompilerErrorKind::InvalidModifier,
+            "'conditional' modifier is allowed only for auto properties.");
+      }
+    }
+  }
+
   if (auto& getBlock = declaration.getGetAccessor()) {
     VellumFunction dummyFunc(VellumIdentifier(declaration.getName()),
                              declaration.getTypeName(), {}, false);

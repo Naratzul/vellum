@@ -48,7 +48,7 @@ add_library(vellum_compiler STATIC
     vellum/vellum_type.cpp
     vellum/vellum_value.cpp
     vellum/vellum_variable.cpp
-    vellum/vellum.cpp)
+    vellum/vellum.cpp  )
 
 target_compile_options(vellum_compiler PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W0>
