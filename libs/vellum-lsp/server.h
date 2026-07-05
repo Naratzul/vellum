@@ -28,12 +28,10 @@ class LspServer {
   lsp::MessageHandler messageHandler;
   DocumentStore documentStore;
   Shared<ImportLibrary> importLibrary{nullptr};
-  common::Opt<path> outputDirectory{std::nullopt};
 
   void registerHandlers();
 
   void applyImportPaths(Vec<path> importPaths);
-  void applyOutputDirectory(common::Opt<path> outputDirectory);
   void requestDiagnosticAndSemanticRefresh();
 
   void handleDocumentChange(

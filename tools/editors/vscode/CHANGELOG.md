@@ -4,7 +4,10 @@ All notable changes to the Vellum VS Code extension are documented in this file.
 
 ## Unreleased
 
-- Setting: `vellum.outputDirectory` for specifying where compiled `.pex` files are written
+- **Vellum: Compile** command — runs the `vellum` CLI with workspace settings
+- Setting: `vellum.compilerPath` for the compiler executable
+- Setting: `vellum.outputDirectory` for compile output (`-o`)
+- Task examples in the extension README
 
 ## 0.1.0 — 2025-06-25
 

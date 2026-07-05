@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { window, workspace, WorkspaceFolder, ExtensionContext, WorkspaceConfiguration } from 'vscode';
+import { commands, window, workspace, WorkspaceFolder, ExtensionContext, WorkspaceConfiguration } from 'vscode';
 import * as process from 'process'
 
 import {
@@ -9,6 +9,8 @@ import {
 	ServerOptions,
 	TransportKind
 } from 'vscode-languageclient/node';
+
+import { compileActiveFile } from './compile';
 
 let client: LanguageClient;
 
@@ -66,11 +68,6 @@ export function activate(context: ExtensionContext) {
 		.map(p => expandWorkspaceFolder(p, wsFolder))
 		.map(p => path.normalize(p))
 
-	const outputDirectoryRaw = cfg.get<string>("outputDirectory", "").trim();
-	const outputDirectory = outputDirectoryRaw
-		? path.normalize(expandWorkspaceFolder(outputDirectoryRaw, wsFolder))
-		: undefined;
-
 	const serverModule = resolveServerModule(context, cfg);
 	if (!serverModule) {
 		return;
@@ -88,23 +85,21 @@ export function activate(context: ExtensionContext) {
 		transport: TransportKind.stdio,
 	};
 
-	const output = window.createOutputChannel('Vellum Language Server');
-	output.appendLine('Vellum Language Server logs:');
+	const lspOutput = window.createOutputChannel('Vellum Language Server');
+	lspOutput.appendLine('Vellum Language Server logs:');
 
 	const clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: 'file', language: 'vellum' }],
 		initializationOptions: {
-			importPaths: importPaths,
-			outputDirectory: outputDirectory,
+			importPaths: importPaths
 		},
 		synchronize: {
 			configurationSection: 'vellum',
 		},
 		workspaceFolder: wsFolder,
-		outputChannel: output,
+		outputChannel: lspOutput,
 	};
 
-	// Create the language client and start the client.
 	client = new LanguageClient(
 		'vellum',
 		'vellum',
@@ -114,10 +109,17 @@ export function activate(context: ExtensionContext) {
 
 	void client.start().catch((err: unknown) => {
 		const message = err instanceof Error ? err.message : String(err);
-		output.appendLine(`Failed to start language server: ${message}`);
-		output.show();
+		lspOutput.appendLine(`Failed to start language server: ${message}`);
+		lspOutput.show();
 		void window.showErrorMessage(`Vellum: failed to start language server — ${message}`);
 	});
+
+	const compileOutput = window.createOutputChannel('Vellum Compiler');
+	context.subscriptions.push(
+		commands.registerCommand('vellum.compile', () =>
+			compileActiveFile(expandWorkspaceFolder, compileOutput)),
+		compileOutput,
+	);
 }
 
 export function deactivate(): Thenable<void> | undefined {

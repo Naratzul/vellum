@@ -53,7 +53,13 @@
 					"scope": "resource",
 					"type": "string",
 					"default": "",
-					"description": "Directory where compiled .pex files are written. When empty, .pex files are written next to the source .vel file. Supports absolute paths and ${workspaceFolder}."
+					"description": "Output directory passed to the compiler when using Vellum: Compile. When empty, .pex files are written next to the source .vel file. Supports absolute paths and ${workspaceFolder}."
+				},
+				"vellum.compilerPath": {
+					"scope": "window",
+					"type": "string",
+					"default": "",
+					"description": "Path to the vellum compiler executable. When empty, the extension runs vellum (vellum.exe on Windows) from your PATH."
 				},
 				"vellum.languageServerPath": {
 					"scope": "window",
@@ -62,6 +68,23 @@
 					"description": "Optional path to the vellum-lsp executable. When empty, the extension uses the bundled server under server/<platform>."
 				}
 			}
+		},
+		"commands": [
+			{
+				"command": "vellum.compile",
+				"title": "Compile",
+				"category": "Vellum",
+				"icon": "$(play)"
+			}
+		],
+		"menus": {
+			"editor/context": [
+				{
+					"command": "vellum.compile",
+					"when": "editorLangId == vellum",
+					"group": "navigation@100"
+				}
+			]
 		},
 		"languages": [
 			{
