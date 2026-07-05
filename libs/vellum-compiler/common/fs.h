@@ -15,6 +15,8 @@ void writeBinaryToFile(const fs::path& path, std::string_view content);
 
 std::string filenameWithoutExt(std::string_view path);
 
+fs::path canonicalPathKey(const fs::path& path);
+
 Vec<fs::path> dedupePathsPreserveOrder(const Vec<fs::path>& paths);
 }  // namespace common
 }  // namespace vellum

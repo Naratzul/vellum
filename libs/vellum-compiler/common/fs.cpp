@@ -9,8 +9,7 @@
 namespace vellum {
 namespace common {
 
-namespace {
-fs::path makePathKey(const fs::path& path) {
+fs::path canonicalPathKey(const fs::path& path) {
   std::error_code ec;
   fs::path p = fs::weakly_canonical(path, ec);
   if (ec) {
@@ -20,7 +19,6 @@ fs::path makePathKey(const fs::path& path) {
   }
   return p;
 }
-}  // namespace
 
 std::string readFileContent(const fs::path& path) {
   if (!fs::exists(path)) {
@@ -55,7 +53,7 @@ Vec<fs::path> dedupePathsPreserveOrder(const Vec<fs::path>& paths) {
   Set<fs::path> seen;
   seen.reserve(paths.size() * 2);
   for (const auto& s : paths) {
-    auto key = makePathKey(s);
+    auto key = canonicalPathKey(s);
     if (seen.insert(std::move(key)).second) out.push_back(s);
   }
   return out;

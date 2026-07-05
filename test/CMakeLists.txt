@@ -11,6 +11,7 @@ add_executable(tests
     unit/mock/mock_lexer.cpp
 
     unit/compiler_tests.cpp
+    unit/import_library_tests.cpp
     unit/lexer_tests.cpp
     unit/parser_tests.cpp
     unit/papyrus_parser_tests.cpp

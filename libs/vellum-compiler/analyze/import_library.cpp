@@ -2,6 +2,7 @@
 
 #include <format>
 
+#include "common/fs.h"
 #include "common/os.h"
 #include "common/string_set.h"
 #include "vellum/vellum_identifier.h"
@@ -30,7 +31,12 @@ void ImportLibrary::scanImportPaths(const Vec<fs::path>& importPaths) {
         }
 
         VellumIdentifier name(StringSet::insert(filename));
-        if (importNameToModule.contains(name)) {
+        if (auto it = importNameToModule.find(name);
+            it != importNameToModule.end()) {
+          if (canonicalPathKey(it->second->getFilePath()) ==
+              canonicalPathKey(entry.path())) {
+            continue;
+          }
           throw std::runtime_error(
               std::format("Duplicate import name detected: {} in {}",
                           name.toString(), pathToUtf8(entry.path())));
