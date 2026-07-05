@@ -21,6 +21,7 @@
 #error VELLUM_SENTRY_RELEASE must be defined by CMake
 #endif
 
+using vellum::common::Opt;
 using vellum::common::Vec;
 
 namespace {
@@ -59,6 +60,8 @@ int entryPoint(int argc, char* argv[]) {
   options.add_options()("h,help", "Print help")("v,version", "Print version")(
       "f,file", "Input file", cxxopts::value<fs::path>())(
       "i,import", "Import directory paths", cxxopts::value<Vec<fs::path>>())(
+      "o,output", "Output directory for the compiled .pex file",
+      cxxopts::value<fs::path>())(
       "r,release",
       "Omit PEX source line mapping (default: emit line mapping like Papyrus)",
       cxxopts::value<bool>()->default_value("false"))(
@@ -106,13 +109,21 @@ int entryPoint(int argc, char* argv[]) {
   importPaths = vellum::common::dedupePathsPreserveOrder(importPaths);
 
   const bool emitDebugInfo = !result["release"].as<bool>();
+
+  Opt<fs::path> outputDirectory;
+  if (result.count("output")) {
+    outputDirectory = sanitizeCliPath(result["output"].as<fs::path>());
+    std::cout << "Output directory: " << *outputDirectory << std::endl;
+  }
+
   std::cout << "Compiling " << inputFile.relative_path() << std::endl;
 
   bool runResult = false;
 
   vellum::diag::runGuarded(
       [&] {
-        runResult = vellum::Vellum().run(inputFile, importPaths, emitDebugInfo);
+        runResult = vellum::Vellum().run(inputFile, importPaths, emitDebugInfo,
+                                         outputDirectory);
       },
       [&](const std::exception& e) {
         std::cerr << e.what() << std::endl;

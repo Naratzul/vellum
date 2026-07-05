@@ -24,6 +24,7 @@ Install from a VSIX (not published on the VS Code Marketplace yet):
 | Setting | Description |
 | --- | --- |
 | `vellum.importPaths` | Extra directories to search for Vellum imports. Supports absolute paths and `${workspaceFolder}`. |
+| `vellum.outputDirectory` | Directory for compiled `.pex` files. When empty, `.pex` is written next to the source file. Supports absolute paths and `${workspaceFolder}`. |
 | `vellum.trace.server` | Trace LSP traffic (`off`, `messages`, `verbose`). |
 | `vellum.languageServerPath` | Optional path to a `vellum-lsp` executable. When empty, the bundled server under `server/<platform>` is used. |
 
@@ -34,7 +35,8 @@ Example `settings.json` for a Skyrim mod project:
   "vellum.importPaths": [
     "${workspaceFolder}/Scripts/Source",
     "C:/Program Files (x86)/Steam/steamapps/common/Skyrim Special Edition/Data/Source/Scripts"
-  ]
+  ],
+  "vellum.outputDirectory": "${workspaceFolder}/Scripts"
 }
 ```
 

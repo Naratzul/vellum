@@ -34,7 +34,38 @@ Vec<fs::path> parseImportPathsFromArray(const lsp::json::Any& pathsAny) {
   return out;
 }
 
-Vec<fs::path> parseImportPathsFromInit(const lsp::InitializeParams& params) {
+Opt<fs::path> parseOutputDirectoryFromString(
+    const lsp::json::Any& pathAny) {
+  if (!pathAny.isString()) {
+    return std::nullopt;
+  }
+
+  const auto& value = pathAny.string();
+  if (value.empty()) {
+    return std::nullopt;
+  }
+
+  return fs::path(value);
+}
+
+struct VellumSettings {
+  Vec<fs::path> importPaths;
+  Opt<fs::path> outputDirectory;
+};
+
+VellumSettings parseVellumSettingsFromObject(const lsp::json::Object& obj) {
+  VellumSettings settings;
+  if (obj.contains("importPaths")) {
+    settings.importPaths = parseImportPathsFromArray(obj.get("importPaths"));
+  }
+  if (obj.contains("outputDirectory")) {
+    settings.outputDirectory =
+        parseOutputDirectoryFromString(obj.get("outputDirectory"));
+  }
+  return settings;
+}
+
+VellumSettings parseVellumSettingsFromInit(const lsp::InitializeParams& params) {
   if (!params.initializationOptions) {
     return {};
   }
@@ -44,15 +75,10 @@ Vec<fs::path> parseImportPathsFromInit(const lsp::InitializeParams& params) {
     return {};
   }
 
-  const auto& obj = any.object();
-  if (!obj.contains("importPaths")) {
-    return {};
-  }
-
-  return parseImportPathsFromArray(obj.get("importPaths"));
+  return parseVellumSettingsFromObject(any.object());
 }
 
-Vec<fs::path> parseImportPathsFromConfiguration(
+VellumSettings parseVellumSettingsFromConfiguration(
     const lsp::DidChangeConfigurationParams& params) {
   if (!params.settings.isObject()) {
     return {};
@@ -68,18 +94,14 @@ Vec<fs::path> parseImportPathsFromConfiguration(
     return {};
   }
 
-  const auto& vellum = vellumAny.object();
-  if (!vellum.contains("importPaths")) {
-    return {};
-  }
-
-  return parseImportPathsFromArray(vellum.get("importPaths"));
+  return parseVellumSettingsFromObject(vellumAny.object());
 }
 }  // namespace
 
 namespace vellum {
 using common::fs::path;
 using common::makeShared;
+using common::Opt;
 
 LspServer::LspServer()
     : connection(lsp::io::standardIO()), messageHandler(connection) {
@@ -92,6 +114,16 @@ bool LspServer::run() {
   }
 
   return isShutdownRequested;
+}
+
+void LspServer::applyOutputDirectory(Opt<path> newOutputDirectory) {
+  outputDirectory = std::move(newOutputDirectory);
+
+  if (outputDirectory) {
+    logMsg("Output directory: {}", outputDirectory->string());
+  } else {
+    logMsg("Output directory: (next to source file)");
+  }
 }
 
 void LspServer::applyImportPaths(Vec<path> importPaths) {
@@ -125,7 +157,9 @@ void LspServer::registerHandlers() {
       .add<lsp::requests::Initialize>(
           [this](lsp::requests::Initialize::Params&& params) {
             logMsg("Received Initialize message");
-            applyImportPaths(parseImportPathsFromInit(params));
+            const VellumSettings settings = parseVellumSettingsFromInit(params);
+            applyImportPaths(settings.importPaths);
+            applyOutputDirectory(settings.outputDirectory);
 
             return lsp::requests::Initialize::Result{
                 .capabilities =
@@ -160,7 +194,10 @@ void LspServer::registerHandlers() {
           [this](lsp::notifications::Workspace_DidChangeConfiguration::Params&&
                      params) {
             logMsg("Received workspace/didChangeConfiguration");
-            applyImportPaths(parseImportPathsFromConfiguration(params));
+            const VellumSettings settings =
+                parseVellumSettingsFromConfiguration(params);
+            applyImportPaths(settings.importPaths);
+            applyOutputDirectory(settings.outputDirectory);
             requestDiagnosticAndSemanticRefresh();
           })
       .add<lsp::notifications::TextDocument_DidOpen>(

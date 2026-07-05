@@ -21,11 +21,13 @@
 namespace vellum {
 using common::makeShared;
 using common::makeUnique;
+using common::Opt;
 using common::Unique;
 
 bool Vellum::run(const fs::path& inputFile,
                  const Vec<fs::path>& importPaths,
-                 bool emitDebugInfo) {
+                 bool emitDebugInfo,
+                 Opt<fs::path> outputDirectory) {
   const std::string& sourceCode = common::readFileContent(inputFile);
   const auto filename = common::pathToUtf8(inputFile.stem());
 
@@ -76,8 +78,20 @@ bool Vellum::run(const fs::path& inputFile,
     return false;
   }
 
-  auto outputFile = inputFile;
-  outputFile.replace_extension(fs::path(".pex"));
+  fs::path outputFile;
+  if (outputDirectory) {
+    std::error_code ec;
+    fs::create_directories(*outputDirectory, ec);
+    if (ec) {
+      throw std::runtime_error("Failed to create output directory: " +
+                               common::pathToUtf8(*outputDirectory) + " (" +
+                               ec.message() + ")");
+    }
+    outputFile = *outputDirectory / (inputFile.stem().string() + ".pex");
+  } else {
+    outputFile = inputFile;
+    outputFile.replace_extension(fs::path(".pex"));
+  }
 
   pexFile.writeToFile(outputFile);
 

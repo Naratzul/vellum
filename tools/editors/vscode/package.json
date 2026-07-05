@@ -49,6 +49,12 @@
 					},
 					"description": "Additional directories to search for Vellum imports. Supports absolute paths and ${workspaceFolder}."
 				},
+				"vellum.outputDirectory": {
+					"scope": "resource",
+					"type": "string",
+					"default": "",
+					"description": "Directory where compiled .pex files are written. When empty, .pex files are written next to the source .vel file. Supports absolute paths and ${workspaceFolder}."
+				},
 				"vellum.languageServerPath": {
 					"scope": "window",
 					"type": "string",

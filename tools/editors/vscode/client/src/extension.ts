@@ -66,6 +66,11 @@ export function activate(context: ExtensionContext) {
 		.map(p => expandWorkspaceFolder(p, wsFolder))
 		.map(p => path.normalize(p))
 
+	const outputDirectoryRaw = cfg.get<string>("outputDirectory", "").trim();
+	const outputDirectory = outputDirectoryRaw
+		? path.normalize(expandWorkspaceFolder(outputDirectoryRaw, wsFolder))
+		: undefined;
+
 	const serverModule = resolveServerModule(context, cfg);
 	if (!serverModule) {
 		return;
@@ -89,7 +94,8 @@ export function activate(context: ExtensionContext) {
 	const clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: 'file', language: 'vellum' }],
 		initializationOptions: {
-			importPaths: importPaths
+			importPaths: importPaths,
+			outputDirectory: outputDirectory,
 		},
 		synchronize: {
 			configurationSection: 'vellum',
