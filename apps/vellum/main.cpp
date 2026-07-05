@@ -1,10 +1,14 @@
 #include "common/os.h"
 #define CXXOPTS_VECTOR_DELIMITER ';'
 
+#include <algorithm>
 #include <cstdlib>
 #include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
 
 #include "common/fs.h"
 #include "common/string_utils.h"
@@ -40,6 +44,141 @@ fs::path sanitizeCliPath(const fs::path& path) {
   return fs::path(raw);
 }
 
+bool isVelSourceFile(const fs::path& path) {
+  const auto ext = path.extension().string();
+  return ext == ".vel";
+}
+
+Vec<fs::path> discoverVelSources(const fs::path& directory, bool recursive) {
+  if (!fs::exists(directory)) {
+    throw std::runtime_error("Input directory does not exist: " +
+                             vellum::common::pathToUtf8(directory));
+  }
+  if (!fs::is_directory(directory)) {
+    throw std::runtime_error("Input path is not a directory: " +
+                             vellum::common::pathToUtf8(directory));
+  }
+
+  Vec<fs::path> files;
+  const auto collectFile = [&](const fs::directory_entry& entry) {
+    if (!entry.is_regular_file()) {
+      return;
+    }
+    if (!isVelSourceFile(entry.path())) {
+      return;
+    }
+    files.push_back(fs::absolute(entry.path()));
+  };
+
+  if (recursive) {
+    for (const auto& entry : fs::recursive_directory_iterator(directory)) {
+      collectFile(entry);
+    }
+  } else {
+    for (const auto& entry : fs::directory_iterator(directory)) {
+      collectFile(entry);
+    }
+  }
+
+  std::sort(files.begin(), files.end());
+  return files;
+}
+
+void validateUniqueScriptNames(const Vec<fs::path>& files) {
+  using vellum::common::pathToUtf8;
+
+  std::unordered_map<std::string, fs::path> stems;
+  stems.reserve(files.size() * 2);
+
+  for (const auto& file : files) {
+    const std::string stem = pathToUtf8(file.stem());
+    const auto [it, inserted] = stems.emplace(stem, file);
+    if (!inserted) {
+      throw std::runtime_error(
+          "Duplicate script name '" + stem + "' in batch: " +
+          pathToUtf8(it->second) + " and " + pathToUtf8(file));
+    }
+  }
+}
+
+Vec<fs::path> buildBaseImportPaths(const Vec<fs::path>& cliImportPaths) {
+  Vec<fs::path> importPaths;
+  importPaths.push_back(fs::current_path());
+  importPaths.insert(importPaths.end(), cliImportPaths.begin(),
+                     cliImportPaths.end());
+  return vellum::common::dedupePathsPreserveOrder(importPaths);
+}
+
+Vec<fs::path> buildImportPathsForFile(const fs::path& inputFile,
+                                      const Vec<fs::path>& baseImportPaths,
+                                      const Opt<fs::path>& batchRoot) {
+  Vec<fs::path> importPaths = baseImportPaths;
+  if (batchRoot) {
+    importPaths.push_back(*batchRoot);
+  } else {
+    importPaths.push_back(inputFile.parent_path());
+  }
+  return vellum::common::dedupePathsPreserveOrder(importPaths);
+}
+
+struct CompileOptions {
+  Vec<fs::path> baseImportPaths;
+  Opt<fs::path> batchRoot;
+  bool emitDebugInfo;
+  Opt<fs::path> outputDirectory;
+};
+
+void onStdException(const std::exception& e) {
+  std::cerr << e.what() << std::endl;
+  vellum::diag::captureException(e, "main");
+}
+
+void onUnknownException() {
+  std::cerr << "Non-std exception" << std::endl;
+  vellum::diag::captureUnknown("main");
+}
+
+bool compileOneFile(const fs::path& inputFile, const CompileOptions& options) {
+  const Vec<fs::path> importPaths =
+      buildImportPathsForFile(inputFile, options.baseImportPaths,
+                              options.batchRoot);
+
+  return vellum::Vellum().run(inputFile, importPaths, options.emitDebugInfo,
+                              options.outputDirectory);
+}
+
+int compileBatch(const Vec<fs::path>& files, const CompileOptions& options) {
+  int succeeded = 0;
+  int failed = 0;
+
+  for (const auto& file : files) {
+    std::cout << "Compiling " << file.relative_path() << " ... ";
+
+    bool ok = false;
+    vellum::diag::runGuarded(
+        [&] { ok = compileOneFile(file, options); },
+        [](const std::exception& e) { onStdException(e); },
+        []() { onUnknownException(); });
+
+    if (ok) {
+      std::cout << "OK" << std::endl;
+      ++succeeded;
+    } else {
+      std::cout << "FAILED" << std::endl;
+      ++failed;
+    }
+  }
+
+  std::cout << "---" << std::endl;
+  std::cout << "Compiled " << succeeded << "/" << files.size();
+  if (failed > 0) {
+    std::cout << " (" << failed << " failed)";
+  }
+  std::cout << std::endl;
+
+  return failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
 vellum::diag::CrashReportingOptions crashReportingOptions(bool enabled) {
   vellum::diag::CrashReportingOptions options{
       .appName = "vellum",
@@ -58,10 +197,15 @@ vellum::diag::CrashReportingOptions crashReportingOptions(bool enabled) {
 int entryPoint(int argc, char* argv[]) {
   cxxopts::Options options("vellum", "Vellum Compiler");
   options.add_options()("h,help", "Print help")("v,version", "Print version")(
-      "f,file", "Input file", cxxopts::value<fs::path>())(
+      "f,file", "Input .vel file or directory of sources",
+      cxxopts::value<fs::path>())(
       "i,import", "Import directory paths", cxxopts::value<Vec<fs::path>>())(
       "o,output", "Output directory for the compiled .pex file",
       cxxopts::value<fs::path>())(
+      "no-recursive",
+      "When -f is a directory, only compile sources in that directory (not "
+      "subdirectories)",
+      cxxopts::value<bool>()->default_value("false"))(
       "r,release",
       "Omit PEX source line mapping (default: emit line mapping like Papyrus)",
       cxxopts::value<bool>()->default_value("false"))(
@@ -83,31 +227,26 @@ int entryPoint(int argc, char* argv[]) {
   }
 
   if (!result.count("file")) {
-    std::cerr << "No input file given." << std::endl;
+    std::cerr << "No input file or directory given." << std::endl;
     return EXIT_FAILURE;
   }
 
-  Vec<fs::path> importPaths;
+  Vec<fs::path> cliImportPaths;
   if (result.count("import")) {
-    importPaths = result["import"].as<Vec<fs::path>>();
+    cliImportPaths = result["import"].as<Vec<fs::path>>();
 
-    for (auto& path : importPaths) {
+    for (auto& path : cliImportPaths) {
       path = sanitizeCliPath(path);
     }
 
     std::cout << "Import paths: ";
-    for (const auto& path : importPaths) {
+    for (const auto& path : cliImportPaths) {
       std::cout << "- " << path << std::endl;
     }
   }
 
-  const auto inputFile = sanitizeCliPath(result["file"].as<fs::path>());
-
-  importPaths.insert(importPaths.begin(), inputFile.parent_path());
-  importPaths.insert(importPaths.begin(), fs::current_path());
-
-  importPaths = vellum::common::dedupePathsPreserveOrder(importPaths);
-
+  const auto inputPath = sanitizeCliPath(result["file"].as<fs::path>());
+  const bool recursive = !result["no-recursive"].as<bool>();
   const bool emitDebugInfo = !result["release"].as<bool>();
 
   Opt<fs::path> outputDirectory;
@@ -116,25 +255,58 @@ int entryPoint(int argc, char* argv[]) {
     std::cout << "Output directory: " << *outputDirectory << std::endl;
   }
 
-  std::cout << "Compiling " << inputFile.relative_path() << std::endl;
+  const CompileOptions compileOptions{
+      .baseImportPaths = buildBaseImportPaths(cliImportPaths),
+      .batchRoot = std::nullopt,
+      .emitDebugInfo = emitDebugInfo,
+      .outputDirectory = outputDirectory,
+  };
 
-  bool runResult = false;
-
+  int exitCode = EXIT_FAILURE;
   vellum::diag::runGuarded(
       [&] {
-        runResult = vellum::Vellum().run(inputFile, importPaths, emitDebugInfo,
-                                         outputDirectory);
-      },
-      [&](const std::exception& e) {
-        std::cerr << e.what() << std::endl;
-        vellum::diag::captureException(e, "main");
-      },
-      [&] {
-        std::cerr << "Non-std exception" << std::endl;
-        vellum::diag::captureUnknown("main");
-      });
+        if (fs::is_directory(inputPath)) {
+          std::cout << "Scanning " << inputPath.relative_path() << " ("
+                    << (recursive ? "recursive" : "non-recursive") << ") ..."
+                    << std::endl;
 
-  return runResult ? EXIT_SUCCESS : EXIT_FAILURE;
+          Vec<fs::path> files = discoverVelSources(inputPath, recursive);
+          if (files.empty()) {
+            std::cerr << "No .vel or .vellum files found in "
+                      << inputPath.relative_path() << std::endl;
+            return;
+          }
+
+          validateUniqueScriptNames(files);
+          std::cout << "Found " << files.size() << " source file"
+                    << (files.size() == 1 ? "" : "s") << std::endl;
+
+          CompileOptions batchOptions = compileOptions;
+          batchOptions.batchRoot = fs::absolute(inputPath);
+          exitCode = compileBatch(files, batchOptions);
+          return;
+        }
+
+        if (!fs::is_regular_file(inputPath)) {
+          std::cerr << "Input path is not a file or directory: " << inputPath
+                    << std::endl;
+          return;
+        }
+
+        if (!isVelSourceFile(inputPath)) {
+          std::cerr << "Input file must have a .vel extension: " << inputPath
+                    << std::endl;
+          return;
+        }
+
+        std::cout << "Compiling " << inputPath.relative_path() << std::endl;
+        exitCode = compileOneFile(inputPath, compileOptions) ? EXIT_SUCCESS
+                                                             : EXIT_FAILURE;
+      },
+      [](const std::exception& e) { onStdException(e); },
+      []() { onUnknownException(); });
+
+  return exitCode;
 }
 }  // namespace
 
