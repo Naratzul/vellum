@@ -1,4 +1,4 @@
-#include <catch2/catch_test_macros.hpp>
+﻿#include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_all.hpp>
 #include <filesystem>
 #include <fstream>
@@ -17,6 +17,8 @@
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
 #include "lexer/token.h"
+#include "lexer/lexer.h"
+#include "parser/parser.h"
 #include "pex/pex_debug_info.h"
 #include "pex/pex_file.h"
 #include "pex/pex_function.h"
@@ -1822,4 +1824,54 @@ TEST_CASE("CompileModifiers_HiddenConditionalAutoProperty") {
   REQUIRE(file.registeredUserFlags().size() == 2);
   CHECK(findRegisteredFlagBitIndex(file, "hidden") == 0);
   CHECK(findRegisteredFlagBitIndex(file, "conditional") == 1);
+}
+
+TEST_CASE("BuildImportGraph_SkipsCompilingScript_NoDuplicateDiagnostics") {
+  const fs::path importDir =
+      fs::temp_directory_path() / "vellum_self_import_test";
+  const fs::path scriptPath = importDir / "SelfRefScript.vel";
+  fs::create_directories(importDir);
+
+  const std::string source = R"(script SelfRefScript {
+  fun test() {
+    SelfRefScript.foo()
+  }
+  native event lol() {}
+}
+)";
+
+  {
+    std::ofstream out(scriptPath);
+    out << source;
+  }
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{importDir});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  const std::string scriptName = "SelfRefScript";
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier(scriptName)),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  auto lexer = makeUnique<Lexer>(source);
+  Parser parser(std::move(lexer), errorHandler);
+  ParserResult parseResult = parser.parse();
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  TypeCollector typeCollector;
+  typeCollector.collect(parseResult.declarations);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes(),
+                                   VellumIdentifier(scriptName));
+
+  SemanticAnalyzer semantic(errorHandler, resolver, scriptName);
+  semantic.analyze(std::move(parseResult.declarations));
+
+  const auto invalidModifierCount = static_cast<int>(std::ranges::count_if(
+      errorHandler->getErrors(), [](const DiagnosticMessage& diagnostic) {
+        return diagnostic.errorKind == CompilerErrorKind::InvalidModifier;
+      }));
+  CHECK(invalidModifierCount == 1);
+
+  fs::remove_all(importDir);
 }

@@ -55,6 +55,14 @@ async function saveIfDirty(document: TextDocument): Promise<boolean> {
 	return document.save();
 }
 
+function quoteForLog(value: string): string {
+	return value.includes(' ') ? `"${value}"` : value;
+}
+
+function formatCommandForLog(compilerPath: string, args: string[]): string {
+	return [compilerPath, ...args].map(quoteForLog).join(' ');
+}
+
 function runCompiler(
 	compilerPath: string,
 	args: string[],
@@ -62,12 +70,12 @@ function runCompiler(
 	output: OutputChannel,
 ): Promise<number> {
 	return new Promise((resolve, reject) => {
-		output.appendLine(`> ${compilerPath} ${args.join(' ')}`);
+		output.appendLine(`> ${formatCommandForLog(compilerPath, args)}`);
 		output.show(true);
 
 		const child = spawn(compilerPath, args, {
 			cwd,
-			shell: process.platform === 'win32',
+			shell: false,
 		});
 
 		child.stdout.on('data', (data: Buffer | string) => {

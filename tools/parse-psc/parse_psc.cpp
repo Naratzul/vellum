@@ -59,7 +59,8 @@ int run(const fs::path& inputPath) {
   TypeCollector typeCollector;
   typeCollector.collect(result.declarations);
 
-  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes(),
+                                   VellumIdentifier(filename));
 
   collectDeclarations(result.declarations, errorHandler, resolver, filename);
 

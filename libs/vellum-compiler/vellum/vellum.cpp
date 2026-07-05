@@ -51,7 +51,8 @@ bool Vellum::run(const fs::path& inputFile,
   TypeCollector typeCollector;
   typeCollector.collect(parseResult.declarations);
 
-  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes(),
+                                   VellumIdentifier(filename));
 
   SemanticAnalyzer semantic(errorHandler, resolver, filename);
   const SemanticAnalyzeResult semanticResult =

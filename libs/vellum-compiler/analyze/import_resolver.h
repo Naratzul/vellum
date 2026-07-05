@@ -2,6 +2,7 @@
 
 #include "analyze/import_library.h"
 #include "common/types.h"
+#include "vellum/vellum_identifier.h"
 #include "vellum/vellum_object.h"
 
 namespace vellum {
@@ -15,7 +16,8 @@ class ImportResolver {
   ImportResolver(const Shared<CompilerErrorHandler>& errorHandler,
                  const Shared<ImportLibrary>& importLibrary);
 
-  void buildImportGraph(const Set<VellumIdentifier>& importedNames);
+  void buildImportGraph(const Set<VellumIdentifier>& importedNames,
+                        Opt<VellumIdentifier> compilingScript = std::nullopt);
 
   // Parse and resolve a single import module (for completion on unreferenced types).
   void ensureModule(VellumIdentifier name);
@@ -26,6 +28,7 @@ class ImportResolver {
   Shared<CompilerErrorHandler> errorHandler;
   Shared<ImportLibrary> importLibrary;
   Set<VellumIdentifier> discoveredTypes;
+  Opt<VellumIdentifier> compilingScript;
 
   void doBuildImportGraph(const Set<VellumIdentifier>& importedNames);
   void doResolveAllModules();

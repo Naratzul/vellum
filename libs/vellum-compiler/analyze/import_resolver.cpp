@@ -12,6 +12,7 @@
 #include "lexer/lexer.h"
 #include "parser/papyrus_lexer.h"
 #include "parser/papyrus_parser.h"
+#include "vellum/vellum_identifier.h"
 #include "vellum/vellum_literal.h"
 
 namespace vellum {
@@ -22,10 +23,13 @@ ImportResolver::ImportResolver(const Shared<CompilerErrorHandler>& errorHandler,
     : errorHandler(errorHandler), importLibrary(importLibrary) {}
 
 void ImportResolver::buildImportGraph(
-    const Set<VellumIdentifier>& importedNames) {
+    const Set<VellumIdentifier>& importedNames,
+    Opt<VellumIdentifier> compilingScript) {
   discoveredTypes.clear();
+  this->compilingScript = std::move(compilingScript);
   doBuildImportGraph(importedNames);
   doResolveAllModules();
+  this->compilingScript = std::nullopt;
 }
 
 void ImportResolver::ensureModule(VellumIdentifier name) {
@@ -51,6 +55,11 @@ const Shared<Resolver> ImportResolver::getImportResolver(
 void ImportResolver::doBuildImportGraph(
     const Set<VellumIdentifier>& importedNames) {
   for (const auto& name : importedNames) {
+    if (compilingScript &&
+        equalsCaseInsensitive(name, *compilingScript)) {
+      continue;
+    }
+
     auto import = importLibrary->findModule(name);
 
     auto [_, added] = discoveredTypes.insert(name);

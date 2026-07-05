@@ -94,9 +94,9 @@ void validateUniqueScriptNames(const Vec<fs::path>& files) {
     const std::string stem = pathToUtf8(file.stem());
     const auto [it, inserted] = stems.emplace(stem, file);
     if (!inserted) {
-      throw std::runtime_error(
-          "Duplicate script name '" + stem + "' in batch: " +
-          pathToUtf8(it->second) + " and " + pathToUtf8(file));
+      throw std::runtime_error("Duplicate script name '" + stem +
+                               "' in batch: " + pathToUtf8(it->second) +
+                               " and " + pathToUtf8(file));
     }
   }
 }
@@ -139,9 +139,8 @@ void onUnknownException() {
 }
 
 bool compileOneFile(const fs::path& inputFile, const CompileOptions& options) {
-  const Vec<fs::path> importPaths =
-      buildImportPathsForFile(inputFile, options.baseImportPaths,
-                              options.batchRoot);
+  const Vec<fs::path> importPaths = buildImportPathsForFile(
+      inputFile, options.baseImportPaths, options.batchRoot);
 
   return vellum::Vellum().run(inputFile, importPaths, options.emitDebugInfo,
                               options.outputDirectory);
@@ -152,13 +151,12 @@ int compileBatch(const Vec<fs::path>& files, const CompileOptions& options) {
   int failed = 0;
 
   for (const auto& file : files) {
-    std::cout << "Compiling " << file.relative_path() << " ... ";
+    std::cout << "Compiling " << file.relative_path() << " ... " << std::endl;
 
     bool ok = false;
-    vellum::diag::runGuarded(
-        [&] { ok = compileOneFile(file, options); },
-        [](const std::exception& e) { onStdException(e); },
-        []() { onUnknownException(); });
+    vellum::diag::runGuarded([&] { ok = compileOneFile(file, options); },
+                             [](const std::exception& e) { onStdException(e); },
+                             []() { onUnknownException(); });
 
     if (ok) {
       std::cout << "OK" << std::endl;
@@ -198,8 +196,8 @@ int entryPoint(int argc, char* argv[]) {
   cxxopts::Options options("vellum", "Vellum Compiler");
   options.add_options()("h,help", "Print help")("v,version", "Print version")(
       "f,file", "Input .vel file or directory of sources",
-      cxxopts::value<fs::path>())(
-      "i,import", "Import directory paths", cxxopts::value<Vec<fs::path>>())(
+      cxxopts::value<fs::path>())("i,import", "Import directory paths",
+                                  cxxopts::value<Vec<fs::path>>())(
       "o,output", "Output directory for the compiled .pex file",
       cxxopts::value<fs::path>())(
       "no-recursive",
@@ -213,8 +211,8 @@ int entryPoint(int argc, char* argv[]) {
       cxxopts::value<bool>()->default_value("false"));
 
   auto result = options.parse(argc, argv);
-  const vellum::diag::SentrySession sentrySession(crashReportingOptions(
-      !result["disable-crash-reporting"].as<bool>()));
+  const vellum::diag::SentrySession sentrySession(
+      crashReportingOptions(!result["disable-crash-reporting"].as<bool>()));
 
   if (result.count("help")) {
     std::cout << options.help() << std::endl;

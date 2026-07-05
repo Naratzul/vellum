@@ -54,7 +54,8 @@ FullAnalyzeOutcome analyzeFull(
   TypeCollector typeCollector;
   typeCollector.collect(navigation.parseResult.declarations);
 
-  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes(),
+                                   VellumIdentifier(scriptName));
 
   SemanticAnalyzer semantic(errorHandler, resolver, scriptName);
   auto semanticResult =
