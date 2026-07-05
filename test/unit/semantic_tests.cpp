@@ -2243,12 +2243,94 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
       VellumType::identifier("testscript"),
       makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
-      std::nullopt, std::move(members)));
+      std::nullopt, std::move(members), conditionalParsedModifiers));
 
   analyzer->analyze(std::move(ast));
 
   REQUIRE_FALSE(errorHandler->hadError());
   REQUIRE_FALSE(errorHandler->hasError(CompilerErrorKind::InvalidModifier));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Semantic_ConditionalVarInNonConditionalScriptRejected") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "stage", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0)), std::nullopt,
+      std::nullopt, conditionalParsedModifiers));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidModifier));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Semantic_ConditionalVarInConditionalScriptAccepted") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "stage", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0)), std::nullopt,
+      std::nullopt, conditionalParsedModifiers));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members), conditionalParsedModifiers));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE_FALSE(errorHandler->hasError(CompilerErrorKind::InvalidModifier));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Semantic_ConditionalAutoPropertyInNonConditionalScriptRejected") {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "flag", VellumType::unresolved("Bool"), "",
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      std::nullopt, Token{}, Token{}, conditionalParsedModifiers));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidModifier));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Semantic_ConditionalOnNonAutoPropertyRejected") {
+  ast::FunctionBody getBody;
+  getBody.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::PropertyDeclaration>(
+      "flag", VellumType::unresolved("Bool"), "",
+      makeUnique<ast::BlockStatement>(std::move(getBody)), std::nullopt,
+      std::nullopt, Token{}, Token{}, conditionalParsedModifiers));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members), conditionalParsedModifiers));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidModifier));
 }
 
 // ============================================================================

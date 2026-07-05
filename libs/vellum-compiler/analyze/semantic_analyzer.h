@@ -39,7 +39,8 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
                          public ast::ExpressionVisitor {
  public:
   SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
-                   const Shared<Resolver>& resolver, std::string_view scriptFilename);
+                   const Shared<Resolver>& resolver,
+                   std::string_view scriptFilename);
 
   SemanticAnalyzeResult analyze(Vec<Unique<ast::Declaration>>&& declarations);
 
@@ -85,6 +86,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   TypeChecker checker;
 
   bool inStaticContext{false};
+  bool isConditionalScript{false};
   int loopDepth{0};
   int loopCount{0};
   int autoStateCount{0};

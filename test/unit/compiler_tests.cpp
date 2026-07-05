@@ -1743,7 +1743,8 @@ TEST_CASE("CompileModifiers_ConditionalVar") {
       makeUnique<ast::LiteralExpression>(VellumLiteral(0)), std::nullopt,
       std::nullopt, conditionalParsedModifiers));
 
-  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers));
+  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers),
+                                                conditionalParsedModifiers);
 
   REQUIRE(file.objects().size() == 1);
   REQUIRE(file.objects()[0].getVariables().size() == 1);
@@ -1782,7 +1783,8 @@ TEST_CASE("CompileModifiers_ConditionalAutoProperty") {
       makeUnique<ast::BlockStatement>(ast::FunctionBody{}), std::nullopt,
       Token{}, Token{}, conditionalParsedModifiers));
 
-  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers));
+  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers),
+                                                conditionalParsedModifiers);
 
   const auto& object = file.objects()[0];
   REQUIRE(object.getProperties().size() == 1);
@@ -1803,7 +1805,8 @@ TEST_CASE("CompileModifiers_HiddenConditionalAutoProperty") {
       makeUnique<ast::BlockStatement>(ast::FunctionBody{}), std::nullopt,
       Token{}, Token{}, hiddenConditionalParsedModifiers));
 
-  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers));
+  pex::PexFile file = compileScriptWithSemantic(std::move(scriptMembers),
+                                                conditionalParsedModifiers);
 
   const auto& object = file.objects()[0];
   REQUIRE(object.getProperties().size() == 1);

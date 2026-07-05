@@ -68,6 +68,8 @@ void SemanticAnalyzer::visitImportDeclaration(
 }
 
 void SemanticAnalyzer::visitScriptDeclaration(ast::ScriptDeclaration& decl) {
+  isConditionalScript = decl.isConditional();
+
   for (const auto& memberDecl : decl.getMemberDecls()) {
     memberDecl->accept(*this);
   }
@@ -107,12 +109,21 @@ void SemanticAnalyzer::visitStateDeclaration(
 }
 
 void SemanticAnalyzer::visitVariableDeclaration(
-    ast::GlobalVariableDeclaration& statement) {
-  if (!modifiersAreValid(statement.getModifiers(),
+    ast::GlobalVariableDeclaration& declaration) {
+  if (!modifiersAreValid(declaration.getModifiers(),
                          VellumModifierContext::Var)) {
     return;
   }
-  (void)statement;
+
+  if (declaration.isConditional() && !isConditionalScript) {
+    for (const auto& mod : declaration.getModifiers()) {
+      if (mod.modifier & VellumModifier::Conditional) {
+        errorHandler->errorAt(mod.location, CompilerErrorKind::InvalidModifier,
+                              "Members with 'conditional' require a "
+                              "'conditional script' declaration.");
+      }
+    }
+  }
 }
 
 void SemanticAnalyzer::visitFunctionDeclaration(
@@ -215,13 +226,23 @@ void SemanticAnalyzer::visitPropertyDeclaration(
     return;
   }
 
-  if (declaration.isConditional() && !declaration.isAutoProperty()) {
+  if (declaration.isConditional()) {
+    Token modifierLocation{};
     for (const auto& mod : declaration.getModifiers()) {
       if (mod.modifier & VellumModifier::Conditional) {
-        errorHandler->errorAt(
-            mod.location, CompilerErrorKind::InvalidModifier,
-            "'conditional' modifier is allowed only for auto properties.");
+        modifierLocation = mod.location;
       }
+    }
+
+    if (!declaration.isAutoProperty()) {
+      errorHandler->errorAt(
+          modifierLocation, CompilerErrorKind::InvalidModifier,
+          "'conditional' modifier is allowed only for auto properties.");
+    } else if (!isConditionalScript) {
+      errorHandler->errorAt(modifierLocation,
+                            CompilerErrorKind::InvalidModifier,
+                            "Members with 'conditional' require a 'conditional "
+                            "script' declaration.");
     }
   }
 

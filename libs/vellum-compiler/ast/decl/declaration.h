@@ -165,7 +165,7 @@ class GlobalVariableDeclaration : public Declaration {
         initializer_(std::move(initializer)),
         nameLocation_(nameLocation),
         typeLocation_(typeLocation),
-        modifiers_(std::move(modifiers)) {}
+        modifiers(std::move(modifiers)) {}
 
   std::string_view name() const { return name_; }
   Opt<VellumType> typeName() const { return typeName_; }
@@ -173,7 +173,10 @@ class GlobalVariableDeclaration : public Declaration {
   const Unique<Expression>& initializer() const { return initializer_; }
   Opt<Token> getNameLocation() const { return nameLocation_; }
   Opt<Token> getTypeLocation() const { return typeLocation_; }
-  const ParsedModifiers& getModifiers() const { return modifiers_; }
+  const ParsedModifiers& getModifiers() const { return modifiers; }
+  bool isConditional() const {
+    return modifiersBitmask(modifiers) & VellumModifier::Conditional;
+  }
 
   VellumValue getValue() const;
 
@@ -190,7 +193,7 @@ class GlobalVariableDeclaration : public Declaration {
   Unique<Expression> initializer_;
   Opt<Token> nameLocation_;
   Opt<Token> typeLocation_;
-  ParsedModifiers modifiers_;
+  ParsedModifiers modifiers;
 };
 
 struct FunctionParameter {
