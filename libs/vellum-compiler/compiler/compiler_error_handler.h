@@ -102,6 +102,8 @@ enum class CompilerErrorKind {
 
   DuplicateModifier,
   InvalidModifier,
+
+  AmbiguousImportCall,
 };
 
 enum class CompilerWarningKind {};

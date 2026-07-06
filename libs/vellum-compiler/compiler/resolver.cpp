@@ -59,16 +59,15 @@ Opt<VellumValue> Resolver::resolveIdentifier(
   }
 
   if (auto func = builtinFunctions->getFunction(identifier)) {
-    return VellumValue(*func);
+    return *func;
   }
 
-  if (parentType && parentType->getState() == VellumTypeState::Identifier) {
-    if (auto func = resolveParentFunction(identifier)) {
-      return VellumValue(*func);
-    }
-    if (auto prop = resolveParentProperty(identifier)) {
-      return prop;
-    }
+  if (auto func = resolveParentFunction(identifier)) {
+    return *func;
+  }
+
+  if (auto prop = resolveParentProperty(identifier)) {
+    return prop;
   }
 
   return resolveScriptType(identifier);
@@ -188,22 +187,16 @@ Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
     if (auto func = builtinFunctions->getFunction(function)) {
       return func;
     }
-    if (parentType && parentType->getState() == VellumTypeState::Identifier) {
-      if (auto module = importLibrary->findModule(parentType->asIdentifier())) {
-        if (auto parentResolver = module->getResolver()) {
-          return parentResolver->resolveFunction(*parentType, function);
-        }
-      }
+
+    if (auto func = resolveParentFunction(function)) {
+      return func;
     }
+
     return std::nullopt;
   }
 
   if (type.getState() == VellumTypeState::Identifier) {
-    if (auto module = importLibrary->findModule(type.asIdentifier())) {
-      if (auto resolver = module->getResolver()) {
-        return resolver->resolveFunction(type, function);
-      }
-    }
+    return resolveModuleFunction(type, function);
   }
 
   return std::nullopt;
@@ -214,12 +207,29 @@ Opt<VellumFunction> Resolver::resolveParentFunction(
   if (!parentType || parentType->getState() != VellumTypeState::Identifier) {
     return std::nullopt;
   }
-  if (auto module = importLibrary->findModule(parentType->asIdentifier())) {
-    if (auto parentResolver = module->getResolver()) {
-      return parentResolver->resolveFunction(*parentType, function);
+  return resolveModuleFunction(*parentType, function);
+}
+
+Vec<ImportedFunction> Resolver::resolveImportedFunction(
+    VellumIdentifier function) const {
+  Vec<ImportedFunction> result;
+
+  for (const auto& importName : importedObjects) {
+    auto module = importLibrary->findModule(importName);
+    if (!module) continue;
+
+    auto resolver = module->getResolver();
+    if (!resolver) continue;
+
+    auto type = resolver->getObjectType();
+    if (auto func = resolver->resolveFunction(type, function)) {
+      if (func->isStatic()) {
+        result.emplace_back(type, *func);
+      }
     }
   }
-  return std::nullopt;
+
+  return result;
 }
 
 Opt<VellumValue> Resolver::resolveParentProperty(
@@ -393,4 +403,19 @@ bool Resolver::isScriptSubtypeOf(VellumIdentifier derived,
   return false;
 }
 
+Opt<VellumFunction> Resolver::resolveModuleFunction(
+    VellumType type, VellumIdentifier function) const {
+  auto module = importLibrary->findModule(type.asIdentifier());
+  if (!module) {
+    return std::nullopt;
+  }
+
+  auto resolver = module->getResolver();
+  if (!resolver) {
+    return std::nullopt;
+  }
+
+  auto func = resolver->resolveFunction(type, function);
+  return func;
+}
 }  // namespace vellum

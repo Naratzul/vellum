@@ -3,6 +3,7 @@
 #include <cassert>
 #include <format>
 #include <optional>
+#include <string>
 
 #include "analyze/declaration_analysis.h"
 #include "ast/decl/declaration.h"
@@ -34,6 +35,29 @@ bool isStateLifecycleHookName(const VellumIdentifier& name) {
 bool isValidStateLifecycleHookSignature(const VellumFunction& func) {
   return !func.isStatic() && func.getParameters().empty() &&
          func.getReturnType().isNone();
+}
+
+std::string formatImportedTypeNames(const Vec<ImportedFunction>& imports) {
+  std::string names;
+  for (size_t i = 0; i < imports.size(); ++i) {
+    if (i > 0) {
+      names += ", ";
+    }
+    names += imports[i].object.toString();
+  }
+  return names;
+}
+
+void reportAmbiguousImportCall(const Shared<CompilerErrorHandler>& errorHandler,
+                               const Token& location,
+                               VellumIdentifier functionName,
+                               const Vec<ImportedFunction>& imports) {
+  errorHandler->errorAt(
+      location, CompilerErrorKind::AmbiguousImportCall,
+      "Ambiguous call to '{}': found in multiple imports ({}). Use "
+      "Type.{}() to disambiguate.",
+      functionName.toString(), formatImportedTypeNames(imports),
+      functionName.toString());
 }
 
 }  // namespace
@@ -444,7 +468,19 @@ void SemanticAnalyzer::visitBlockStatement(ast::BlockStatement& statement) {
 
 void SemanticAnalyzer::visitIdentifierExpression(
     ast::IdentifierExpression& expr) {
-  const auto value = resolver->resolveIdentifier(expr.getIdentifier());
+  auto value = resolver->resolveIdentifier(expr.getIdentifier());
+  if (!value) {
+    auto importedFunctions =
+        resolver->resolveImportedFunction(expr.getIdentifier());
+    if (!importedFunctions.empty()) {
+      if (importedFunctions.size() > 1) {
+        reportAmbiguousImportCall(errorHandler, expr.getLocation(),
+                                  expr.getIdentifier(), importedFunctions);
+        return;
+      }
+      value = importedFunctions[0].function;
+    }
+  }
   if (!value) {
     errorHandler->errorAt(
         expr.getLocation(), CompilerErrorKind::UndefinedIdentifier,
@@ -493,9 +529,36 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   const auto& callee = expr.getCallee();
 
   if (callee->isIdentifierExpression()) {
-    expr.setFunctionCall(VellumFunctionCall::methodCall(
-        VellumIdentifier("self"), resolver->getObjectType(),
-        callee->asIdentifier().getIdentifier()));
+    auto funcIdentifier = callee->asIdentifier().getIdentifier();
+    if (auto func = resolver->resolveFunction(resolver->getObjectType(),
+                                              funcIdentifier)) {
+      if (func->isStatic()) {
+        expr.setFunctionCall(VellumFunctionCall::staticCall(
+            resolver->getObjectType(), funcIdentifier));
+      } else {
+        expr.setFunctionCall(VellumFunctionCall::methodCall(
+            VellumIdentifier("self"), resolver->getObjectType(),
+            funcIdentifier));
+      }
+    } else {
+      auto importedFunctions =
+          resolver->resolveImportedFunction(funcIdentifier);
+      if (importedFunctions.size() > 1) {
+        reportAmbiguousImportCall(errorHandler, expr.getLocation(),
+                                  funcIdentifier, importedFunctions);
+        return;
+      }
+      if (importedFunctions.empty()) {
+        errorHandler->errorAt(expr.getLocation(),
+                              CompilerErrorKind::UndefinedFunction,
+                              "Undefined function '{}'.",
+                              funcIdentifier.toString());
+        return;
+      }
+
+      expr.setFunctionCall(VellumFunctionCall::staticCall(
+          importedFunctions[0].object, funcIdentifier));
+    }
   } else if (callee->isPropertyGetExpression()) {
     if (callee->asPropertyGet().getObject()->isSuperExpression()) {
       expr.setFunctionCall(VellumFunctionCall::parentCall(
@@ -544,7 +607,22 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   } else {
     func = resolver->resolveFunction(expr.getFunctionCall()->getObjectType(),
                                      expr.getFunctionCall()->getFunction());
+
+    if (!func && expr.getFunctionCall()->isStatic()) {
+      auto importedFunctions = resolver->resolveImportedFunction(
+          expr.getFunctionCall()->getFunction());
+      if (importedFunctions.size() > 1) {
+        reportAmbiguousImportCall(errorHandler, expr.getCallee()->getLocation(),
+                                  expr.getFunctionCall()->getFunction(),
+                                  importedFunctions);
+        return;
+      }
+      if (importedFunctions.size() == 1) {
+        func = importedFunctions[0].function;
+      }
+    }
   }
+
   if (!func) {
     if (expr.getFunctionCall()->isParentCall()) {
       errorHandler->errorAt(expr.getCallee()->getLocation(),

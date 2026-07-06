@@ -18,6 +18,11 @@ class ImportLibrary;
 class CompilerErrorHandler;
 class BuiltinFunctions;
 
+struct ImportedFunction {
+  VellumType object;
+  VellumFunction function;
+};
+
 class Resolver {
  public:
   Resolver(VellumObject object,
@@ -90,6 +95,9 @@ class Resolver {
 
   Opt<VellumFunction> resolveParentFunction(VellumIdentifier function) const;
 
+  Vec<ImportedFunction> resolveImportedFunction(
+      VellumIdentifier function) const;
+
   Opt<VellumValue> resolveParentProperty(VellumIdentifier member) const;
 
   Opt<VellumVariable> resolveVariable(VellumType type,
@@ -117,5 +125,8 @@ class Resolver {
 
   VellumLiteralType resolveValueType(std::string_view rawType) const;
   VellumType resolveObjectType(std::string_view rawType, Token location) const;
+
+  Opt<VellumFunction> resolveModuleFunction(VellumType type,
+                                            VellumIdentifier function) const;
 };
 }  // namespace vellum
