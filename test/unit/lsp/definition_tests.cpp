@@ -1,5 +1,4 @@
 #include <catch2/catch_test_macros.hpp>
-
 #include <filesystem>
 
 #include "lsp_fixture.h"
@@ -44,7 +43,8 @@ constexpr const char* kSelfProperty = R"(script TrainingMannequin {
 }
 )";
 
-constexpr const char* kSuperProperty = R"(script TrainingMannequin : ObjectReference {
+constexpr const char* kSuperProperty =
+    R"(script TrainingMannequin : ObjectReference {
   fun onHit() {
     super.Enable
   }
@@ -134,15 +134,17 @@ TEST_CASE_METHOD(LspTestFixture, "LspDefinition super property") {
 }
 
 TEST_CASE_METHOD(LspTestFixture, "LspDefinition import name") {
-  setImportPaths(Vec<fs::path>{fs::path(VELLUM_SOURCE_DIR) / "examples"});
+  const path mathExPath = path("/test/MathEx.vel");
+  addParsedVelModule(mathExPath, R"(script MathEx {
+  fun onHit() {}
+}
+)");
   openDoc(kImportMathEx);
   analyze();
-
   const auto links = define(0, 7);
-  const path mathExPath = fs::path(VELLUM_SOURCE_DIR) / "examples" / "MathEx.vel";
   REQUIRE_FALSE(links.empty());
   REQUIRE(LspTestFixture::definesInFile(links, mathExPath));
-  REQUIRE(LspTestFixture::definesOnLine(links, 2));
+  REQUIRE(LspTestFixture::definesOnLine(links, 0));
 }
 
 TEST_CASE_METHOD(LspTestFixture, "LspDefinition returns empty on whitespace") {

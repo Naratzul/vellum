@@ -32,7 +32,7 @@ Compiler output appears in the **Vellum Compiler** output channel.
 | Setting | Description |
 | --- | --- |
 | `vellum.compilerPath` | Path to the `vellum` compiler executable. When empty, runs `vellum` (`vellum.exe` on Windows) from `PATH`. |
-| `vellum.importPaths` | Import directories passed to the compiler and language server. Supports absolute paths and `${workspaceFolder}`. |
+| `vellum.importPaths` | Extra import directories passed to the compiler and language server. Workspace folder(s) are always included. Supports absolute paths and `${workspaceFolder}`. |
 | `vellum.outputDirectory` | Output directory passed to the compiler (`-o`). When empty, `.pex` is written next to the source file. Supports absolute paths and `${workspaceFolder}`. |
 | `vellum.trace.server` | Trace LSP traffic (`off`, `messages`, `verbose`). |
 | `vellum.languageServerPath` | Optional path to a `vellum-lsp` executable. When empty, the bundled server under `server/<platform>` is used. |

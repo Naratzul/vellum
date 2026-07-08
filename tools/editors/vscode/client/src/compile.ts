@@ -5,10 +5,11 @@ import {
 	OutputChannel,
 	TextDocument,
 	WorkspaceConfiguration,
-	WorkspaceFolder,
 	window,
 	workspace,
 } from 'vscode';
+
+import { expandWorkspaceFolder, resolveImportPaths } from './importPaths';
 
 function getCompilerExecutableName(): string {
 	return process.platform === 'win32' ? 'vellum.exe' : 'vellum';
@@ -40,9 +41,7 @@ export function buildCompileArgs(
 	return args;
 }
 
-function getConfigForDocument(
-	document: TextDocument,
-): { cfg: WorkspaceConfiguration; wsFolder: WorkspaceFolder | undefined } {
+function getConfigForDocument(document: TextDocument) {
 	const wsFolder = workspace.getWorkspaceFolder(document.uri);
 	const cfg = workspace.getConfiguration('vellum', wsFolder?.uri);
 	return { cfg, wsFolder };
@@ -98,7 +97,6 @@ function runCompiler(
 
 export async function compileDocument(
 	document: TextDocument,
-	expandWorkspaceFolder: (input: string, wsFolder: WorkspaceFolder | undefined) => string,
 	output: OutputChannel,
 ): Promise<void> {
 	if (document.languageId !== 'vellum' || document.uri.scheme !== 'file') {
@@ -114,10 +112,7 @@ export async function compileDocument(
 	const filePath = document.uri.fsPath;
 	const { cfg, wsFolder } = getConfigForDocument(document);
 
-	const importPaths = cfg
-		.get<string[]>('importPaths', [])
-		.map((p) => expandWorkspaceFolder(p, wsFolder))
-		.map((p) => path.normalize(p));
+	const importPaths = resolveImportPaths(cfg, wsFolder);
 
 	const outputDirectoryRaw = cfg.get<string>('outputDirectory', '').trim();
 	const outputDirectory = outputDirectoryRaw
@@ -155,15 +150,12 @@ export async function compileDocument(
 	}
 }
 
-export async function compileActiveFile(
-	expandWorkspaceFolder: (input: string, wsFolder: WorkspaceFolder | undefined) => string,
-	output: OutputChannel,
-): Promise<void> {
+export async function compileActiveFile(output: OutputChannel): Promise<void> {
 	const editor = window.activeTextEditor;
 	if (!editor) {
 		void window.showErrorMessage('Vellum: no active editor.');
 		return;
 	}
 
-	await compileDocument(editor.document, expandWorkspaceFolder, output);
+	await compileDocument(editor.document, output);
 }

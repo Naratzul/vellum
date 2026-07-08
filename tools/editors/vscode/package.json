@@ -47,7 +47,7 @@
 					"items": {
 						"type": "string"
 					},
-					"description": "Additional directories to search for Vellum imports. Supports absolute paths and ${workspaceFolder}."
+					"description": "Extra directories to search for Vellum imports. Workspace folder(s) are always included. Supports absolute paths and ${workspaceFolder}."
 				},
 				"vellum.outputDirectory": {
 					"scope": "resource",

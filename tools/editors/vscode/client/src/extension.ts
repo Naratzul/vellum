@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { commands, window, workspace, WorkspaceFolder, ExtensionContext, WorkspaceConfiguration } from 'vscode';
-import * as process from 'process'
+import { commands, window, workspace, ExtensionContext, WorkspaceConfiguration } from 'vscode';
+import * as process from 'process';
 
 import {
 	LanguageClient,
@@ -11,13 +11,9 @@ import {
 } from 'vscode-languageclient/node';
 
 import { compileActiveFile } from './compile';
+import { getPrimaryWorkspaceFolder, resolveImportPaths } from './importPaths';
 
 let client: LanguageClient;
-
-function expandWorkspaceFolder(input: string, wsFolder: WorkspaceFolder | undefined): string {
-	if (!wsFolder) return input;
-  	return input.replace(/\$\{workspaceFolder\}/g, wsFolder.uri.fsPath);
-}
 
 function getServerPlatformDir(): string {
 	if (process.platform === 'win32') {
@@ -58,15 +54,25 @@ function resolveServerModule(context: ExtensionContext, cfg: WorkspaceConfigurat
 	return path.join(serverDir, getServerExecutableName());
 }
 
-export function activate(context: ExtensionContext) {
-	const wsFolder =
-		(window.activeTextEditor ? workspace.getWorkspaceFolder(window.activeTextEditor.document.uri) : undefined)
-		?? workspace.workspaceFolders?.[0];
+function syncImportPathsToServer(): void {
+	if (!client) {
+		return;
+	}
 
-	const cfg = workspace.getConfiguration("vellum")
-	const importPaths = cfg.get<string[]>("importPaths", [])
-		.map(p => expandWorkspaceFolder(p, wsFolder))
-		.map(p => path.normalize(p))
+	const wsFolder = getPrimaryWorkspaceFolder();
+	const cfg = workspace.getConfiguration('vellum', wsFolder?.uri);
+	const importPaths = resolveImportPaths(cfg, wsFolder);
+
+	void client.sendNotification('workspace/didChangeConfiguration', {
+		settings: { vellum: { importPaths } },
+	});
+}
+
+export function activate(context: ExtensionContext) {
+	const wsFolder = getPrimaryWorkspaceFolder();
+
+	const cfg = workspace.getConfiguration("vellum");
+	const importPaths = resolveImportPaths(cfg, wsFolder);
 
 	const serverModule = resolveServerModule(context, cfg);
 	if (!serverModule) {
@@ -93,9 +99,6 @@ export function activate(context: ExtensionContext) {
 		initializationOptions: {
 			importPaths: importPaths
 		},
-		synchronize: {
-			configurationSection: 'vellum',
-		},
 		workspaceFolder: wsFolder,
 		outputChannel: lspOutput,
 	};
@@ -116,9 +119,16 @@ export function activate(context: ExtensionContext) {
 
 	const compileOutput = window.createOutputChannel('Vellum Compiler');
 	context.subscriptions.push(
-		commands.registerCommand('vellum.compile', () =>
-			compileActiveFile(expandWorkspaceFolder, compileOutput)),
+		commands.registerCommand('vellum.compile', () => compileActiveFile(compileOutput)),
 		compileOutput,
+		workspace.onDidChangeConfiguration((e) => {
+			if (e.affectsConfiguration('vellum')) {
+				syncImportPathsToServer();
+			}
+		}),
+		workspace.onDidChangeWorkspaceFolders(() => {
+			syncImportPathsToServer();
+		}),
 	);
 }
 
