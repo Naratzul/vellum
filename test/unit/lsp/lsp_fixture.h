@@ -92,6 +92,17 @@ class LspTestFixture {
     return false;
   }
 
+  static bool hasLabelWithDetail(const lsp::CompletionList& list,
+                                 std::string_view label,
+                                 std::string_view detail) {
+    for (const auto& item : list.items) {
+      if (item.label == label && item.detail && *item.detail == detail) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   static bool definesOnLine(const lsp::Array<lsp::DefinitionLink>& links,
                             unsigned line) {
     return !links.empty() && links[0].targetRange.start.line == line;

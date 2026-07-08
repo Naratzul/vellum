@@ -153,3 +153,52 @@ TEST_CASE_METHOD(LspTestFixture, "LspDefinition returns empty on whitespace") {
 
   REQUIRE(define(2, 2).empty());
 }
+
+TEST_CASE_METHOD(LspTestFixture, "LspDefinition bare import static callee") {
+  const path utilityPath = path("/test/Utility.vel");
+  addParsedVelModule(utilityPath, R"(script Utility {
+  static fun RandomInt(min: Int, max: Int) -> Int {
+    return 0
+  }
+}
+)");
+  openDoc(R"(import Utility
+
+script TrainingMannequin {
+  fun onHit() {
+    RandomInt(0, 10)
+  }
+}
+)");
+  analyze();
+
+  const auto links = define(4, 4);
+  REQUIRE_FALSE(links.empty());
+  REQUIRE(LspTestFixture::definesInFile(links, utilityPath));
+  REQUIRE(LspTestFixture::definesOnLine(links, 1));
+}
+
+TEST_CASE_METHOD(LspTestFixture, "LspDefinition ambiguous bare import callee") {
+  const path importAPath = path("/test/ImportA.vel");
+  const path importBPath = path("/test/ImportB.vel");
+  addParsedVelModule(importAPath, R"(script ImportA {
+  static fun sharedFunc() {}
+}
+)");
+  addParsedVelModule(importBPath, R"(script ImportB {
+  static fun sharedFunc() {}
+}
+)");
+  openDoc(R"(import ImportA
+import ImportB
+
+script TrainingMannequin {
+  fun onHit() {
+    sharedFunc()
+  }
+}
+)");
+  analyze();
+
+  REQUIRE(define(5, 4).empty());
+}

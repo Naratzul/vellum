@@ -6,6 +6,7 @@
 #include "ast/expression/expression.h"
 #include "ast/statement/statement.h"
 #include "ast_locator.h"
+#include "compiler/call_resolution.h"
 #include "compiler/resolver.h"
 #include "declaration_index.h"
 #include "document_analyzer.h"
@@ -154,6 +155,14 @@ Opt<lsp::DefinitionLink> resolveIdentifierTarget(
       default:
         break;
     }
+  } else {
+    const Vec<ImportedFunction> imported =
+        resolver.resolveImportedFunction(name);
+    if (imported.size() == 1) {
+      return definitionForTypeMember(navigation, filePath, target.token, name,
+                                     imported[0].object, MemberKind::Function,
+                                     importLibrary);
+    }
   }
 
   return std::nullopt;
@@ -268,10 +277,19 @@ Opt<lsp::DefinitionLink> resolveCallCalleeTarget(
 
   const VellumIdentifier name = *target.identifier;
   const Resolver& resolver = *navigation.resolver;
-  const VellumType objectType = resolver.getObjectType();
 
-  if (!resolver.resolveFunction(objectType, name)) {
+  const auto resolution = resolveBareCallee(resolver, name);
+  if (resolution.status == BareCalleeStatus::Ambiguous ||
+      resolution.status == BareCalleeStatus::NotFound) {
     return std::nullopt;
+  }
+
+  const VellumType objectType = resolution.call->getObjectType();
+  if (resolution.status == BareCalleeStatus::Local &&
+      !resolution.function->isStatic()) {
+    return definitionForTypeMember(navigation, filePath, target.token, name,
+                                   resolver.getObjectType(),
+                                   MemberKind::Function, importLibrary);
   }
 
   return definitionForTypeMember(navigation, filePath, target.token, name,

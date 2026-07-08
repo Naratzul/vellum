@@ -71,6 +71,10 @@ class Resolver {
     importedObjects.push_back(std::move(importedObject));
   }
 
+  const Vec<VellumIdentifier>& getImportedObjects() const {
+    return importedObjects;
+  }
+
   const Opt<VellumFunction>& getCurrentFunction() { return currentFunction; }
 
   void startFunction(const VellumFunction& func);

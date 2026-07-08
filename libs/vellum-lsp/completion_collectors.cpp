@@ -9,6 +9,7 @@
 #include "ast/statement/statement_visitor.h"
 #include "common/string_utils.h"
 #include "analyze/import_resolver.h"
+#include "compiler/call_resolution.h"
 #include "compiler/builtin_functions.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
@@ -1340,6 +1341,72 @@ void collectScriptMembers(const NavigationContext& navigation,
                      functionDetail(*builtin), "1_");
       }
     }
+  }
+}
+
+void collectBareCallableCandidates(const NavigationContext& navigation,
+                                   const Shared<ImportLibrary>& importLibrary,
+                                   Vec<CompletionCandidate>& out) {
+  if (!navigation.parseOk || !navigation.resolver || !importLibrary) {
+    return;
+  }
+
+  const Resolver& resolver = *navigation.resolver;
+  for (const auto& importName : resolver.getImportedObjects()) {
+    if (navigation.importResolver) {
+      navigation.importResolver->ensureModule(importName);
+    }
+  }
+
+  const Vec<BareCallableCandidate> candidates =
+      collectBareCallableCandidates(resolver);
+
+  common::Map<std::string, int> nameCounts;
+  for (const auto& candidate : candidates) {
+    const auto key =
+        std::string(common::normalizeToLower(candidate.function.getName().toString()));
+    nameCounts[key]++;
+  }
+
+  common::Set<std::string_view> seen;
+  for (const auto& var : resolver.getObject().getVariables()) {
+    seen.insert(common::normalizeToLower(var.getName().toString()));
+  }
+  for (const auto& prop : resolver.getObject().getProperties()) {
+    seen.insert(common::normalizeToLower(prop.getName().toString()));
+  }
+  for (const auto& func : resolver.getObject().getFunctions()) {
+    if (!func.isStatic()) {
+      seen.insert(common::normalizeToLower(func.getName().toString()));
+    }
+  }
+
+  for (const auto& candidate : candidates) {
+    const auto name = candidate.function.getName().toString();
+    const auto key = common::normalizeToLower(name);
+    const auto countIt = nameCounts.find(std::string(key));
+    const bool isAmbiguous = countIt != nameCounts.end() && countIt->second > 1;
+
+    std::string dedupeKey = std::string(key);
+    std::string detail;
+    if (candidate.isLocal) {
+      detail = functionDetail(candidate.function);
+    } else {
+      detail = candidate.owner.toString();
+      detail += '.';
+      detail += name;
+      if (isAmbiguous) {
+        dedupeKey += '\0';
+        dedupeKey += detail;
+      }
+    }
+
+    if (!seen.insert(dedupeKey).second) {
+      continue;
+    }
+
+    addCandidate(out, std::string(name), lsp::CompletionItemKind::Function,
+                 detail, "1_");
   }
 }
 

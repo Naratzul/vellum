@@ -343,7 +343,12 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
       addSpan(spans, propGet.getLocation(), SemanticTokenLegendType::Function,
               functionModifiers);
     } else if (callee->isIdentifierExpression()) {
-      addSpan(spans, callee->getLocation(), SemanticTokenLegendType::Function);
+      SemanticTokenLegendModifier functionModifiers{};
+      if (expr.getFunctionCall() && expr.getFunctionCall()->isStatic()) {
+        functionModifiers |= SemanticTokenLegendModifierBits::Static;
+      }
+      addSpan(spans, callee->getLocation(), SemanticTokenLegendType::Function,
+              functionModifiers);
     } else {
       callee->accept(*this);
     }

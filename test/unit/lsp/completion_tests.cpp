@@ -265,3 +265,77 @@ TEST_CASE_METHOD(LspTestFixture, "LspCompletion cast member access") {
   analyze();
   REQUIRE(LspTestFixture::hasLabel(completeDot(2, 21), "Fire"));
 }
+
+TEST_CASE_METHOD(LspTestFixture, "LspCompletion bare import static call") {
+  const path utilityPath = path("/test/Utility.vel");
+  addParsedVelModule(utilityPath, R"(script Utility {
+  static fun RandomInt(min: Int, max: Int) -> Int {
+    return 0
+  }
+}
+)");
+  openDoc(R"(import Utility
+
+script TrainingMannequin {
+  fun onHit() {
+    Rand
+  }
+}
+)");
+  analyze();
+
+  REQUIRE(LspTestFixture::hasLabel(complete(5, 5), "RandomInt"));
+}
+
+TEST_CASE_METHOD(LspTestFixture, "LspCompletion ambiguous bare import statics") {
+  const path importAPath = path("/test/ImportA.vel");
+  const path importBPath = path("/test/ImportB.vel");
+  addParsedVelModule(importAPath, R"(script ImportA {
+  static fun sharedFunc() {}
+}
+)");
+  addParsedVelModule(importBPath, R"(script ImportB {
+  static fun sharedFunc() {}
+}
+)");
+  openDoc(R"(import ImportA
+import ImportB
+
+script TrainingMannequin {
+  fun onHit() {
+    shared
+  }
+}
+)");
+  analyze();
+
+  const auto list = complete(6, 7);
+  REQUIRE(LspTestFixture::hasLabelWithDetail(list, "sharedFunc",
+                                             "ImportA.sharedFunc"));
+  REQUIRE(LspTestFixture::hasLabelWithDetail(list, "sharedFunc",
+                                             "ImportB.sharedFunc"));
+}
+
+TEST_CASE_METHOD(LspTestFixture, "LspCompletion bare import shadowed by local static") {
+  const path utilityPath = path("/test/Utility.vel");
+  addParsedVelModule(utilityPath, R"(script Utility {
+  static fun sharedHelper() {}
+}
+)");
+  openDoc(R"(import Utility
+
+script TrainingMannequin {
+  static fun sharedHelper() {}
+
+  fun onHit() {
+    shared
+  }
+}
+)");
+  analyze();
+
+  const auto list = complete(7, 7);
+  REQUIRE(LspTestFixture::hasLabel(list, "sharedHelper"));
+  REQUIRE_FALSE(LspTestFixture::hasLabelWithDetail(list, "sharedHelper",
+                                                   "Utility.sharedHelper"));
+}

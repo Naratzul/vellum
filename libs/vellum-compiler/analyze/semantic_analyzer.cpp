@@ -11,6 +11,7 @@
 #include "common/string_set.h"
 #include "common/string_utils.h"
 #include "common/types.h"
+#include "compiler/call_resolution.h"
 #include "compiler/compiler_error_handler.h"
 #include "compiler/resolver.h"
 #include "lexer/token.h"
@@ -35,29 +36,6 @@ bool isStateLifecycleHookName(const VellumIdentifier& name) {
 bool isValidStateLifecycleHookSignature(const VellumFunction& func) {
   return !func.isStatic() && func.getParameters().empty() &&
          func.getReturnType().isNone();
-}
-
-std::string formatImportedTypeNames(const Vec<ImportedFunction>& imports) {
-  std::string names;
-  for (size_t i = 0; i < imports.size(); ++i) {
-    if (i > 0) {
-      names += ", ";
-    }
-    names += imports[i].object.toString();
-  }
-  return names;
-}
-
-void reportAmbiguousImportCall(const Shared<CompilerErrorHandler>& errorHandler,
-                               const Token& location,
-                               VellumIdentifier functionName,
-                               const Vec<ImportedFunction>& imports) {
-  errorHandler->errorAt(
-      location, CompilerErrorKind::AmbiguousImportCall,
-      "Ambiguous call to '{}': found in multiple imports ({}). Use "
-      "Type.{}() to disambiguate.",
-      functionName.toString(), formatImportedTypeNames(imports),
-      functionName.toString());
 }
 
 }  // namespace
@@ -470,15 +448,17 @@ void SemanticAnalyzer::visitIdentifierExpression(
     ast::IdentifierExpression& expr) {
   auto value = resolver->resolveIdentifier(expr.getIdentifier());
   if (!value) {
-    auto importedFunctions =
-        resolver->resolveImportedFunction(expr.getIdentifier());
-    if (!importedFunctions.empty()) {
-      if (importedFunctions.size() > 1) {
-        reportAmbiguousImportCall(errorHandler, expr.getLocation(),
-                                  expr.getIdentifier(), importedFunctions);
+    if (const auto importedFunc = resolveImportedFunctionIdentifier(
+            *resolver, expr.getIdentifier())) {
+      value = *importedFunc;
+    } else {
+      const Vec<ImportedFunction> imported =
+          resolver->resolveImportedFunction(expr.getIdentifier());
+      if (imported.size() > 1) {
+        reportAmbiguousImportCall(*errorHandler, expr.getLocation(),
+                                  expr.getIdentifier(), imported);
         return;
       }
-      value = importedFunctions[0].function;
     }
   }
   if (!value) {
@@ -527,37 +507,27 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   }
 
   const auto& callee = expr.getCallee();
+  Opt<BareCalleeResolution> bareCalleeResolution;
 
   if (callee->isIdentifierExpression()) {
     auto funcIdentifier = callee->asIdentifier().getIdentifier();
-    if (auto func = resolver->resolveFunction(resolver->getObjectType(),
-                                              funcIdentifier)) {
-      if (func->isStatic()) {
-        expr.setFunctionCall(VellumFunctionCall::staticCall(
-            resolver->getObjectType(), funcIdentifier));
-      } else {
-        expr.setFunctionCall(VellumFunctionCall::methodCall(
-            VellumIdentifier("self"), resolver->getObjectType(),
-            funcIdentifier));
-      }
-    } else {
-      auto importedFunctions =
-          resolver->resolveImportedFunction(funcIdentifier);
-      if (importedFunctions.size() > 1) {
-        reportAmbiguousImportCall(errorHandler, expr.getLocation(),
-                                  funcIdentifier, importedFunctions);
+    bareCalleeResolution = resolveBareCallee(*resolver, funcIdentifier);
+    switch (bareCalleeResolution->status) {
+      case BareCalleeStatus::Ambiguous:
+        reportAmbiguousImportCall(*errorHandler, expr.getLocation(),
+                                  funcIdentifier,
+                                  bareCalleeResolution->ambiguous);
         return;
-      }
-      if (importedFunctions.empty()) {
+      case BareCalleeStatus::NotFound:
         errorHandler->errorAt(expr.getLocation(),
                               CompilerErrorKind::UndefinedFunction,
                               "Undefined function '{}'.",
                               funcIdentifier.toString());
         return;
-      }
-
-      expr.setFunctionCall(VellumFunctionCall::staticCall(
-          importedFunctions[0].object, funcIdentifier));
+      case BareCalleeStatus::Local:
+      case BareCalleeStatus::Imported:
+        expr.setFunctionCall(*bareCalleeResolution->call);
+        break;
     }
   } else if (callee->isPropertyGetExpression()) {
     if (callee->asPropertyGet().getObject()->isSuperExpression()) {
@@ -604,23 +574,11 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   if (expr.getFunctionCall()->isParentCall()) {
     func =
         resolver->resolveParentFunction(expr.getFunctionCall()->getFunction());
+  } else if (bareCalleeResolution) {
+    func = bareCalleeResolution->function;
   } else {
     func = resolver->resolveFunction(expr.getFunctionCall()->getObjectType(),
                                      expr.getFunctionCall()->getFunction());
-
-    if (!func && expr.getFunctionCall()->isStatic()) {
-      auto importedFunctions = resolver->resolveImportedFunction(
-          expr.getFunctionCall()->getFunction());
-      if (importedFunctions.size() > 1) {
-        reportAmbiguousImportCall(errorHandler, expr.getCallee()->getLocation(),
-                                  expr.getFunctionCall()->getFunction(),
-                                  importedFunctions);
-        return;
-      }
-      if (importedFunctions.size() == 1) {
-        func = importedFunctions[0].function;
-      }
-    }
   }
 
   if (!func) {

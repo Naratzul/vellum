@@ -15,6 +15,7 @@ add_library(vellum_compiler STATIC
     common/os.cpp
     common/string_set.cpp
     compiler/builtin_functions.cpp
+    compiler/call_resolution.cpp
     compiler/compiler.cpp
     compiler/compiler_error_handler.cpp
     compiler/pex_function_compiler.cpp

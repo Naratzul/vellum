@@ -11,11 +11,15 @@ namespace vellum {
 namespace {
 
 void dedupeCandidates(Vec<CompletionCandidate>& candidates) {
-  common::Set<std::string_view> seen;
+  common::Set<std::string> seen;
   Vec<CompletionCandidate> unique;
   unique.reserve(candidates.size());
   for (auto& candidate : candidates) {
-    const auto key = common::normalizeToLower(candidate.label);
+    std::string key = std::string(common::normalizeToLower(candidate.label));
+    if (!candidate.detail.empty()) {
+      key += '\0';
+      key += common::normalizeToLower(candidate.detail);
+    }
     if (!seen.insert(key).second) {
       continue;
     }
@@ -91,6 +95,8 @@ CompletionsProvider::getCompletions(
       if (canUseResolver) {
         collectLocalsInScope(*cache.navigation, params.position, candidates);
         collectScriptMembers(*cache.navigation, candidates);
+        collectBareCallableCandidates(*cache.navigation, importLibrary,
+                                      candidates);
       }
       collectImportModules(importLibrary, candidates);
       collectKeywords(ctx.kind, candidates);

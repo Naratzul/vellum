@@ -38,6 +38,10 @@ void collectLocalsInScope(const NavigationContext& navigation, lsp::Position pos
 void collectScriptMembers(const NavigationContext& navigation,
                           Vec<CompletionCandidate>& out);
 
+void collectBareCallableCandidates(const NavigationContext& navigation,
+                                   const Shared<ImportLibrary>& importLibrary,
+                                   Vec<CompletionCandidate>& out);
+
 void collectTypeMembers(const NavigationContext& navigation,
                         const Shared<ImportLibrary>& importLibrary,
                         lsp::Position pos, std::string_view sourceLine,
