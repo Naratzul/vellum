@@ -213,6 +213,13 @@ TEST_CASE("LexerComposedAssignmentTokens") {
              Catch::Matchers::Equals(expected));
 }
 
+TEST_CASE("LexerColumnZeroTokenPosition") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("import Utility"));
+  REQUIRE(tokens.size() >= 2);
+  CHECK(tokens[0].location.start.position == 0);
+  CHECK(tokens[1].location.start.position == 7);
+}
+
 TEST_CASE("LexerQuesToken") {
   Vec<Token> tokens = scanTokens(makeUnique<Lexer>("?"));
   REQUIRE_FALSE(tokens.empty());

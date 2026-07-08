@@ -101,7 +101,7 @@ Token Lexer::makeToken(TokenType type, common::Opt<VellumLiteral> value) const {
   token.lexeme = currentLexeme();
   token.location = {
       .start = {.line = line,
-                .position = position - (int)token.lexeme.length() - 1},
+                .position = position - (int)token.lexeme.length()},
       .end = {.line = line, .position = position - 1}};
   token.value = value;
   return token;
@@ -113,7 +113,7 @@ Token Lexer::errorToken(std::string_view message) const {
   token.lexeme = message;
   token.location = {
       .start = {.line = line,
-                .position = position - (int)token.lexeme.length() - 1},
+                .position = position - (int)token.lexeme.length()},
       .end = {.line = line, .position = position}};
   return token;
 }
@@ -314,14 +314,24 @@ void Lexer::skipWhitespaces() {
     char c = peek();
     switch (c) {
       case ' ':
-      case '\r':
       case '\t':
         advance();
+        break;
+      case '\r':
+        if (peekNext() == '\n') {
+          line++;
+          position = 0;
+          current += 2;
+        } else {
+          line++;
+          position = 0;
+          current++;
+        }
         break;
       case '\n':
         line++;
         position = 0;
-        advance();
+        current++;
         break;
       case '/':
         if (peekNext() == '/') {
