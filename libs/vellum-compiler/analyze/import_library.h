@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <string>
 
 #include "common/types.h"
 #include "parser/parser.h"
@@ -56,9 +57,14 @@ class ImportModule {
 
 using ImportModulePtr = Shared<ImportModule>;
 
+struct ImportScanWarning {
+  std::string message;
+};
+
 class ImportLibrary {
  public:
-  ImportLibrary(const Vec<fs::path>& importPaths);
+  explicit ImportLibrary(const Vec<fs::path>& importPaths,
+                         bool strictDuplicates = false);
 
   ImportModulePtr findModule(VellumIdentifier name) const;
   bool hasModule(VellumIdentifier name) const;
@@ -67,12 +73,18 @@ class ImportLibrary {
     return importNameToModule;
   }
 
+  const Vec<ImportScanWarning>& getScanWarnings() const { return scanWarnings; }
+
   void addTestModule(ImportModulePtr module);
 
  private:
   Map<VellumIdentifier, ImportModulePtr> importNameToModule;
+  Vec<ImportScanWarning> scanWarnings;
+  bool strictDuplicates;
 
   void scanImportPaths(const Vec<fs::path>& importPaths);
+  void registerModule(VellumIdentifier name, ImportModuleType type,
+                      const fs::path& filePath);
 };
 
 }  // namespace vellum

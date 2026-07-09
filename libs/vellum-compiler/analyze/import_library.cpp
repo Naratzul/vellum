@@ -10,48 +10,65 @@
 namespace vellum {
 using namespace common;
 
-ImportLibrary::ImportLibrary(const Vec<fs::path>& importPaths) {
+ImportLibrary::ImportLibrary(const Vec<fs::path>& importPaths,
+                               bool strictDuplicates)
+    : strictDuplicates(strictDuplicates) {
   scanImportPaths(importPaths);
 }
 
 void ImportLibrary::scanImportPaths(const Vec<fs::path>& importPaths) {
   for (const auto& path : importPaths) {
     if (!fs::is_directory(path)) {
-      throw std::runtime_error("Import path is not a directory: " +
-                               pathToUtf8(path));
+      const auto message =
+          std::format("Import path is not a directory: {}", pathToUtf8(path));
+      if (strictDuplicates) {
+        throw std::runtime_error(message);
+      }
+      scanWarnings.push_back({message});
+      continue;
     }
 
     for (const auto& entry : fs::recursive_directory_iterator(path)) {
-      if (fs::is_regular_file(entry.path())) {
-        auto filename = pathToUtf8(entry.path().stem());
-        auto extension = pathToUtf8(entry.path().extension());
+      if (!fs::is_regular_file(entry.path())) {
+        continue;
+      }
 
-        if (extension != ".vel" && extension != ".psc") {
+      auto filename = pathToUtf8(entry.path().stem());
+      auto extension = pathToUtf8(entry.path().extension());
+
+      if (extension != ".vel" && extension != ".psc") {
+        continue;
+      }
+
+      const auto moduleType = extension == ".vel" ? ImportModuleType::Vellum
+                                                  : ImportModuleType::Papyrus;
+      VellumIdentifier name(StringSet::insert(filename));
+      if (auto it = importNameToModule.find(name);
+          it != importNameToModule.end()) {
+        if (canonicalPathKey(it->second->getFilePath()) ==
+            canonicalPathKey(entry.path())) {
           continue;
         }
 
-        VellumIdentifier name(StringSet::insert(filename));
-        if (auto it = importNameToModule.find(name);
-            it != importNameToModule.end()) {
-          if (canonicalPathKey(it->second->getFilePath()) ==
-              canonicalPathKey(entry.path())) {
-            continue;
-          }
-          throw std::runtime_error(
-              std::format("Duplicate import name detected: {} in {}",
-                          name.toString(), pathToUtf8(entry.path())));
+        const auto message = std::format(
+            "Duplicate import name detected: {} in {} (overriding {})",
+            name.toString(), pathToUtf8(entry.path()),
+            pathToUtf8(it->second->getFilePath()));
+        if (strictDuplicates) {
+          throw std::runtime_error(message);
         }
-
-        if (extension == ".vel") {
-          importNameToModule[name] = makeShared<ImportModule>(
-              name, ImportModuleType::Vellum, entry.path());
-        } else if (extension == ".psc") {
-          importNameToModule[name] = makeShared<ImportModule>(
-              name, ImportModuleType::Papyrus, entry.path());
-        }
+        scanWarnings.push_back({message});
       }
+
+      registerModule(name, moduleType, entry.path());
     }
   }
+}
+
+void ImportLibrary::registerModule(VellumIdentifier name,
+                                   ImportModuleType type,
+                                   const fs::path& filePath) {
+  importNameToModule[name] = makeShared<ImportModule>(name, type, filePath);
 }
 
 ImportModulePtr ImportLibrary::findModule(VellumIdentifier name) const {

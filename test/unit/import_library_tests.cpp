@@ -33,11 +33,12 @@ TEST_CASE("ImportLibrary_OverlappingImportPaths_SameFileSkipped") {
 
   ImportLibrary library(Vec<fs::path>{root, subDir});
   REQUIRE(library.hasModule(VellumIdentifier("MyScript")));
+  REQUIRE(library.getScanWarnings().empty());
 
   fs::remove_all(root);
 }
 
-TEST_CASE("ImportLibrary_DuplicateStemDifferentFiles_Throws") {
+TEST_CASE("ImportLibrary_DuplicateStemDifferentFiles_StrictThrows") {
   const fs::path root =
       fs::temp_directory_path() / "vellum_import_conflict_test";
   const fs::path firstPath = root / "a" / "Conflict.vel";
@@ -48,8 +49,65 @@ TEST_CASE("ImportLibrary_DuplicateStemDifferentFiles_Throws") {
   writeVelScript(secondPath, "script Conflict {}\n");
 
   REQUIRE_THROWS_WITH(
-      ImportLibrary(Vec<fs::path>{root}),
+      ImportLibrary(Vec<fs::path>{root}, true),
       Catch::Matchers::ContainsSubstring("Duplicate import name detected"));
+
+  fs::remove_all(root);
+}
+
+TEST_CASE("ImportLibrary_DuplicateStemDifferentFiles_LenientLastWins") {
+  const fs::path root =
+      fs::temp_directory_path() / "vellum_import_lenient_conflict_test";
+  const fs::path firstPath = root / "a" / "Conflict.vel";
+  const fs::path secondPath = root / "b" / "Conflict.vel";
+  fs::remove_all(root);
+
+  writeVelScript(firstPath, "script Conflict {}\n");
+  writeVelScript(secondPath, "script Conflict {}\n");
+
+  ImportLibrary library(Vec<fs::path>{root / "a", root / "b"});
+  REQUIRE(library.hasModule(VellumIdentifier("Conflict")));
+  REQUIRE(library.getScanWarnings().size() == 1);
+  REQUIRE_THAT(library.getScanWarnings().front().message,
+               Catch::Matchers::ContainsSubstring(
+                   "Duplicate import name detected"));
+
+  const auto module = library.findModule(VellumIdentifier("Conflict"));
+  REQUIRE(module != nullptr);
+  REQUIRE(common::canonicalPathKey(module->getFilePath()) ==
+          common::canonicalPathKey(secondPath));
+
+  fs::remove_all(root);
+}
+
+TEST_CASE("ImportLibrary_InvalidImportPath_LenientSkipsWithWarning") {
+  const fs::path root =
+      fs::temp_directory_path() / "vellum_import_invalid_path_test";
+  const fs::path scriptPath = root / "Valid.vel";
+  const fs::path missingPath = root / "missing";
+  fs::remove_all(root);
+
+  writeVelScript(scriptPath, "script Valid {}\n");
+
+  ImportLibrary library(Vec<fs::path>{missingPath, root});
+  REQUIRE(library.hasModule(VellumIdentifier("Valid")));
+  REQUIRE(library.getScanWarnings().size() == 1);
+  REQUIRE_THAT(library.getScanWarnings().front().message,
+               Catch::Matchers::ContainsSubstring(
+                   "Import path is not a directory"));
+
+  fs::remove_all(root);
+}
+
+TEST_CASE("ImportLibrary_InvalidImportPath_StrictThrows") {
+  const fs::path root =
+      fs::temp_directory_path() / "vellum_import_invalid_path_strict_test";
+  const fs::path missingPath = root / "missing";
+  fs::remove_all(root);
+
+  REQUIRE_THROWS_WITH(
+      ImportLibrary(Vec<fs::path>{missingPath}, true),
+      Catch::Matchers::ContainsSubstring("Import path is not a directory"));
 
   fs::remove_all(root);
 }

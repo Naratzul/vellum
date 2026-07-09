@@ -102,7 +102,10 @@ void LspServer::applyImportPaths(Vec<path> importPaths) {
     logMsg("- {}", p.string());
   }
 
-  importLibrary = makeShared<ImportLibrary>(std::move(importPaths));
+  importLibrary = makeShared<ImportLibrary>(importPaths);
+  for (const auto& warning : importLibrary->getScanWarnings()) {
+    logMsg("{}", warning.message);
+  }
   documentStore.invalidateAll();
 }
 
