@@ -23,6 +23,7 @@ add_executable(tests
     unit/lsp/definition_tests.cpp
     unit/lsp/diagnostics_tests.cpp
     unit/lsp/document_store_tests.cpp
+    unit/lsp/lsp_locations_tests.cpp
 )
 
 target_compile_definitions(tests

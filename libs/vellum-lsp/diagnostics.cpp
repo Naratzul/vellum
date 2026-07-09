@@ -8,7 +8,7 @@ namespace vellum {
 
 static lsp::Diagnostic convert(const DiagnosticMessage& message) {
   return lsp::Diagnostic{
-      .range = toLspRange(message.token.location),
+      .range = toLspRange(message.token),
       .message = message.message,
       .severity = lsp::DiagnosticSeverity::Error};
 }

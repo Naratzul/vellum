@@ -13,7 +13,20 @@ lsp::Range toLspRange(const LocationRange& range) {
   return lsp::Range{.start = toLsp(range.start), .end = toLsp(range.end)};
 }
 
-lsp::Range toLspRange(const Token& token) { return toLspRange(token.location); }
+lsp::Range toLspRange(const Token& token) {
+  if (token.type == TokenType::ERROR || token.lexeme.empty()) {
+    return toLspRange(token.location);
+  }
+
+  const Location& start = token.location.start;
+  const unsigned int endCharacter =
+      static_cast<unsigned int>(start.position + token.lexeme.size());
+
+  return lsp::Range{
+      .start = toLsp(start),
+      .end = lsp::Position{.line = static_cast<unsigned int>(start.line),
+                           .character = endCharacter}};
+}
 
 bool positionBefore(lsp::Position a, lsp::Position b) {
   if (a.line != b.line) {
