@@ -224,7 +224,22 @@ bool dotFollowsExtent(std::string_view line, size_t dotIndex,
          (line[pos] == ' ' || line[pos] == '\t')) {
     pos++;
   }
-  if (pos < dotIndex && pos < line.size() && line[pos] == ')') {
+  if (pos < dotIndex && pos < line.size() && line[pos] == '(') {
+    pos++;
+    int depth = 1;
+    while (pos < dotIndex && pos < line.size() && depth > 0) {
+      if (line[pos] == '(') {
+        depth++;
+      } else if (line[pos] == ')') {
+        depth--;
+      }
+      pos++;
+    }
+    while (pos < dotIndex && pos < line.size() &&
+           (line[pos] == ' ' || line[pos] == '\t')) {
+      pos++;
+    }
+  } else if (pos < dotIndex && pos < line.size() && line[pos] == ')') {
     pos++;
     while (pos < dotIndex && pos < line.size() &&
            (line[pos] == ' ' || line[pos] == '\t')) {
@@ -740,9 +755,14 @@ class ExpressionTypeAtDotVisitor : public ast::ExpressionVisitor {
   }
 
   void visitCallExpression(ast::CallExpression& expr) override {
-    if (!expressionContainsPosition(expr, cursor_)) {
+    const LocationRange extent = expressionExtent(expr);
+    const bool dotAfter = cursorAtOrAfterDot() &&
+                          dotFollowsExtent(sourceLine_, dotIndex_, extent,
+                                           static_cast<int>(cursor_.line));
+    if (!expressionContainsPosition(expr, cursor_) && !dotAfter) {
       return;
     }
+    considerLeaf(expr);
     visitExpression(*expr.getCallee(), depth_ + 1);
     for (const auto& arg : expr.getArguments()) {
       visitExpression(*arg, depth_ + 1);
@@ -877,7 +897,10 @@ class ExpressionTypeBeforeDotFinder : public ast::DeclarationVisitor,
  public:
   ExpressionTypeBeforeDotFinder(lsp::Position cursor, size_t dotIndex,
                                 std::string_view sourceLine)
-      : visitor_(cursor, dotIndex, sourceLine), cursor_(cursor) {}
+      : visitor_(cursor, dotIndex, sourceLine),
+        cursor_(cursor),
+        dotIndex_(dotIndex),
+        sourceLine_(sourceLine) {}
 
   Opt<VellumType> collect(
       common::Vec<common::Unique<ast::Declaration>>& declarations) {
@@ -979,6 +1002,19 @@ class ExpressionTypeBeforeDotFinder : public ast::DeclarationVisitor,
  private:
   ExpressionTypeAtDotVisitor visitor_;
   lsp::Position cursor_;
+  size_t dotIndex_;
+  std::string_view sourceLine_;
+
+  bool visitExpressionStatementWithTrailingDot(
+      ast::ExpressionStatement& statement) {
+    const LocationRange extent = expressionExtent(*statement.getExpression());
+    if (!dotFollowsExtent(sourceLine_, dotIndex_, extent,
+                          static_cast<int>(cursor_.line))) {
+      return false;
+    }
+    visitor_.visitExpression(*statement.getExpression(), 0);
+    return true;
+  }
 
   void searchBlock(const common::Vec<common::Unique<ast::Statement>>& statements) {
     for (const auto& stmt : statements) {
@@ -986,6 +1022,12 @@ class ExpressionTypeBeforeDotFinder : public ast::DeclarationVisitor,
         break;
       }
       if (statementEndsBeforeUse(*stmt, cursor_)) {
+        if (auto* exprStmt =
+                dynamic_cast<ast::ExpressionStatement*>(stmt.get())) {
+          if (visitExpressionStatementWithTrailingDot(*exprStmt)) {
+            return;
+          }
+        }
         continue;
       }
       searchStatement(*stmt);
@@ -1226,6 +1268,8 @@ Opt<VellumType> resolveTypeBeforeDot(const NavigationContext& navigation,
         return finish(value->asProperty().getType());
       case VellumValueType::ScriptType:
         return finish(value->asScriptType());
+      case VellumValueType::Function:
+        return finish(value->asFunction().getReturnType());
       default:
         break;
     }

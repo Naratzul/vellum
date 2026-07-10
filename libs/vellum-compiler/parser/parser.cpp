@@ -805,6 +805,9 @@ Unique<ast::Expression> Parser::callOrGetExpression() {
 
       expr = callExpression(std::move(expr), previous);
     } else if (match(TokenType::DOT)) {
+      if (!check(TokenType::IDENTIFIER)) {
+        break;
+      }
       consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectVarName,
               "Expect a property name after '.'");
       expr = makeUnique<ast::PropertyGetExpression>(

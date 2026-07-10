@@ -6,6 +6,7 @@
 #include "common/types.h"
 #include "compiler/compiler_error_handler.h"
 #include "lexer/token.h"
+#include "lexer/lexer.h"
 #include "mock/mock_lexer.h"
 #include "parser/parser.h"
 #include "utils.h"
@@ -2590,4 +2591,60 @@ TEST_CASE("ParserArrayLiteral_CommaDisambiguation") {
   REQUIRE(arrayLiteral->getElementsCount() == 2);
   CHECK(arrayLiteral->getElements()[0]->isIdentifierExpression());
   CHECK(arrayLiteral->getElements()[1]->isLiteralExpression());
+}
+
+TEST_CASE("ParserTrailingDotWithoutPropertyName") {
+  constexpr const char* kSource = R"(script TestScript {
+  fun test() {
+    makeArray().
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser parser(makeUnique<Lexer>(kSource), errorHandler);
+  const auto result = parser.parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* script =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(script != nullptr);
+  REQUIRE(script->getMemberDecls().size() == 1);
+
+  const auto* function = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  REQUIRE(function != nullptr);
+  REQUIRE(function->getBody());
+  REQUIRE(function->getBody()->getStatements().size() == 1);
+
+  const auto* callStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      function->getBody()->getStatements()[0].get());
+  REQUIRE(callStmt != nullptr);
+  REQUIRE(dynamic_cast<const ast::CallExpression*>(
+              callStmt->getExpression().get()) != nullptr);
+}
+
+TEST_CASE("ParserTrailingDotAfterIdentifier") {
+  constexpr const char* kSource = R"(script TestScript {
+  fun test() {
+    nums.
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser parser(makeUnique<Lexer>(kSource), errorHandler);
+  const auto result = parser.parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* script =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  const auto* function = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  const auto* numsStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      function->getBody()->getStatements()[0].get());
+  REQUIRE(numsStmt != nullptr);
+  REQUIRE(numsStmt->getExpression()->isIdentifierExpression());
 }

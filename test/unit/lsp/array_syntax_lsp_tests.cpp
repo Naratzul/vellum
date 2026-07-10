@@ -131,4 +131,54 @@ TEST_CASE_METHOD(LspTestFixture, "LspCompletion sized array member access") {
   REQUIRE(hasLabel(completeDot(2, 12), "length"));
 }
 
+TEST_CASE_METHOD(LspTestFixture,
+                 "LspCompletion local array bare dot member access") {
+  openDoc(R"(script TrainingMannequin {
+  fun test() {
+    var nums: [Int] = []
+    nums.
+  }
+}
+)");
+  analyze();
+  const auto list = completeDot(3, 8);
+  REQUIRE(hasLabel(list, "length"));
+  REQUIRE(hasLabel(list, "find"));
+  REQUIRE(hasLabel(list, "rfind"));
+}
+
+TEST_CASE_METHOD(LspTestFixture,
+                 "LspCompletion call result bare dot member access") {
+  openDoc(R"(script TrainingMannequin {
+  fun makeArray() -> [Int] {
+    return []
+  }
+
+  fun test() {
+    makeArray().
+  }
+}
+)");
+  analyze();
+  const auto list = completeDot(6, 15);
+  REQUIRE(hasLabel(list, "length"));
+  REQUIRE(hasLabel(list, "find"));
+  REQUIRE(hasLabel(list, "rfind"));
+}
+
+TEST_CASE_METHOD(LspTestFixture,
+                 "LspCompletion local array partial dot member access") {
+  openDoc(R"(script TrainingMannequin {
+  fun test() {
+    var nums: [Int] = []
+    nums.l
+  }
+}
+)");
+  analyze();
+  const auto list = completeDot(3, 10);
+  REQUIRE(hasLabel(list, "length"));
+  REQUIRE_FALSE(hasLabel(list, "find"));
+}
+
 }  // namespace vellum
