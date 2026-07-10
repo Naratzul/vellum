@@ -163,6 +163,20 @@ CompletionContext detectContext(
       ctx.kind = CompletionContextKind::TypeAnnotation;
       return ctx;
     }
+    if (i > 0 && line[i - 1] == '[') {
+      size_t bracket = i - 1;
+      while (bracket > 0 && isHorizontalSpace(line[bracket - 1])) {
+        bracket--;
+      }
+      if (bracket > 0) {
+        const char beforeBracket = line[bracket - 1];
+        if (beforeBracket == '=' || beforeBracket == ':' ||
+            beforeBracket == '(' || beforeBracket == ',') {
+          ctx.kind = CompletionContextKind::TypeAnnotation;
+          return ctx;
+        }
+      }
+    }
     if (line.find("import") != std::string_view::npos && col > 6) {
       const size_t importPos = line.find("import");
       if (importPos != std::string_view::npos && col > importPos + 6) {

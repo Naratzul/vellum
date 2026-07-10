@@ -55,6 +55,8 @@ class TypeCollector : public ast::DeclarationVisitor,
   void visitUnaryExpression(ast::UnaryExpression& expr) override;
   void visitCastExpression(ast::CastExpression& expr) override;
   void visitNewArrayExpression(ast::NewArrayExpression& expr) override;
+  void visitNewArrayElementsExpression(
+      ast::NewArrayElementsExpression& expr) override;
   void visitSelfExpression(ast::SelfExpression& expr) override;
   void visitSuperExpression(ast::SuperExpression& expr) override;
   void visitArrayIndexExpression(ast::ArrayIndexExpression& expr) override;

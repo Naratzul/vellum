@@ -1875,3 +1875,197 @@ TEST_CASE("BuildImportGraph_SkipsCompilingScript_NoDuplicateDiagnostics") {
 
   fs::remove_all(importDir);
 }
+
+TEST_CASE("CompileArrayElements_ArrayCreateAndSet") {
+  Vec<Unique<ast::Expression>> elements;
+  elements.push_back(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1), Token{}));
+  elements.push_back(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(2), Token{}));
+  elements.push_back(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(3), Token{}));
+  auto arrayLiteral =
+      makeUnique<ast::NewArrayElementsExpression>(std::move(elements), Token{});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"), std::nullopt, std::move(arrayLiteral), Token{},
+      std::nullopt));
+
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instr =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  auto countOp = [&](pex::PexOpCode op) {
+    int n = 0;
+    for (const auto& i : instr) {
+      if (i.getOpCode() == op) {
+        ++n;
+      }
+    }
+    return n;
+  };
+  CHECK(countOp(pex::PexOpCode::ArrayCreate) == 1);
+  CHECK(countOp(pex::PexOpCode::ArraySetElement) == 3);
+}
+
+TEST_CASE("CompileEmptyArray_ReturnAndLocalInit") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("nums"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      makeUnique<ast::NewArrayExpression>(std::nullopt, VellumLiteral(0),
+                                          Token{}),
+      Token{}, makeToken(TokenType::IDENTIFIER, 1, "Int")));
+  body.push_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::NewArrayExpression>(std::nullopt, VellumLiteral(0),
+                                          Token{})));
+
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "makeArray", Vec<ast::FunctionParameter>{},
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instr =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  auto countOp = [&](pex::PexOpCode op) {
+    int n = 0;
+    for (const auto& i : instr) {
+      if (i.getOpCode() == op) {
+        ++n;
+      }
+    }
+    return n;
+  };
+  CHECK(countOp(pex::PexOpCode::ArrayCreate) == 2);
+  CHECK(countOp(pex::PexOpCode::ArraySetElement) == 0);
+}
+
+TEST_CASE("CompileEmptyArray_AssignAndCall") {
+  Vec<ast::FunctionParameter> fooParams = {
+      {"arr", VellumType::array(VellumType::literal(VellumLiteralType::Int))}};
+
+  ast::FunctionBody testBody;
+  testBody.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("nums"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      makeUnique<ast::NewArrayExpression>(std::nullopt, VellumLiteral(0),
+                                          Token{}),
+      Token{}, makeToken(TokenType::IDENTIFIER, 1, "Int")));
+  testBody.push_back(makeUnique<ast::ExpressionStatement>(
+      makeUnique<ast::AssignExpression>(
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("nums"),
+                                                Token{}),
+          makeUnique<ast::NewArrayExpression>(std::nullopt, VellumLiteral(0),
+                                              Token{}),
+          ast::AssignOperator::Assign, Token{})));
+  Vec<Unique<ast::Expression>> callArgs;
+  callArgs.push_back(makeUnique<ast::NewArrayExpression>(
+      std::nullopt, VellumLiteral(0), Token{}));
+  testBody.push_back(makeUnique<ast::ExpressionStatement>(
+      makeUnique<ast::CallExpression>(
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+          std::move(callArgs))));
+
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", fooParams, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(testBody))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& testInstr =
+      file.objects()[0].getStates()[0].getFunctions()[1].getInstructions();
+  auto countOp = [&](pex::PexOpCode op) {
+    int n = 0;
+    for (const auto& i : testInstr) {
+      if (i.getOpCode() == op) {
+        ++n;
+      }
+    }
+    return n;
+  };
+  CHECK(countOp(pex::PexOpCode::ArrayCreate) == 3);
+  CHECK(countOp(pex::PexOpCode::ArraySetElement) == 0);
+}

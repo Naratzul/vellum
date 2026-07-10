@@ -634,9 +634,7 @@ pex::PexValue PexFunctionCompiler::compile(
       emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
       value = floatTemp;
     }
-    setCurrentLocation(expr.getLocation());
-    Vec<pex::PexValue> args = {arrayVal, indexVal, value};
-    emitInstruction(pex::PexOpCode::ArraySetElement, std::move(args));
+    emitArrayIndexSet(expr.getLocation(), arrayVal, indexVal, value);
     return value;
   }
   const pex::PexValue dest = makeTempVar(expr.getType());
@@ -655,9 +653,9 @@ pex::PexValue PexFunctionCompiler::compile(
                                pex::PexIdentifier(dest.asTempVar().getName()),
                                rhsVal};
   emitInstruction(code, std::move(opArgs));
-  Vec<pex::PexValue> setArgs = {arrayVal, indexVal,
-                                pex::PexIdentifier(dest.asTempVar().getName())};
-  emitInstruction(pex::PexOpCode::ArraySetElement, std::move(setArgs));
+  emitArrayIndexSet(expr.getLocation(), arrayVal, indexVal,
+                    pex::PexIdentifier(dest.asTempVar().getName()));
+
   return pex::PexIdentifier(dest.asTempVar().getName());
 }
 
@@ -834,15 +832,45 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CastExpression& expr) {
   return dest;
 }
 
-pex::PexValue PexFunctionCompiler::compile(
-    const ast::NewArrayExpression& expr) {
-  setCurrentLocation(expr.getLocation());
-  pex::PexValue dest = makeTempVarId(expr.getType());
+pex::PexValue PexFunctionCompiler::emitArrayCreate(const Token& location,
+                                                   const VellumType& type,
+                                                   VellumLiteral length) {
+  setCurrentLocation(location);
+  pex::PexValue dest = makeTempVarId(type);
 
-  Vec<pex::PexValue> args = {dest, makePexValue(expr.getLength(), file)};
+  Vec<pex::PexValue> args = {dest, makePexValue(length, file)};
   emitInstruction(pex::PexOpCode::ArrayCreate, std::move(args));
 
   return dest;
+}
+
+void PexFunctionCompiler::emitArrayIndexSet(const Token& location,
+                                            const pex::PexValue& array,
+                                            const pex::PexValue& index,
+                                            const pex::PexValue& value) {
+  setCurrentLocation(location);
+  Vec<pex::PexValue> args = {array, index, value};
+  emitInstruction(pex::PexOpCode::ArraySetElement, std::move(args));
+}
+
+pex::PexValue PexFunctionCompiler::compile(
+    const ast::NewArrayExpression& expr) {
+  return emitArrayCreate(expr.getLocation(), expr.getType(), expr.getLength());
+}
+
+pex::PexValue PexFunctionCompiler::compile(
+    const ast::NewArrayElementsExpression& expr) {
+  pex::PexValue array =
+      emitArrayCreate(expr.getLocation(), expr.getType(),
+                      VellumLiteral(int32_t(expr.getElementsCount())));
+
+  for (int i = 0; i < expr.getElementsCount(); ++i) {
+    const auto& element = expr.getElements()[i];
+    emitArrayIndexSet(expr.getLocation(), array, pex::PexValue(int32_t(i)),
+                      element->compile(*this));
+  }
+
+  return array;
 }
 
 pex::PexValue PexFunctionCompiler::makeValueFromToken(VellumValue value) {

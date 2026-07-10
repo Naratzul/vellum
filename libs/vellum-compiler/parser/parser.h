@@ -57,7 +57,9 @@ class Parser {
 
   Token previous;
   Token current;
+  Opt<Token> lookahead;
 
+  Token scanToken();
   void advance();
 
   Unique<ast::Declaration> topDeclaration();
@@ -72,6 +74,7 @@ class Parser {
 
   bool check(TokenType type) const;
   bool checkAny(std::initializer_list<TokenType> types) const;
+  bool peek(TokenType type);
 
   template <typename... Args>
   void consume(TokenType type, CompilerErrorKind error,

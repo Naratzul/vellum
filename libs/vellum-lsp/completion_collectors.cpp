@@ -174,6 +174,16 @@ class ExpressionExtentCollector : public ast::ExpressionVisitor {
   }
   void visitNewArrayExpression(ast::NewArrayExpression& expr) override {
     mergeExtent(extent, expr.getLocation());
+    if (const auto& subtypeLocation = expr.getSubtypeLocation()) {
+      mergeExtent(extent, *subtypeLocation);
+    }
+  }
+  void visitNewArrayElementsExpression(
+      ast::NewArrayElementsExpression& expr) override {
+    mergeExtent(extent, expr.getLocation());
+    for (const auto& element : expr.getElements()) {
+      element->accept(*this);
+    }
   }
   void visitTernaryExpression(ast::TernaryExpression& expr) override {
     mergeExtent(extent, expr.getLocation());
@@ -796,7 +806,30 @@ class ExpressionTypeAtDotVisitor : public ast::ExpressionVisitor {
     visitExpression(*expr.getValue(), depth_ + 1);
   }
 
-  void visitNewArrayExpression(ast::NewArrayExpression&) override {}
+  void visitNewArrayExpression(ast::NewArrayExpression& expr) override {
+    const LocationRange extent = expressionExtent(expr);
+    const bool dotAfter = cursorAtOrAfterDot() &&
+                          dotFollowsExtent(sourceLine_, dotIndex_, extent,
+                                           static_cast<int>(cursor_.line));
+    if (!expressionContainsPosition(expr, cursor_) && !dotAfter) {
+      return;
+    }
+    considerLeaf(expr);
+  }
+  void visitNewArrayElementsExpression(
+      ast::NewArrayElementsExpression& expr) override {
+    const LocationRange extent = expressionExtent(expr);
+    const bool dotAfter = cursorAtOrAfterDot() &&
+                          dotFollowsExtent(sourceLine_, dotIndex_, extent,
+                                           static_cast<int>(cursor_.line));
+    if (!expressionContainsPosition(expr, cursor_) && !dotAfter) {
+      return;
+    }
+    considerLeaf(expr);
+    for (const auto& element : expr.getElements()) {
+      visitExpression(*element, depth_ + 1);
+    }
+  }
   void visitTernaryExpression(ast::TernaryExpression& expr) override {
     if (!expressionContainsPosition(expr, cursor_)) {
       return;

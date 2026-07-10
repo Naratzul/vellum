@@ -4361,3 +4361,413 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   REQUIRE(errorHandler->hasError(CompilerErrorKind::TernaryTypeMismatch));
 }
+
+namespace {
+
+Unique<ast::NewArrayElementsExpression> makeIntLiteralArray(
+    std::initializer_list<int> values) {
+  Vec<Unique<ast::Expression>> elements;
+  for (int value : values) {
+    elements.push_back(
+        makeUnique<ast::LiteralExpression>(VellumLiteral(value), Token{}));
+  }
+  return makeUnique<ast::NewArrayElementsExpression>(std::move(elements),
+                                                     Token{});
+}
+
+Vec<Unique<ast::Declaration>> makeScriptWithFunctionBody(
+    ast::FunctionBody body) {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+  return ast;
+}
+
+const ast::LocalVariableStatement* getLocalVarFromResult(
+    const SemanticAnalyzeResult& result) {
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* local = dynamic_cast<const ast::LocalVariableStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(local != nullptr);
+  return local;
+}
+
+Unique<ast::NewArrayExpression> makeEmptyArray() {
+  return makeUnique<ast::NewArrayExpression>(std::nullopt, VellumLiteral(0),
+                                             Token{});
+}
+
+Vec<Unique<ast::Declaration>> makeScriptWithFunctionBodyAndReturnType(
+    ast::FunctionBody body, VellumType returnType) {
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, returnType,
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+  return ast;
+}
+
+const ast::ReturnStatement* getReturnStmtFromResult(
+    const SemanticAnalyzeResult& result) {
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* ret = dynamic_cast<const ast::ReturnStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(ret != nullptr);
+  return ret;
+}
+
+}  // namespace
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLiteral_DeducedIntArray") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"), std::nullopt, makeIntLiteralArray({1, 2, 3}),
+      Token{}, std::nullopt));
+
+  const auto result = analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* local = getLocalVarFromResult(result);
+  REQUIRE(local->getType().has_value());
+  CHECK(local->getType()->isArray());
+  CHECK(*local->getType()->asArraySubtype() ==
+        VellumType::literal(VellumLiteralType::Int));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLiteral_TypeMismatch_Error") {
+  Vec<Unique<ast::Expression>> elements;
+  elements.push_back(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1), Token{}));
+  elements.push_back(makeUnique<ast::LiteralExpression>(
+      VellumLiteral("x"), makeToken(TokenType::STRING, 1, "\"x\"")));
+  auto arrayLiteral =
+      makeUnique<ast::NewArrayElementsExpression>(std::move(elements), Token{});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"), std::nullopt, std::move(arrayLiteral), Token{},
+      std::nullopt));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ArrayElementsTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLiteral_NestedArray_Error") {
+  Vec<Unique<ast::Expression>> innerElements;
+  innerElements.push_back(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1), Token{}));
+  auto innerArray = makeUnique<ast::NewArrayElementsExpression>(
+      std::move(innerElements), Token{});
+
+  Vec<Unique<ast::Expression>> outerElements;
+  outerElements.push_back(std::move(innerArray));
+  auto outerArray = makeUnique<ast::NewArrayElementsExpression>(
+      std::move(outerElements), Token{});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"), std::nullopt, std::move(outerArray), Token{},
+      std::nullopt));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ArrayElementsTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArrayLiteral_MaxLength_Error") {
+  Vec<Unique<ast::Expression>> elements;
+  elements.reserve(129);
+  for (int i = 0; i < 129; ++i) {
+    elements.push_back(
+        makeUnique<ast::LiteralExpression>(VellumLiteral(i), Token{}));
+  }
+  auto arrayLiteral =
+      makeUnique<ast::NewArrayElementsExpression>(std::move(elements), Token{});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"), std::nullopt, std::move(arrayLiteral), Token{},
+      std::nullopt));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ArrayLengthMaximumExceeded));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticArraySizedCreate_WithAnnotation") {
+  auto sizedArray = makeUnique<ast::NewArrayExpression>(
+      VellumType::unresolved("Int"), VellumLiteral(4), Token{},
+      makeToken(TokenType::IDENTIFIER, 1, "Int"));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      std::move(sizedArray), Token{}, makeToken(TokenType::IDENTIFIER, 1, "Int")));
+
+  const auto result = analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* local = getLocalVarFromResult(result);
+  REQUIRE(local->getInitializer()->hasResolvedType());
+  CHECK(local->getInitializer()->getType().isArray());
+  CHECK(*local->getInitializer()->getType().asArraySubtype() ==
+        VellumType::literal(VellumLiteralType::Int));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticEmptyArray_ReturnWithArrayReturnType") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ReturnStatement>(makeEmptyArray()));
+
+  const auto result = analyzer->analyze(makeScriptWithFunctionBodyAndReturnType(
+      std::move(body),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int))));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* ret = getReturnStmtFromResult(result);
+  REQUIRE(ret->getExpression()->hasResolvedType());
+  CHECK(ret->getExpression()->getType().isArray());
+  CHECK(*ret->getExpression()->getType().asArraySubtype() ==
+        VellumType::literal(VellumLiteralType::Int));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticEmptyArray_ReturnWithNonArrayReturnType_Error") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ReturnStatement>(makeEmptyArray()));
+
+  analyzer->analyze(makeScriptWithFunctionBodyAndReturnType(
+      std::move(body), VellumType::literal(VellumLiteralType::Int)));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ReturnTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticEmptyArray_AnnotatedLocalInit") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      makeEmptyArray(), Token{},
+      makeToken(TokenType::IDENTIFIER, 1, "Int")));
+
+  const auto result = analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* local = getLocalVarFromResult(result);
+  REQUIRE(local->getInitializer()->hasResolvedType());
+  CHECK(local->getInitializer()->getType().isArray());
+  CHECK(*local->getInitializer()->getType().asArraySubtype() ==
+        VellumType::literal(VellumLiteralType::Int));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticEmptyArray_AnnotatedLocalInit_TypeMismatch_Error") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"), VellumType::literal(VellumLiteralType::Int),
+      makeEmptyArray(), Token{},
+      makeToken(TokenType::IDENTIFIER, 1, "Int")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::VariableTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticEmptyArray_AssignToLocalArray") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("nums"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      makeUnique<ast::NewArrayExpression>(std::nullopt, VellumLiteral(0),
+                                          Token{}),
+      Token{}, makeToken(TokenType::IDENTIFIER, 1, "Int")));
+  body.push_back(makeUnique<ast::ExpressionStatement>(
+      makeUnique<ast::AssignExpression>(
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("nums"),
+                                                Token{}),
+          makeEmptyArray(), ast::AssignOperator::Assign, Token{})));
+
+  const auto result = analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()->getStatements()[1].get());
+  REQUIRE(exprStmt != nullptr);
+  const auto& assign = dynamic_cast<const ast::AssignExpression&>(
+      *exprStmt->getExpression());
+  REQUIRE(assign.getValue()->hasResolvedType());
+  CHECK(assign.getValue()->getType().isArray());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticEmptyArray_AssignToLocalInt_Error") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("x"), VellumType::literal(VellumLiteralType::Int),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0)), Token{},
+      makeToken(TokenType::IDENTIFIER, 1, "Int")));
+  body.push_back(makeUnique<ast::ExpressionStatement>(
+      makeUnique<ast::AssignExpression>(
+          makeUnique<ast::IdentifierExpression>(VellumIdentifier("x"), Token{}),
+          makeEmptyArray(), ast::AssignOperator::Assign, Token{})));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticEmptyArray_CallArgument") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<ast::FunctionParameter> params = {
+      {"arr", VellumType::array(VellumType::literal(VellumLiteralType::Int))}};
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", params, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+
+  Vec<Unique<ast::Expression>> args;
+  args.push_back(makeEmptyArray());
+  auto callExpr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      std::move(args));
+  ast::FunctionBody body;
+  body.push_back(
+      makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* testFunc = dynamic_cast<const ast::FunctionDeclaration*>(
+      result.declarations[1].get());
+  REQUIRE(testFunc != nullptr);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      testFunc->getBody()->getStatements()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  const auto& call = dynamic_cast<const ast::CallExpression&>(
+      *exprStmt->getExpression());
+  REQUIRE(call.getArguments()[0]->hasResolvedType());
+  CHECK(call.getArguments()[0]->getType().isArray());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticEmptyArray_CallArgument_TypeMismatch_Error") {
+  Vec<Unique<ast::Declaration>> ast;
+  Vec<ast::FunctionParameter> params = {
+      {"x", VellumType::literal(VellumLiteralType::Int)}};
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", params, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+
+  Vec<Unique<ast::Expression>> args;
+  args.push_back(makeEmptyArray());
+  auto callExpr = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo")),
+      std::move(args));
+  ast::FunctionBody body;
+  body.push_back(
+      makeUnique<ast::ExpressionStatement>(std::move(callExpr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(
+      errorHandler->hasError(CompilerErrorKind::FunctionArgumentTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "SemanticEmptyArray_PropertySet") {
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("arr"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      noFunctionModifiers));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto setExpr = makeUnique<ast::PropertySetExpression>(
+      std::move(objExpr), VellumIdentifier("arr"), makeEmptyArray(),
+      ast::AssignOperator::Assign, Token{});
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(setExpr)));
+
+  const auto result = analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  const auto& set = dynamic_cast<const ast::PropertySetExpression&>(
+      *exprStmt->getExpression());
+  REQUIRE(set.getValue()->hasResolvedType());
+  CHECK(set.getValue()->getType().isArray());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticEmptyArray_PropertySet_TypeMismatch_Error") {
+  VellumObject testObject(VellumType::identifier("TestObject"));
+  testObject.addProperty(VellumProperty(
+      VellumIdentifier("count"), VellumType::literal(VellumLiteralType::Int),
+      noFunctionModifiers));
+  addTestObject(testObject);
+
+  auto objExpr =
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("TestObject"));
+  auto setExpr = makeUnique<ast::PropertySetExpression>(
+      std::move(objExpr), VellumIdentifier("count"), makeEmptyArray(),
+      ast::AssignOperator::Assign, Token{});
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ExpressionStatement>(std::move(setExpr)));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
+}

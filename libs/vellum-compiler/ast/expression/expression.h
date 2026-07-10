@@ -28,6 +28,8 @@ class PropertyGetExpression;
 class SelfExpression;
 class SuperExpression;
 class UnaryExpression;
+class NewArrayExpression;
+class NewArrayElementsExpression;
 
 class Expression {
  public:
@@ -53,6 +55,8 @@ class Expression {
   virtual bool isPropertyGetExpression() const { return false; }
   virtual bool isSelfExpression() const { return false; }
   virtual bool isSuperExpression() const { return false; }
+  virtual bool isNewArrayElementsExpression() const { return false; }
+  virtual bool isNewArrayExpression() const { return false; }
 
   LiteralExpression& asLiteral();
   UnaryExpression& asUnary();
@@ -61,6 +65,8 @@ class Expression {
   PropertyGetExpression& asPropertyGet();
   SelfExpression& asSelfExpression();
   SuperExpression& asSuperExpression();
+  NewArrayElementsExpression& asNewArrayElementsExpression();
+  NewArrayExpression& asNewArrayExpression();
 
  protected:
   VellumType type{VellumType::unresolved()};
@@ -447,21 +453,49 @@ class CastExpression : public Expression {
 class NewArrayExpression : public Expression {
  public:
   NewArrayExpression(Opt<VellumType> subtype, VellumLiteral length,
-                     Token location)
-      : Expression(location), subtype(subtype), length(length) {}
+                     Token location, Opt<Token> subtypeLocation = std::nullopt)
+      : Expression(location),
+        subtype(subtype),
+        length(length),
+        subtypeLocation(std::move(subtypeLocation)) {}
 
   bool equals(const Expression& other) const override;
   void accept(ExpressionVisitor& visitor) override;
   pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  bool isNewArrayExpression() const override { return true; }
 
   const Opt<VellumType>& getSubtype() const { return subtype; }
   void setSubtype(VellumType type) { subtype = type; }
 
   const VellumLiteral& getLength() const { return length; }
 
+  const Opt<Token>& getSubtypeLocation() const { return subtypeLocation; }
+
  private:
   Opt<VellumType> subtype;
   VellumLiteral length;
+  Opt<Token> subtypeLocation;
+};
+
+class NewArrayElementsExpression : public Expression {
+ public:
+  NewArrayElementsExpression(Vec<Unique<Expression>> elements,
+                             Token location = {})
+      : Expression(location), elements(std::move(elements)) {}
+
+  bool equals(const Expression& other) const override;
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  bool isNewArrayElementsExpression() const override { return true; }
+
+  const Vec<Unique<Expression>>& getElements() const { return elements; }
+
+  std::size_t getElementsCount() const { return elements.size(); }
+
+ private:
+  Vec<Unique<Expression>> elements;
 };
 
 class TernaryExpression : public Expression {

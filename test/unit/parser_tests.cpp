@@ -2437,3 +2437,157 @@ TEST_CASE("ParserModifiers_HiddenVarParses") {
   CHECK(modifiersBitmask(varDecl->getModifiers()) ==
         VellumModifiers{VellumModifier::Hidden});
 }
+
+namespace {
+
+const ast::Expression* firstFunctionExpression(const ParserResult& result) {
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  return exprStmt->getExpression().get();
+}
+
+Vec<Token> wrapInTestFunction(Vec<Token> exprTokens) {
+  Vec<Token> tokens;
+  tokens.push_back(makeToken(TokenType::SCRIPT, 1, "script"));
+  tokens.push_back(makeToken(TokenType::IDENTIFIER, 1, "TestScript"));
+  tokens.push_back(makeToken(TokenType::LEFT_BRACE, 1, "{"));
+  tokens.push_back(makeToken(TokenType::FUN, 1, "fun"));
+  tokens.push_back(makeToken(TokenType::IDENTIFIER, 1, "test"));
+  tokens.push_back(makeToken(TokenType::LEFT_PAREN, 1, "("));
+  tokens.push_back(makeToken(TokenType::RIGHT_PAREN, 1, ")"));
+  tokens.push_back(makeToken(TokenType::LEFT_BRACE, 1, "{"));
+  for (auto& token : exprTokens) {
+    tokens.push_back(std::move(token));
+  }
+  tokens.push_back(makeToken(TokenType::RIGHT_BRACE, 1, "}"));
+  tokens.push_back(makeToken(TokenType::RIGHT_BRACE, 1, "}"));
+  tokens.push_back(makeToken(TokenType::END_OF_FILE, 1, ""));
+  return tokens;
+}
+
+}  // namespace
+
+TEST_CASE("ParserArrayLiteral_IntElements") {
+  Vec<Token> exprTokens{
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+      makeToken(TokenType::COMMA, 1, ","),
+      makeToken(TokenType::INT, 1, "2", VellumLiteral(2)),
+      makeToken(TokenType::COMMA, 1, ","),
+      makeToken(TokenType::INT, 1, "3", VellumLiteral(3)),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result = Parser(makeUnique<LexerMock>(wrapInTestFunction(std::move(exprTokens))),
+                             errorHandler)
+                          .parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* arrayLiteral =
+      dynamic_cast<const ast::NewArrayElementsExpression*>(
+          firstFunctionExpression(result));
+  REQUIRE(arrayLiteral != nullptr);
+  REQUIRE(arrayLiteral->getElementsCount() == 3);
+  CHECK(arrayLiteral->getElements()[0]->isLiteralExpression());
+  CHECK(arrayLiteral->getElements()[0]->asLiteral().getLiteral().asInt() == 1);
+  CHECK(arrayLiteral->getElements()[2]->asLiteral().getLiteral().asInt() == 3);
+}
+
+TEST_CASE("ParserArraySizedCreate_IntSemicolon4") {
+  Vec<Token> exprTokens{
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
+      makeToken(TokenType::SEMICOLON, 1, ";"),
+      makeToken(TokenType::INT, 1, "4", VellumLiteral(4)),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result = Parser(makeUnique<LexerMock>(wrapInTestFunction(std::move(exprTokens))),
+                             errorHandler)
+                          .parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* sized =
+      dynamic_cast<const ast::NewArrayExpression*>(firstFunctionExpression(result));
+  REQUIRE(sized != nullptr);
+  REQUIRE(sized->getSubtype().has_value());
+  CHECK(sized->getSubtype()->asRawType() == "Int");
+  CHECK(sized->getLength().asInt() == 4);
+  REQUIRE(sized->getSubtypeLocation().has_value());
+  CHECK(sized->getSubtypeLocation()->lexeme == "Int");
+}
+
+TEST_CASE("ParserArrayEmpty") {
+  Vec<Token> exprTokens{
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result = Parser(makeUnique<LexerMock>(wrapInTestFunction(std::move(exprTokens))),
+                             errorHandler)
+                          .parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* empty =
+      dynamic_cast<const ast::NewArrayExpression*>(firstFunctionExpression(result));
+  REQUIRE(empty != nullptr);
+  CHECK_FALSE(empty->getSubtype().has_value());
+  CHECK(empty->getLength().asInt() == 0);
+}
+
+TEST_CASE("ParserArrayLiteral_IdentifierElement") {
+  Vec<Token> exprTokens{
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result = Parser(makeUnique<LexerMock>(wrapInTestFunction(std::move(exprTokens))),
+                             errorHandler)
+                          .parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* arrayLiteral =
+      dynamic_cast<const ast::NewArrayElementsExpression*>(
+          firstFunctionExpression(result));
+  REQUIRE(arrayLiteral != nullptr);
+  REQUIRE(arrayLiteral->getElementsCount() == 1);
+  REQUIRE(arrayLiteral->getElements()[0]->isIdentifierExpression());
+  CHECK(arrayLiteral->getElements()[0]->asIdentifier().getIdentifier().toString() ==
+        "foo");
+}
+
+TEST_CASE("ParserArrayLiteral_CommaDisambiguation") {
+  Vec<Token> exprTokens{
+      makeToken(TokenType::LEFT_BRACK, 1, "["),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
+      makeToken(TokenType::COMMA, 1, ","),
+      makeToken(TokenType::INT, 1, "4", VellumLiteral(4)),
+      makeToken(TokenType::RIGHT_BRACK, 1, "]"),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result = Parser(makeUnique<LexerMock>(wrapInTestFunction(std::move(exprTokens))),
+                             errorHandler)
+                          .parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* arrayLiteral =
+      dynamic_cast<const ast::NewArrayElementsExpression*>(
+          firstFunctionExpression(result));
+  REQUIRE(arrayLiteral != nullptr);
+  REQUIRE(arrayLiteral->getElementsCount() == 2);
+  CHECK(arrayLiteral->getElements()[0]->isIdentifierExpression());
+  CHECK(arrayLiteral->getElements()[1]->isLiteralExpression());
+}

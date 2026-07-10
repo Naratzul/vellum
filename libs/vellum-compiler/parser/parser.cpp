@@ -38,15 +38,31 @@ ParserResult Parser::parse() {
   return result;
 }
 
+Token Parser::scanToken() {
+  for (;;) {
+    Token token = lexer->scanToken();
+    if (token.type != TokenType::ERROR) {
+      return token;
+    }
+    errorHandler->errorAt(token, token.lexeme);
+  }
+}
+
 void Parser::advance() {
   previous = current;
-  for (;;) {
-    current = lexer->scanToken();
-    if (current.type != TokenType::ERROR) {
-      break;
-    }
-    errorHandler->errorAt(current, current.lexeme);
+  if (lookahead.has_value()) {
+    current = lookahead.value();
+    lookahead.reset();
+  } else {
+    current = scanToken();
   }
+}
+
+bool Parser::peek(TokenType type) {
+  if (!lookahead.has_value()) {
+    lookahead = scanToken();
+  }
+  return lookahead->type == type;
 }
 
 Unique<ast::Declaration> Parser::topDeclaration() {
@@ -807,7 +823,7 @@ Unique<ast::Expression> Parser::callExpression(Unique<ast::Expression> callee,
 
   if (!check(TokenType::RIGHT_PAREN)) {
     do {
-      arguments.push_back(expression());
+      arguments.push_back(logicalOrExpression());
     } while (match(TokenType::COMMA));
   }
 
@@ -853,32 +869,40 @@ Unique<ast::Expression> Parser::primaryExpression() {
 }
 
 Unique<ast::Expression> Parser::arrayExpression() {
-  Opt<VellumType> subtype;
-
   if (match(TokenType::RIGHT_BRACK)) {
-    return makeUnique<ast::NewArrayExpression>(subtype, VellumLiteral(0),
+    return makeUnique<ast::NewArrayExpression>(std::nullopt, VellumLiteral(0),
                                                previous);
   }
 
-  consume(TokenType::IDENTIFIER, CompilerErrorKind::ArrayTypeMissing,
-          "Expect array elements type.");
-  subtype = VellumType::unresolved(previous.lexeme);
+  if (check(TokenType::IDENTIFIER) && peek(TokenType::SEMICOLON)) {
+    advance();  // typename
+    const Token subtypeLocation = previous;
+    VellumType subtype = VellumType::unresolved(previous.lexeme);
 
-  consume(TokenType::SEMICOLON, CompilerErrorKind::ArraySemicolonMissing,
-          "Expect ';' after array elements type.");
+    advance();  // consume ;
+    consume(TokenType::INT, CompilerErrorKind::ArrayLengthAsIntExpected,
+            "Expect array length as Int value.");
+    if (!previous.value.has_value()) {
+      throw ParseException(previous, "Array length must be provided.");
+    }
 
-  consume(TokenType::INT, CompilerErrorKind::ArrayLengthAsIntExpected,
-          "Expect array length as Int value.");
-  if (!previous.value.has_value()) {
-    throw ParseException(previous, "Array length must be provided.");
+    const VellumLiteral length = previous.value.value();
+    consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
+            "Expect ']' after array.");
+    return makeUnique<ast::NewArrayExpression>(subtype, length, previous,
+                                               subtypeLocation);
   }
 
-  const VellumLiteral length = previous.value.value();
+  Vec<Unique<ast::Expression>> elements;
+
+  do {
+    elements.push_back(logicalOrExpression());
+  } while (match(TokenType::COMMA));
 
   consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
           "Expect ']' after array.");
-
-  return makeUnique<ast::NewArrayExpression>(subtype, length, previous);
+  return makeUnique<ast::NewArrayElementsExpression>(std::move(elements),
+                                                   previous);
 }
 
 Unique<ast::Expression> Parser::ternaryExpression(

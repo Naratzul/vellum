@@ -38,6 +38,40 @@ bool isValidStateLifecycleHookSignature(const VellumFunction& func) {
          func.getReturnType().isNone();
 }
 
+void tryApplyContextualEmptyArrayType(ast::Expression& expr,
+                                      VellumType contextType,
+                                      CompilerErrorHandler& errorHandler,
+                                      CompilerErrorKind mismatchKind) {
+  if (expr.hasResolvedType() || !expr.isNewArrayExpression()) {
+    return;
+  }
+
+  auto& arrayExpr = expr.asNewArrayExpression();
+  if (arrayExpr.getSubtype().has_value() ||
+      arrayExpr.getLength().asInt() != 0) {
+    return;
+  }
+
+  if (contextType.isArray()) {
+    arrayExpr.setType(contextType);
+    return;
+  }
+
+  errorHandler.errorAt(
+      expr.getLocation(), mismatchKind,
+      "Cannot infer type of empty array without array context. Got '{}'.",
+      contextType.toString());
+}
+
+void applyContextualEmptyArrayTypeIfNeeded(
+    ast::Expression& expr, VellumType contextType,
+    CompilerErrorHandler& errorHandler, CompilerErrorKind mismatchKind) {
+  if (!expr.hasResolvedType()) {
+    tryApplyContextualEmptyArrayType(expr, contextType, errorHandler,
+                                     mismatchKind);
+  }
+}
+
 }  // namespace
 
 SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
@@ -277,7 +311,9 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
   const auto& func = resolver->getCurrentFunction();
   assert(func.has_value());
 
-  if (!statement.getExpression()) {
+  auto& returnExpr = statement.getExpression();
+
+  if (!returnExpr) {
     if (!func->getReturnType().isNone()) {
       errorHandler->errorAt(
           statement.getLocation(), CompilerErrorKind::ReturnTypeMismatch,
@@ -287,12 +323,17 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
     return;
   }
 
-  statement.getExpression()->accept(*this);
-  auto result = checker.check(statement.getExpression(), func->getReturnType(),
+  returnExpr->accept(*this);
+
+  applyContextualEmptyArrayTypeIfNeeded(
+      *returnExpr, func->getReturnType(), *errorHandler,
+      CompilerErrorKind::ReturnTypeMismatch);
+
+  auto result = checker.check(returnExpr, func->getReturnType(),
                               TypeChecker::Context::Return);
   if (!result.compatible) {
-    errorHandler->errorAt(statement.getExpression()->getLocation(),
-                          result.errorKind, result.errorMessage);
+    errorHandler->errorAt(returnExpr->getLocation(), result.errorKind,
+                          result.errorMessage);
     return;
   }
 }
@@ -342,6 +383,11 @@ void SemanticAnalyzer::visitLocalVariableStatement(
   Opt<VellumType> deducedType;
   if (statement.getInitializer()) {
     statement.getInitializer()->accept(*this);
+    if (annotatedType) {
+      applyContextualEmptyArrayTypeIfNeeded(
+          *statement.getInitializer(), *annotatedType, *errorHandler,
+          CompilerErrorKind::VariableTypeMismatch);
+    }
     if (statement.getInitializer()->hasResolvedType()) {
       deducedType = statement.getInitializer()->getType();
       if (!annotatedType) {
@@ -361,11 +407,17 @@ void SemanticAnalyzer::visitLocalVariableStatement(
     }
   }
 
-  if (auto type = statement.getType()) {
-    VellumVariable var(statement.getName(), *type);
-    Token varLocation = statement.getNameLocation();
-    resolver->pushLocalVar(var, varLocation);
+  auto type = statement.getType();
+  if (!type) {
+    errorHandler->errorAt(statement.getNameLocation(),
+                          CompilerErrorKind::TypeAnnotationMissing,
+                          "Type annotation is missing.");
+    return;
   }
+
+  VellumVariable var(statement.getName(), *type);
+  Token varLocation = statement.getNameLocation();
+  resolver->pushLocalVar(var, varLocation);
 }
 
 void SemanticAnalyzer::visitWhileStatement(ast::WhileStatement& statement) {
@@ -519,10 +571,9 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
                                   bareCalleeResolution->ambiguous);
         return;
       case BareCalleeStatus::NotFound:
-        errorHandler->errorAt(expr.getLocation(),
-                              CompilerErrorKind::UndefinedFunction,
-                              "Undefined function '{}'.",
-                              funcIdentifier.toString());
+        errorHandler->errorAt(
+            expr.getLocation(), CompilerErrorKind::UndefinedFunction,
+            "Undefined function '{}'.", funcIdentifier.toString());
         return;
       case BareCalleeStatus::Local:
       case BareCalleeStatus::Imported:
@@ -670,11 +721,16 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
   auto argsCount = expr.getArguments().size();
   for (size_t i = 0; i < argsCount; i++) {
     auto& arg = expr.getArguments()[i];
+    const VellumType& paramType = func->getParameters()[i].getType();
     arg->accept(*this);
+
+    applyContextualEmptyArrayTypeIfNeeded(
+        *arg, paramType, *errorHandler,
+        CompilerErrorKind::FunctionArgumentTypeMismatch);
 
     std::string contextInfo =
         std::string(func->getName().toString()) + "," + std::to_string(i);
-    auto result = checker.check(arg, func->getParameters()[i].getType(),
+    auto result = checker.check(arg, paramType,
                                 TypeChecker::Context::Argument, contextInfo);
     if (!result.compatible) {
       errorHandler->errorAt(arg->getLocation(), result.errorKind,
@@ -871,6 +927,10 @@ void SemanticAnalyzer::visitPropertySetExpression(
 
   expr.getValue()->accept(*this);
 
+  applyContextualEmptyArrayTypeIfNeeded(
+      *expr.getValue(), expr.getType(), *errorHandler,
+      CompilerErrorKind::AssignTypeMismatch);
+
   if (expr.getOperator() != ast::AssignOperator::Assign) {
     if (!validateComposedAssignTypes(expr.getOperator(), expr.getType(),
                                      expr.getValue()->getType(),
@@ -943,6 +1003,10 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
   }
 
   expr.getValue()->accept(*this);
+
+  applyContextualEmptyArrayTypeIfNeeded(
+      *expr.getValue(), expr.getType(), *errorHandler,
+      CompilerErrorKind::AssignTypeMismatch);
 
   if (expr.getOperator() != ast::AssignOperator::Assign) {
     if (!validateComposedAssignTypes(expr.getOperator(), expr.getType(),
@@ -1188,8 +1252,9 @@ void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
 
 void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   if (const auto& subtype = expr.getSubtype()) {
-    VellumType resolvedSubtype =
-        resolver->resolveType(*subtype, expr.getLocation());
+    const Token typeLocation =
+        expr.getSubtypeLocation().value_or(expr.getLocation());
+    VellumType resolvedSubtype = resolver->resolveType(*subtype, typeLocation);
     expr.setSubtype(resolvedSubtype);
     expr.setType(VellumType::array(resolvedSubtype));
   }
@@ -1213,6 +1278,52 @@ void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
                           CompilerErrorKind::ArrayLengthMaximumExceeded,
                           "Maximum array length (128) is exceeded.");
   }
+}
+
+void SemanticAnalyzer::visitNewArrayElementsExpression(
+    ast::NewArrayElementsExpression& expr) {
+  auto& elements = expr.getElements();
+
+  for (auto& element : elements) {
+    element->accept(*this);
+  }
+
+  if (elements.empty()) {
+    return;
+  }
+
+  VellumType type = elements[0]->getType();
+  if (!type.isResolved()) {
+    return;
+  }
+
+  if (type.isArray()) {
+    errorHandler->errorAt(
+        elements[0]->getLocation(),
+        CompilerErrorKind::ArrayElementsTypeMismatch,
+        "Array elements cannot be arrays. Multidimensional arrays are not "
+        "supported.");
+    return;
+  }
+
+  for (int i = 1; i < elements.size(); ++i) {
+    if (type != elements[i]->getType()) {
+      errorHandler->errorAt(elements[i]->getLocation(),
+                            CompilerErrorKind::ArrayElementsTypeMismatch,
+                            "Mismatched types. Expected '{}', found '{}'.",
+                            type.toString(), elements[i]->getType().toString());
+      return;
+    }
+  }
+
+  if (elements.size() > 128) {
+    errorHandler->errorAt(expr.getLocation(),
+                          CompilerErrorKind::ArrayLengthMaximumExceeded,
+                          "Maximum array length (128) is exceeded.");
+    return;
+  }
+
+  expr.setType(VellumType::array(type));
 }
 
 void SemanticAnalyzer::visitSelfExpression(ast::SelfExpression& expr) {

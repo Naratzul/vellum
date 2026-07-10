@@ -138,7 +138,22 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
   }
   void visitSelfExpression(ast::SelfExpression&) override {}
   void visitSuperExpression(ast::SuperExpression&) override {}
-  void visitNewArrayExpression(ast::NewArrayExpression&) override {}
+  void visitNewArrayExpression(ast::NewArrayExpression& expr) override {
+    if (!positionInRange(pos, expr.getLocation().location)) {
+      return;
+    }
+    if (const auto& subtypeLocation = expr.getSubtypeLocation()) {
+      if (positionInRange(pos, subtypeLocation->location)) {
+        return;
+      }
+    }
+  }
+  void visitNewArrayElementsExpression(
+      ast::NewArrayElementsExpression& expr) override {
+    for (const auto& element : expr.getElements()) {
+      visitExpression(*element, depth + 1);
+    }
+  }
   void visitTernaryExpression(ast::TernaryExpression& expr) override {
     expr.getCondition()->accept(*this);
     expr.getLeft()->accept(*this);

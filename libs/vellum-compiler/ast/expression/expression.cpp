@@ -121,6 +121,14 @@ SuperExpression& Expression::asSuperExpression() {
   return static_cast<SuperExpression&>(*this);
 }
 
+NewArrayElementsExpression& Expression::asNewArrayElementsExpression() {
+  return static_cast<NewArrayElementsExpression&>(*this);
+}
+
+NewArrayExpression& Expression::asNewArrayExpression() {
+  return static_cast<NewArrayExpression&>(*this);
+}
+
 bool SelfExpression::equals(const Expression& other_) const {
   return other_.isSelfExpression();
 }
@@ -214,6 +222,31 @@ void NewArrayExpression::accept(ExpressionVisitor& visitor) {
 }
 
 pex::PexValue NewArrayExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
+bool NewArrayElementsExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const NewArrayElementsExpression&>(other_);
+
+  if (getElementsCount() != other.getElementsCount()) {
+    return false;
+  }
+
+  for (int i = 0; i < elements.size(); ++i) {
+    if (!elements[i]->equals(*other.elements[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void NewArrayElementsExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitNewArrayElementsExpression(*this);
+}
+
+pex::PexValue NewArrayElementsExpression::compile(
+    ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
 

@@ -69,6 +69,7 @@ enum class CompilerErrorKind {
   ArrayLengthTypeMismatch,
   ArrayLengthMustBePositive,
   ArrayLengthMaximumExceeded,
+  ArrayElementsTypeMismatch,
 
   ArrayIndexNotArray,
   ArrayIndexNotInt,

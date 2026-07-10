@@ -24,6 +24,7 @@ add_executable(tests
     unit/lsp/diagnostics_tests.cpp
     unit/lsp/document_store_tests.cpp
     unit/lsp/lsp_locations_tests.cpp
+    unit/lsp/array_syntax_lsp_tests.cpp
 )
 
 target_compile_definitions(tests

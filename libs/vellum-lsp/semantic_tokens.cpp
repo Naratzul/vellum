@@ -390,7 +390,22 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
             SemanticTokenLegendType::Type);
   }
 
-  void visitNewArrayExpression(ast::NewArrayExpression&) override {}
+  void visitNewArrayExpression(ast::NewArrayExpression& expr) override {
+    if (const auto& subtype = expr.getSubtype()) {
+      if (const auto& subtypeLocation = expr.getSubtypeLocation()) {
+        addSpan(spans, *subtypeLocation, SemanticTokenLegendType::Type);
+      } else if (subtype->getState() == VellumTypeState::Identifier) {
+        addSpan(spans, expr.getLocation(), SemanticTokenLegendType::Type);
+      }
+    }
+  }
+
+  void visitNewArrayElementsExpression(
+      ast::NewArrayElementsExpression& expr) override {
+    for (const auto& element : expr.getElements()) {
+      element->accept(*this);
+    }
+  }
 
   void visitSelfExpression(ast::SelfExpression&) override {}
   void visitSuperExpression(ast::SuperExpression&) override {}

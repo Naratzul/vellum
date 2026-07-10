@@ -38,7 +38,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
                       pex::PexFile& file);
 
   pex::PexFunction compile(const ast::FunctionDeclaration& func,
-                            pex::PexDebugFunctionInfo* debugInfo = nullptr);
+                           pex::PexDebugFunctionInfo* debugInfo = nullptr);
 
   void visitExpressionStatement(ast::ExpressionStatement& statement) override;
   void visitReturnStatement(ast::ReturnStatement& statement) override;
@@ -63,6 +63,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::UnaryExpression& expr) override;
   pex::PexValue compile(const ast::CastExpression& expr) override;
   pex::PexValue compile(const ast::NewArrayExpression& expr) override;
+  pex::PexValue compile(const ast::NewArrayElementsExpression& expr) override;
   pex::PexValue compile(const ast::SelfExpression& expr) override;
   pex::PexValue compile(const ast::SuperExpression& expr) override;
   pex::PexValue compile(const ast::TernaryExpression& expr) override;
@@ -76,6 +77,13 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   void emitInstruction(pex::PexOpCode opcode, Vec<pex::PexValue> args);
   void emitInstruction(pex::PexOpCode opcode, Vec<pex::PexValue> args,
                        Vec<pex::PexValue> variadicArgs);
+
+  pex::PexValue emitArrayCreate(const Token& location, const VellumType& type,
+                                VellumLiteral length);
+
+  void emitArrayIndexSet(const Token& location, const pex::PexValue& array,
+                         const pex::PexValue& index,
+                         const pex::PexValue& value);
 
   Shared<CompilerErrorHandler> errorHandler;
   pex::PexFile& file;

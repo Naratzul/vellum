@@ -200,6 +200,13 @@ void TypeCollector::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   }
 }
 
+void TypeCollector::visitNewArrayElementsExpression(
+    ast::NewArrayElementsExpression& expr) {
+  for (const auto& element : expr.getElements()) {
+    element->accept(*this);
+  }
+}
+
 void TypeCollector::visitSelfExpression(ast::SelfExpression&) {}
 
 void TypeCollector::visitSuperExpression(ast::SuperExpression&) {}

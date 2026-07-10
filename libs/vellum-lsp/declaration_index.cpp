@@ -238,6 +238,16 @@ class ExpressionExtentCollector : public ast::ExpressionVisitor {
   }
   void visitNewArrayExpression(ast::NewArrayExpression& expr) override {
     mergeExtent(extent, expr.getLocation());
+    if (const auto& subtypeLocation = expr.getSubtypeLocation()) {
+      mergeExtent(extent, *subtypeLocation);
+    }
+  }
+  void visitNewArrayElementsExpression(
+      ast::NewArrayElementsExpression& expr) override {
+    mergeExtent(extent, expr.getLocation());
+    for (const auto& element : expr.getElements()) {
+      element->accept(*this);
+    }
   }
   void visitTernaryExpression(ast::TernaryExpression& expr) override {
     mergeExtent(extent, expr.getLocation());
@@ -719,7 +729,23 @@ class LocalBindingFinder : public ast::DeclarationVisitor {
 
       void visitSelfExpression(ast::SelfExpression&) override {}
       void visitSuperExpression(ast::SuperExpression&) override {}
-      void visitNewArrayExpression(ast::NewArrayExpression&) override {}
+      void visitNewArrayExpression(ast::NewArrayExpression& expr) override {
+        if (!positionInRange(usePos, expr.getLocation().location)) {
+          return;
+        }
+      }
+      void visitNewArrayElementsExpression(
+          ast::NewArrayElementsExpression& expr) override {
+        if (!positionInRange(usePos, expr.getLocation().location)) {
+          return;
+        }
+        for (const auto& element : expr.getElements()) {
+          element->accept(*this);
+          if (result) {
+            return;
+          }
+        }
+      }
       void visitTernaryExpression(ast::TernaryExpression& expr) override {
         if (!positionInRange(usePos, expr.getLocation().location)) {
           return;
