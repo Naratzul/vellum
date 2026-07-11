@@ -119,6 +119,9 @@ class LocalVariableStatement : public Statement {
   Token getNameLocation() const { return nameLocation; }
   Opt<Token> getTypeLocation() const { return typeLocation; }
 
+  void setMangledPexName(VellumIdentifier name) { mangledPexName = name; }
+  Opt<VellumIdentifier> getMangledPexName() const { return mangledPexName; }
+
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
 
@@ -128,6 +131,7 @@ class LocalVariableStatement : public Statement {
   Unique<Expression> initializer;
   Token nameLocation;
   Opt<Token> typeLocation;
+  Opt<VellumIdentifier> mangledPexName;
 };
 
 class WhileStatement : public Statement {

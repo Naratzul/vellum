@@ -8,11 +8,11 @@
 #include "analyze/declaration_analysis.h"
 #include "ast/decl/declaration.h"
 #include "ast/expression/expression.h"
-#include "common/string_set.h"
 #include "common/string_utils.h"
 #include "common/types.h"
 #include "compiler/call_resolution.h"
 #include "compiler/compiler_error_handler.h"
+#include "compiler/local_var_mangling.h"
 #include "compiler/resolver.h"
 #include "lexer/token.h"
 #include "vellum/vellum_function.h"
@@ -354,14 +354,10 @@ void SemanticAnalyzer::visitIfStatement(ast::IfStatement& statement) {
     return;
   }
 
-  resolver->pushScope();
   statement.getThenBlock()->accept(*this);
-  resolver->popScope();
 
   if (auto& elseBlock = statement.getElseBlock()) {
-    resolver->pushScope();
     elseBlock->accept(*this);
-    resolver->popScope();
   }
 }
 
@@ -418,6 +414,11 @@ void SemanticAnalyzer::visitLocalVariableStatement(
   VellumVariable var(statement.getName(), *type);
   Token varLocation = statement.getNameLocation();
   resolver->pushLocalVar(var, varLocation);
+  if (auto localVar = resolver->getLocalVarInCurrentScope(statement.getName())) {
+    if (auto pexName = localVar->getPexName()) {
+      statement.setMangledPexName(*pexName);
+    }
+  }
 }
 
 void SemanticAnalyzer::visitWhileStatement(ast::WhileStatement& statement) {
@@ -471,7 +472,7 @@ void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
       statement.getVariableName()->asIdentifier().getIdentifier();
   VellumVariable loopVar(variableName, *arrayExpr->getType().asArraySubtype());
 
-  VellumIdentifier pexName(mangleLoopVariable(variableName.getValue()));
+  VellumIdentifier pexName(mangleLocalPexName(variableName.getValue(), loopCount));
   loopVar.setPexName(pexName);
 
   resolver->pushScope();
@@ -480,7 +481,9 @@ void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
   statement.getVariableName()->accept(*this);
 
   statement.setCounterMangledName(
-      mangleLoopVariable(std::format("{}_index", variableName.getValue())));
+      mangleLocalPexName(std::format("{}_index", variableName.getValue()),
+                         loopCount)
+          .toString());
 
   loopDepth++;
   statement.getBody()->accept(*this);
@@ -491,9 +494,11 @@ void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
 }
 
 void SemanticAnalyzer::visitBlockStatement(ast::BlockStatement& statement) {
+  resolver->pushScope();
   for (auto& stmt : statement.getStatements()) {
     stmt->accept(*this);
   }
+  resolver->popScope();
 }
 
 void SemanticAnalyzer::visitIdentifierExpression(
@@ -1550,10 +1555,5 @@ bool SemanticAnalyzer::validateComposedAssignTypes(ast::AssignOperator op,
     default:
       return true;
   }
-}
-
-std::string_view SemanticAnalyzer::mangleLoopVariable(std::string_view name) {
-  auto str = std::format("{}_{}", name, loopCount);
-  return common::StringSet::insert(str);
 }
 }  // namespace vellum

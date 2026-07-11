@@ -3,6 +3,7 @@
 #include "analyze/import_library.h"
 #include "common/types.h"
 #include "compiler/builtin_functions.h"
+#include "compiler/local_var_mangling.h"
 #include "compiler_error_handler.h"
 #include "lexer/token.h"
 #include "vellum/vellum_function.h"
@@ -32,6 +33,22 @@ void Resolver::endFunction() {
 void Resolver::pushScope() { scopes.emplace_back(); }
 void Resolver::popScope() { scopes.pop_back(); }
 
+namespace {
+bool isDeclaredInOuterScopes(const Vec<Scope>& scopes,
+                             VellumIdentifier name) {
+  if (scopes.size() <= 1) {
+    return false;
+  }
+  for (auto it = scopes.rbegin() + 1; it != scopes.rend(); ++it) {
+    if (it->getVariable(name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 void Resolver::pushLocalVar(const VellumVariable& var, Token location) {
   auto& scope = scopes.back();
   if (scope.contains(var.getName())) {
@@ -40,11 +57,21 @@ void Resolver::pushLocalVar(const VellumVariable& var, Token location) {
         var.getName().toString());
     return;
   }
-  scopes.back().pushVar(var);
+  VellumVariable varToPush = var;
+  if (!varToPush.getPexName() &&
+      isDeclaredInOuterScopes(scopes, var.getName())) {
+    varToPush.setPexName(mangleLocalPexName(var.getName().getValue(), scopes.size()));
+  }
+  scopes.back().pushVar(varToPush);
 }
 
 void Resolver::popLocalVar() { scopes.back().popVar(); }
 void Resolver::popLocalVar(int count) { scopes.back().popVar(count); }
+
+Opt<VellumVariable> Resolver::getLocalVarInCurrentScope(
+    VellumIdentifier name) const {
+  return scopes.back().getVariable(name);
+}
 
 Opt<VellumValue> Resolver::resolveIdentifier(
     VellumIdentifier identifier) const {

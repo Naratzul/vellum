@@ -87,6 +87,9 @@ class Resolver {
   void popLocalVar();
   void popLocalVar(int count);
 
+  Opt<VellumVariable> getLocalVarInCurrentScope(
+      VellumIdentifier name) const;
+
   Opt<VellumValue> resolveIdentifier(VellumIdentifier identifier) const;
 
   bool isInstanceMember(VellumIdentifier identifier) const;

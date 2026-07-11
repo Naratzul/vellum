@@ -2069,3 +2069,107 @@ TEST_CASE("CompileEmptyArray_AssignAndCall") {
   CHECK(countOp(pex::PexOpCode::ArrayCreate) == 3);
   CHECK(countOp(pex::PexOpCode::ArraySetElement) == 0);
 }
+
+TEST_CASE("CompileLocalVarShadowing_InIfBlock_EmitsDistinctPexLocals") {
+  Vec<Unique<ast::Statement>> thenBody;
+  thenBody.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(56))));
+
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  body.push_back(makeUnique<ast::IfStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::BlockStatement>(std::move(thenBody)), nullptr));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file = Compiler(errorHandler).compile(ScriptMetadata(),
+                                                     semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& locals =
+      file.objects()[0].getStates()[0].getFunctions()[0].getLocalVariables();
+  const auto& st = file.stringTable();
+  bool hasOuter = false;
+  bool hasInner = false;
+  for (const auto& lv : locals) {
+    const std::string_view name =
+        st.valueByIndex(static_cast<size_t>(lv.getName().index()));
+    if (name == "num") {
+      hasOuter = true;
+    }
+    if (name == "num_3") {
+      hasInner = true;
+    }
+  }
+  CHECK(hasOuter);
+  CHECK(hasInner);
+}
+
+TEST_CASE("CompileLocalVarShadowing_InWhileBlock_EmitsDistinctPexLocals") {
+  Vec<Unique<ast::Statement>> whileBody;
+  whileBody.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(99))));
+
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  body.push_back(makeUnique<ast::WhileStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(false)),
+      makeUnique<ast::BlockStatement>(std::move(whileBody))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file = Compiler(errorHandler).compile(ScriptMetadata(),
+                                                     semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& locals =
+      file.objects()[0].getStates()[0].getFunctions()[0].getLocalVariables();
+  const auto& st = file.stringTable();
+  bool hasOuter = false;
+  bool hasInner = false;
+  for (const auto& lv : locals) {
+    const std::string_view name =
+        st.valueByIndex(static_cast<size_t>(lv.getName().index()));
+    if (name == "num") {
+      hasOuter = true;
+    }
+    if (name == "num_3") {
+      hasInner = true;
+    }
+  }
+  CHECK(hasOuter);
+  CHECK(hasInner);
+}

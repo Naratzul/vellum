@@ -205,7 +205,9 @@ void PexFunctionCompiler::visitIfStatement(ast::IfStatement& statement) {
 
 void PexFunctionCompiler::visitLocalVariableStatement(
     ast::LocalVariableStatement& statement) {
-  localVariables.emplace_back(file.getString(statement.getName().toString()),
+  const auto pexName =
+      statement.getMangledPexName().value_or(statement.getName());
+  localVariables.emplace_back(file.getString(pexName.toString()),
                               file.getString(statement.getType()->toString()));
 
   if (statement.getInitializer()) {

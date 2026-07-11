@@ -100,7 +100,5 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
                                    const VellumType& lhsType,
                                    const VellumType& rhsType,
                                    const Token& location);
-
-  std::string_view mangleLoopVariable(std::string_view name);
 };
 }  // namespace vellum

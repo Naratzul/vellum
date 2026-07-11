@@ -4771,3 +4771,134 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(errorHandler->hadError());
   REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
 }
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticLocalVarShadowing_InIfBlock_ManglesInnerVar") {
+  Vec<Unique<ast::Statement>> thenBody;
+  thenBody.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(56))));
+
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  body.push_back(makeUnique<ast::IfStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::BlockStatement>(std::move(thenBody)), nullptr));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto* func = dynamic_cast<const ast::FunctionDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(func != nullptr);
+  const auto* outerVar = dynamic_cast<const ast::LocalVariableStatement*>(
+      func->getBody()->getStatements()[0].get());
+  const auto* ifStmt = dynamic_cast<const ast::IfStatement*>(
+      func->getBody()->getStatements()[1].get());
+  REQUIRE(ifStmt != nullptr);
+  const auto* thenBlock = dynamic_cast<const ast::BlockStatement*>(
+      ifStmt->getThenBlock().get());
+  REQUIRE(thenBlock != nullptr);
+  const auto* innerVar = dynamic_cast<const ast::LocalVariableStatement*>(
+      thenBlock->getStatements()[0].get());
+  REQUIRE(innerVar != nullptr);
+
+  CHECK_FALSE(outerVar->getMangledPexName().has_value());
+  REQUIRE(innerVar->getMangledPexName().has_value());
+  CHECK(innerVar->getMangledPexName()->toString() == "num_3");
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticLocalVarShadowing_InWhileBlock_ManglesInnerVar") {
+  Vec<Unique<ast::Statement>> whileBody;
+  whileBody.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(99))));
+
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  body.push_back(makeUnique<ast::WhileStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(false)),
+      makeUnique<ast::BlockStatement>(std::move(whileBody))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto* func = dynamic_cast<const ast::FunctionDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(func != nullptr);
+  const auto* whileStmt = dynamic_cast<const ast::WhileStatement*>(
+      func->getBody()->getStatements()[1].get());
+  REQUIRE(whileStmt != nullptr);
+  const auto* whileBlock = dynamic_cast<const ast::BlockStatement*>(
+      whileStmt->getBody().get());
+  REQUIRE(whileBlock != nullptr);
+  const auto* innerVar = dynamic_cast<const ast::LocalVariableStatement*>(
+      whileBlock->getStatements()[0].get());
+  REQUIRE(innerVar != nullptr);
+
+  REQUIRE(innerVar->getMangledPexName().has_value());
+  CHECK(innerVar->getMangledPexName()->toString() == "num_3");
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticLocalVarDuplicate_InSameScope_IsError") {
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(56))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  analyzer->analyze(std::move(ast));
+  REQUIRE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticLocalVarShadowing_Parameter_ManglesBodyVar") {
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("num", VellumType::literal(VellumLiteralType::Int));
+
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("num"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto* func = dynamic_cast<const ast::FunctionDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(func != nullptr);
+  const auto* localVar = dynamic_cast<const ast::LocalVariableStatement*>(
+      func->getBody()->getStatements()[0].get());
+  REQUIRE(localVar != nullptr);
+
+  REQUIRE(localVar->getMangledPexName().has_value());
+  CHECK(localVar->getMangledPexName()->toString() == "num_2");
+}
