@@ -58,6 +58,7 @@ class Parser {
   Token previous;
   Token current;
   Opt<Token> lookahead;
+  Opt<Token> lookahead2;
 
   Token scanToken();
   void advance();
@@ -75,6 +76,9 @@ class Parser {
   bool check(TokenType type) const;
   bool checkAny(std::initializer_list<TokenType> types) const;
   bool peek(TokenType type);
+  bool peek2(TokenType type);
+  bool peekAny(std::initializer_list<TokenType> types);
+  bool looksLikeNextMatchArm();
 
   template <typename... Args>
   void consume(TokenType type, CompilerErrorKind error,
@@ -104,6 +108,8 @@ class Parser {
   Unique<ast::Statement> continueStatement();
   Unique<ast::Statement> forStatement();
   Unique<ast::Statement> blockStatement();
+  Unique<ast::Statement> matchStatement();
+  Unique<ast::Statement> matchArmBody();
 
   Unique<ast::Expression> expression();
   Unique<ast::Expression> assignExpression();
@@ -121,6 +127,8 @@ class Parser {
   Unique<ast::Expression> primaryExpression();
   Unique<ast::Expression> arrayExpression();
   Unique<ast::Expression> ternaryExpression(Unique<ast::Expression> condition);
+  Unique<ast::Expression> conditionExpression();
+  Unique<ast::Expression> patternExpression();
 
   Unique<ast::Expression> unaryNumericToLiteral(Unique<ast::Expression> expr);
 

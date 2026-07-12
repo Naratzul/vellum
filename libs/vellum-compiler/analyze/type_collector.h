@@ -45,6 +45,7 @@ class TypeCollector : public ast::DeclarationVisitor,
   void visitContinueStatement(ast::ContinueStatement& statement) override {}
   void visitForStatement(ast::ForStatement& statement) override;
   void visitBlockStatement(ast::BlockStatement& statement) override;
+  void visitMatchStatement(ast::MatchStatement& statement) override;
 
   void visitIdentifierExpression(ast::IdentifierExpression& expr) override;
   void visitCallExpression(ast::CallExpression& expr) override;

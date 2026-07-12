@@ -361,6 +361,52 @@ void PexFunctionCompiler::visitBlockStatement(ast::BlockStatement& statement) {
   }
 }
 
+void PexFunctionCompiler::visitMatchStatement(ast::MatchStatement& statement) {
+  setCurrentLocation(statement.getScrutinee()->getLocation());
+
+  const pex::PexIdentifier scrutinee =
+      makeTempVarId(statement.getScrutinee()->getType());
+  Vec<pex::PexValue> args = {scrutinee,
+                             statement.getScrutinee()->compile(*this)};
+  emitInstruction(pex::PexOpCode::Assign, std::move(args));
+
+  Vec<std::size_t> jumpToEndInstructions;
+  jumpToEndInstructions.reserve(statement.getArms().size());
+
+  for (const auto& arm : statement.getArms()) {
+    setCurrentLocation(arm.pattern->getLocation());
+
+    pex::PexValue check =
+        makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
+
+    Vec<pex::PexValue> args = {check, scrutinee, arm.pattern->compile(*this)};
+    emitInstruction(pex::PexOpCode::CmpEq, std::move(args));
+
+    args = {check, pex::PexValue(int32_t(0))};
+    std::size_t jmpIndex = instructions.size();
+    emitInstruction(pex::PexOpCode::JmpF, std::move(args));
+
+    arm.body->accept(*this);
+
+    args = {pex::PexValue(int32_t(0))};
+    std::size_t jmpToEndIndex = instructions.size();
+    jumpToEndInstructions.push_back(jmpToEndIndex);
+    emitInstruction(pex::PexOpCode::Jmp, std::move(args));
+
+    instructions[jmpIndex].setArg(
+        1, pex::PexValue(int32_t(instructions.size() - jmpIndex)));
+  }
+
+  if (const auto& elseBody = statement.getElseBody()) {
+    elseBody->accept(*this);
+  }
+
+  for (auto jumpToEndInstruction : jumpToEndInstructions) {
+    pex::PexValue offset(int32_t(instructions.size() - jumpToEndInstruction));
+    instructions[jumpToEndInstruction].setArg(0, offset);
+  }
+}
+
 pex::PexValue PexFunctionCompiler::compile(const ast::LiteralExpression& expr) {
   return makePexValue(expr.getLiteral(), file);
 }

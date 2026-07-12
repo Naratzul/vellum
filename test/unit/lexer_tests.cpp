@@ -236,3 +236,49 @@ TEST_CASE("LexerQuesBetweenIdentifiers") {
   CHECK_THAT(scanTokens(makeUnique<Lexer>("x ? y")),
              Catch::Matchers::Equals(expected));
 }
+
+TEST_CASE("LexerFatArrowToken") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("=>"));
+  REQUIRE(tokens.size() >= 1);
+  CHECK(tokens[0].type == TokenType::FAT_ARROW);
+  CHECK(tokens[0].lexeme == "=>");
+}
+
+TEST_CASE("LexerPipeToken") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("|"));
+  REQUIRE(tokens.size() >= 1);
+  CHECK(tokens[0].type == TokenType::PIPE);
+  CHECK(tokens[0].lexeme == "|");
+}
+
+TEST_CASE("LexerMatchSyntaxTokens") {
+  Vec<Token> expected{
+      makeToken(TokenType::MATCH, 1, "match"),
+      makeToken(TokenType::IDENTIFIER, 1, "x"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+      makeToken(TokenType::PIPE, 1, "|"),
+      makeToken(TokenType::INT, 1, "2", VellumLiteral(2)),
+      makeToken(TokenType::FAT_ARROW, 1, "=>"),
+      makeToken(TokenType::IDENTIFIER, 1, "foo"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("match x { 1 | 2 => foo() }")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerOrAndArrowAndGreaterEqualStillWork") {
+  Vec<Token> expected{
+      makeToken(TokenType::IDENTIFIER, 1, "a"),
+      makeToken(TokenType::OR, 1, "||"),
+      makeToken(TokenType::IDENTIFIER, 1, "b"),
+      makeToken(TokenType::ARROW, 1, "->"),
+      makeToken(TokenType::IDENTIFIER, 1, "Int"),
+      makeToken(TokenType::GREATER_EQUAL, 1, ">="),
+      makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("a || b -> Int >= 0")),
+             Catch::Matchers::Equals(expected));
+}

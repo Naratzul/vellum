@@ -4,6 +4,29 @@
 
 namespace vellum {
 namespace ast {
+
+namespace {
+bool statementsEqual(const Vec<Unique<Statement>>& lhs,
+                     const Vec<Unique<Statement>>& rhs) {
+  if (lhs.size() != rhs.size()) return false;
+  for (std::size_t i = 0; i < lhs.size(); ++i) {
+    if (!lhs[i]->equals(*rhs[i])) return false;
+  }
+  return true;
+}
+
+bool matchArmsEqual(const Vec<MatchArm>& lhs, const Vec<MatchArm>& rhs) {
+  if (lhs.size() != rhs.size()) return false;
+  for (std::size_t i = 0; i < lhs.size(); ++i) {
+    if (!lhs[i].pattern->equals(*rhs[i].pattern) ||
+        !lhs[i].body->equals(*rhs[i].body)) {
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
 void ExpressionStatement::accept(StatementVisitor& visitor) {
   visitor.visitExpressionStatement(*this);
 }
@@ -125,15 +148,30 @@ void BlockStatement::accept(StatementVisitor& visitor) {
 
 bool BlockStatement::equals(const Statement& other_) const {
   auto& other = static_cast<const BlockStatement&>(other_);
-  if (statements.size() != other.statements.size()) {
+  return statementsEqual(statements, other.statements);
+}
+
+void MatchStatement::accept(StatementVisitor& visitor) {
+  visitor.visitMatchStatement(*this);
+}
+
+bool MatchStatement::equals(const Statement& other_) const {
+  auto& other = static_cast<const MatchStatement&>(other_);
+
+  if (!scrutinee->equals(*other.scrutinee)) {
     return false;
   }
-  for (std::size_t i = 0; i < statements.size(); ++i) {
-    if (!statements[i]->equals(*other.statements[i])) {
-      return false;
-    }
+
+  const bool hasElse = elseBody != nullptr;
+  if (hasElse != (other.elseBody != nullptr)) {
+    return false;
   }
-  return true;
+
+  if (hasElse && !elseBody->equals(*other.elseBody)) {
+    return false;
+  }
+
+  return matchArmsEqual(arms, other.arms) && matchToken == other.matchToken;
 }
 }  // namespace ast
 }  // namespace vellum

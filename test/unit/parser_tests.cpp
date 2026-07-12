@@ -491,6 +491,356 @@ TEST_CASE("ParserIfElseIfElse") {
   REQUIRE(finalElse->getStatements().size() == 1);
 }
 
+TEST_CASE("ParserMatch_LiteralAndIdentifierPatterns") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::STRING, 1, "\"a\"",
+                              VellumLiteral(std::string_view("a"))),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::IDENTIFIER, 1, "fa"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::MINUS, 1, "-"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::IDENTIFIER, 1, "fc"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::IDENTIFIER, 1, "MyConst"),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::IDENTIFIER, 1, "fb"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE(matchStmt->getArms().size() == 3);
+  REQUIRE(matchStmt->getArms()[0].pattern->isLiteralExpression());
+  REQUIRE(matchStmt->getArms()[1].pattern->isLiteralExpression());
+  CHECK(matchStmt->getArms()[1].pattern->asLiteral().getLiteral().asInt() ==
+        -1);
+  REQUIRE(matchStmt->getArms()[2].pattern->isIdentifierExpression());
+}
+
+TEST_CASE("ParserMatch_InvalidPattern") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::IDENTIFIER, 1, "a"),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::IDENTIFIER, 1, "fa"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ExpectMatchPattern));
+}
+
+TEST_CASE("ParserMatch_WithElse") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::ELSE, 1, "else"),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE(matchStmt->getArms().size() == 1);
+  REQUIRE(matchStmt->getElseBody() != nullptr);
+  REQUIRE(dynamic_cast<const ast::ReturnStatement*>(
+              matchStmt->getArms()[0].body.get()) != nullptr);
+  REQUIRE(dynamic_cast<const ast::ReturnStatement*>(
+              matchStmt->getElseBody().get()) != nullptr);
+}
+
+TEST_CASE("ParserMatch_UnbracedJumpStatements") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::INT, 1, "2", VellumLiteral(2)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::BREAK, 1, "break"),
+                    makeToken(TokenType::INT, 1, "3", VellumLiteral(3)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::CONTINUE, 1, "continue"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE(matchStmt->getArms().size() == 3);
+  REQUIRE(dynamic_cast<const ast::ReturnStatement*>(
+              matchStmt->getArms()[0].body.get()) != nullptr);
+  REQUIRE(dynamic_cast<const ast::BreakStatement*>(
+              matchStmt->getArms()[1].body.get()) != nullptr);
+  REQUIRE(dynamic_cast<const ast::ContinueStatement*>(
+              matchStmt->getArms()[2].body.get()) != nullptr);
+}
+
+TEST_CASE("ParserMatch_ReturnWithValueAndNextArm") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::INT, 1, "42", VellumLiteral(42)),
+                    makeToken(TokenType::INT, 1, "2", VellumLiteral(2)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE(matchStmt->getArms().size() == 2);
+  const auto* returnWithValue = dynamic_cast<const ast::ReturnStatement*>(
+      matchStmt->getArms()[0].body.get());
+  REQUIRE(returnWithValue != nullptr);
+  REQUIRE(returnWithValue->getExpression() != nullptr);
+  CHECK(
+      returnWithValue->getExpression()->asLiteral().getLiteral().asInt() == 42);
+  const auto* bareReturn = dynamic_cast<const ast::ReturnStatement*>(
+      matchStmt->getArms()[1].body.get());
+  REQUIRE(bareReturn != nullptr);
+  REQUIRE(bareReturn->getExpression() == nullptr);
+}
+
+TEST_CASE("ParserMatch_ExpressionArmBody") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::IDENTIFIER, 1, "fa"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE(matchStmt->getArms().size() == 1);
+  REQUIRE(dynamic_cast<const ast::ExpressionStatement*>(
+              matchStmt->getArms()[0].body.get()) != nullptr);
+}
+
+TEST_CASE("ParserMatch_MissingFatArrow_ExpectFatArrow") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::ExpectFatArrow));
+}
+
+TEST_CASE("ParserMatch_BoolAndFloatPatterns") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::TRUE, 1, "true", VellumLiteral(true)),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::TRUE, 1, "true", VellumLiteral(true)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::FLOAT, 1, "1.5", VellumLiteral(1.5f)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE(matchStmt->getArms().size() == 2);
+  CHECK(matchStmt->getArms()[0].pattern->asLiteral().getLiteral().asBool() ==
+        true);
+  CHECK(matchStmt->getArms()[1].pattern->asLiteral().getLiteral().asFloat() ==
+        1.5f);
+}
+
 TEST_CASE("ParserReturn_BareReturn") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),

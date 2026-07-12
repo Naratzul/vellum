@@ -488,6 +488,151 @@ TEST_CASE("CompileIf_ElseIfChain_HasMultipleJmpF") {
   CHECK(jmpfCount >= 2);
 }
 
+namespace {
+Vec<Unique<ast::Statement>> makeMatchReturnBody(
+    Unique<ast::Expression> scrutinee, Vec<ast::MatchArm> arms,
+    Unique<ast::Statement> elseBody = nullptr) {
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      std::move(scrutinee), std::move(arms), std::move(elseBody),
+      makeToken(TokenType::MATCH, 1, "match")));
+  return body;
+}
+
+ast::MatchArm makeLiteralArm(int32_t pattern) {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+  return ast::MatchArm{
+      makeUnique<ast::LiteralExpression>(VellumLiteral(pattern)),
+      makeUnique<ast::BlockStatement>(std::move(armBody))};
+}
+
+int countOpCodes(const Vec<pex::PexInstruction>& instructions,
+                 pex::PexOpCode opCode) {
+  int count = 0;
+  for (const auto& instr : instructions) {
+    if (instr.getOpCode() == opCode) {
+      ++count;
+    }
+  }
+  return count;
+}
+}  // namespace
+
+TEST_CASE("CompileMatch_SingleArm_HasCmpEqAndJmpF") {
+  Vec<ast::MatchArm> arms;
+  arms.push_back(makeLiteralArm(1));
+
+  auto body = makeMatchReturnBody(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), std::move(arms));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Assign) >= 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::CmpEq) == 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::JmpF) == 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Jmp) == 1);
+}
+
+TEST_CASE("CompileMatch_WithElse_HasCmpEqJmpFAndJmp") {
+  Vec<ast::MatchArm> arms;
+  arms.push_back(makeLiteralArm(2));
+
+  Vec<Unique<ast::Statement>> elseStmts;
+  elseStmts.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  auto body = makeMatchReturnBody(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), std::move(arms),
+      makeUnique<ast::BlockStatement>(std::move(elseStmts)));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(countOpCodes(instructions, pex::PexOpCode::CmpEq) == 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::JmpF) == 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Jmp) == 1);
+}
+
+TEST_CASE("CompileMatch_MultipleArms_HasMultipleCmpEq") {
+  Vec<ast::MatchArm> arms;
+  arms.push_back(makeLiteralArm(1));
+  arms.push_back(makeLiteralArm(2));
+
+  auto body = makeMatchReturnBody(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0)), std::move(arms));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(countOpCodes(instructions, pex::PexOpCode::CmpEq) == 2);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::JmpF) == 2);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Jmp) == 2);
+}
+
+TEST_CASE("CompileMatch_ScrutineeEvaluatedOnce") {
+  Vec<ast::MatchArm> arms;
+  arms.push_back(makeLiteralArm(1));
+  arms.push_back(makeLiteralArm(2));
+
+  auto body = makeMatchReturnBody(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0)), std::move(arms));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+
+  int assignBeforeFirstCmpEq = 0;
+  bool seenCmpEq = false;
+  for (const auto& instr : instructions) {
+    if (instr.getOpCode() == pex::PexOpCode::CmpEq) {
+      seenCmpEq = true;
+      break;
+    }
+    if (instr.getOpCode() == pex::PexOpCode::Assign) {
+      ++assignBeforeFirstCmpEq;
+    }
+  }
+  REQUIRE(seenCmpEq);
+  CHECK(assignBeforeFirstCmpEq == 1);
+}
+
 TEST_CASE("CompileDefaultArgs_EndToEnd") {
   Vec<ast::FunctionParameter> fooParams = {
       {"x", VellumType::unresolved("Int"), VellumLiteral(5)}};

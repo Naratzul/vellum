@@ -13,6 +13,7 @@ class BreakStatement;
 class ContinueStatement;
 class ForStatement;
 class BlockStatement;
+class MatchStatement;
 
 class StatementVisitor {
  public:
@@ -27,11 +28,10 @@ class StatementVisitor {
   virtual void visitContinueStatement(ContinueStatement& statement) = 0;
   virtual void visitForStatement(ForStatement& statement) = 0;
   virtual void visitBlockStatement(BlockStatement& statement) = 0;
+  virtual void visitMatchStatement(MatchStatement& statement) = 0;
 };
 
-class StatementCompiler {
-
-};
+class StatementCompiler {};
 
 }  // namespace ast
 }  // namespace vellum

@@ -150,6 +150,19 @@ void TypeCollector::visitBlockStatement(ast::BlockStatement& statement) {
   }
 }
 
+void TypeCollector::visitMatchStatement(ast::MatchStatement& statement) {
+  statement.getScrutinee()->accept(*this);
+
+  for (auto& arm : statement.getArms()) {
+    arm.pattern->accept(*this);
+    arm.body->accept(*this);
+  }
+
+  if (auto& elseBody = statement.getElseBody()) {
+    elseBody->accept(*this);
+  }
+}
+
 void TypeCollector::visitIdentifierExpression(ast::IdentifierExpression& expr) {
   VellumIdentifier identifier = expr.getIdentifier();
   discoveredTypes.insert(identifier);

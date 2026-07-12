@@ -34,6 +34,13 @@ enum class CompilerErrorKind {
   ExpectColon,
   ExpectReturnType,
   ExpectIn,
+  ExpectFatArrow,
+  ExpectMatchPattern,
+
+  MatchEmpty,
+  MatchScrutineeTypeInvalid,
+  MatchPatternTypeMismatch,
+  MatchInvalidPattern,
 
   PropertySetAlreadyDefined,
   PropertyGetAlreadyDefined,

@@ -310,6 +310,20 @@ class StatementExtentCollector : public ast::StatementVisitor {
     bodyCollector.collect(*statement.getBody());
     mergeExtent(extent, bodyCollector.extent);
   }
+  void visitMatchStatement(ast::MatchStatement& statement) override {
+    mergeExtent(extent, expressionExtent(*statement.getScrutinee()));
+    for (const auto& arm : statement.getArms()) {
+      mergeExtent(extent, expressionExtent(*arm.pattern));
+      StatementExtentCollector bodyCollector;
+      bodyCollector.collect(*arm.body);
+      mergeExtent(extent, bodyCollector.extent);
+    }
+    if (statement.getElseBody()) {
+      StatementExtentCollector elseCollector;
+      elseCollector.collect(*statement.getElseBody());
+      mergeExtent(extent, elseCollector.extent);
+    }
+  }
 };
 
 LocationRange statementExtent(ast::Statement& statement) {
@@ -993,6 +1007,26 @@ class ExpressionTypeBeforeDotFinder : public ast::DeclarationVisitor,
     if (statement.getVariableName()->isIdentifierExpression() &&
         expressionContainsPosition(*statement.getVariableName(), cursor_)) {
       visitor_.visitExpression(*statement.getVariableName(), 0);
+    }
+  }
+  void visitMatchStatement(ast::MatchStatement& statement) override {
+    if (expressionContainsPosition(*statement.getScrutinee(), cursor_)) {
+      visitor_.visitExpression(*statement.getScrutinee(), 0);
+      return;
+    }
+    for (const auto& arm : statement.getArms()) {
+      if (expressionContainsPosition(*arm.pattern, cursor_)) {
+        visitor_.visitExpression(*arm.pattern, 0);
+        return;
+      }
+      if (statementContainsUse(*arm.body, cursor_)) {
+        searchStatement(*arm.body);
+        return;
+      }
+    }
+    if (statement.getElseBody() &&
+        statementContainsUse(*statement.getElseBody(), cursor_)) {
+      searchStatement(*statement.getElseBody());
     }
   }
   void visitBlockStatement(ast::BlockStatement& statement) override {

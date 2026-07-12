@@ -63,15 +63,31 @@ void tryApplyContextualEmptyArrayType(ast::Expression& expr,
       contextType.toString());
 }
 
-void applyContextualEmptyArrayTypeIfNeeded(
-    ast::Expression& expr, VellumType contextType,
-    CompilerErrorHandler& errorHandler, CompilerErrorKind mismatchKind) {
+void applyContextualEmptyArrayTypeIfNeeded(ast::Expression& expr,
+                                           VellumType contextType,
+                                           CompilerErrorHandler& errorHandler,
+                                           CompilerErrorKind mismatchKind) {
   if (!expr.hasResolvedType()) {
     tryApplyContextualEmptyArrayType(expr, contextType, errorHandler,
                                      mismatchKind);
   }
 }
 
+bool isMatchScrutineeType(const VellumType& type) {
+  return type.isBool() || type.isInt() || type.isFloat() || type.isString();
+}
+
+bool isValidMatchPattern(ast::Expression& pattern) {
+  if (pattern.isLiteralExpression()) {
+    return true;
+  }
+  if (pattern.isIdentifierExpression()) {
+    const auto identifierType = pattern.asIdentifier().getIdentifierType();
+    return identifierType == VellumValueType::Variable ||
+           identifierType == VellumValueType::Property;
+  }
+  return false;
+}
 }  // namespace
 
 SemanticAnalyzer::SemanticAnalyzer(Shared<CompilerErrorHandler> errorHandler,
@@ -325,9 +341,9 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
 
   returnExpr->accept(*this);
 
-  applyContextualEmptyArrayTypeIfNeeded(
-      *returnExpr, func->getReturnType(), *errorHandler,
-      CompilerErrorKind::ReturnTypeMismatch);
+  applyContextualEmptyArrayTypeIfNeeded(*returnExpr, func->getReturnType(),
+                                        *errorHandler,
+                                        CompilerErrorKind::ReturnTypeMismatch);
 
   auto result = checker.check(returnExpr, func->getReturnType(),
                               TypeChecker::Context::Return);
@@ -414,7 +430,8 @@ void SemanticAnalyzer::visitLocalVariableStatement(
   VellumVariable var(statement.getName(), *type);
   Token varLocation = statement.getNameLocation();
   resolver->pushLocalVar(var, varLocation);
-  if (auto localVar = resolver->getLocalVarInCurrentScope(statement.getName())) {
+  if (auto localVar =
+          resolver->getLocalVarInCurrentScope(statement.getName())) {
     if (auto pexName = localVar->getPexName()) {
       statement.setMangledPexName(*pexName);
     }
@@ -472,7 +489,8 @@ void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
       statement.getVariableName()->asIdentifier().getIdentifier();
   VellumVariable loopVar(variableName, *arrayExpr->getType().asArraySubtype());
 
-  VellumIdentifier pexName(mangleLocalPexName(variableName.getValue(), loopCount));
+  VellumIdentifier pexName(
+      mangleLocalPexName(variableName.getValue(), loopCount));
   loopVar.setPexName(pexName);
 
   resolver->pushScope();
@@ -499,6 +517,70 @@ void SemanticAnalyzer::visitBlockStatement(ast::BlockStatement& statement) {
     stmt->accept(*this);
   }
   resolver->popScope();
+}
+
+void SemanticAnalyzer::visitMatchStatement(ast::MatchStatement& statement) {
+  auto& scrutinee = statement.getScrutinee();
+  scrutinee->accept(*this);
+
+  if (!scrutinee->hasResolvedType()) {
+    return;
+  }
+
+  if (!isMatchScrutineeType(scrutinee->getType())) {
+    errorHandler->errorAt(
+        scrutinee->getLocation(), CompilerErrorKind::MatchScrutineeTypeInvalid,
+        "Match scrutinee must have Bool, Int, Float, or String type. Given "
+        "type is '{}'.",
+        scrutinee->getType().toString());
+    return;
+  }
+
+  if (statement.getArms().empty() && !statement.getElseBody()) {
+    errorHandler->errorAt(statement.getMatchToken(),
+                          CompilerErrorKind::MatchEmpty,
+                          "Match statement must have at least one arm or an "
+                          "else branch.");
+    return;
+  }
+
+  for (auto& arm : statement.getArms()) {
+    arm.pattern->accept(*this);
+    if (!arm.pattern->hasResolvedType()) {
+      continue;
+    }
+
+    if (!isValidMatchPattern(*arm.pattern)) {
+      const std::string_view patternName =
+          arm.pattern->isIdentifierExpression()
+              ? arm.pattern->asIdentifier().getIdentifier().toString()
+              : arm.pattern->getLocation().lexeme;
+      errorHandler->errorAt(arm.pattern->getLocation(),
+                            CompilerErrorKind::MatchInvalidPattern,
+                            "Invalid match pattern '{}'. Patterns must be "
+                            "literals or variable/property references.",
+                            patternName);
+      continue;
+    }
+
+    Opt<VellumType> commonType = checker.commonComparisonType(
+        scrutinee->getType(), arm.pattern->getType());
+    if (!commonType) {
+      errorHandler->errorAt(arm.pattern->getLocation(),
+                            CompilerErrorKind::MatchPatternTypeMismatch,
+                            "Pattern type '{}' does not match scrutinee type "
+                            "'{}'.",
+                            arm.pattern->getType().toString(),
+                            scrutinee->getType().toString());
+      continue;
+    }
+
+    arm.body->accept(*this);
+  }
+
+  if (auto& elseBody = statement.getElseBody()) {
+    elseBody->accept(*this);
+  }
 }
 
 void SemanticAnalyzer::visitIdentifierExpression(
@@ -735,8 +817,8 @@ void SemanticAnalyzer::visitCallExpression(ast::CallExpression& expr) {
 
     std::string contextInfo =
         std::string(func->getName().toString()) + "," + std::to_string(i);
-    auto result = checker.check(arg, paramType,
-                                TypeChecker::Context::Argument, contextInfo);
+    auto result = checker.check(arg, paramType, TypeChecker::Context::Argument,
+                                contextInfo);
     if (!result.compatible) {
       errorHandler->errorAt(arg->getLocation(), result.errorKind,
                             result.errorMessage);
@@ -932,9 +1014,9 @@ void SemanticAnalyzer::visitPropertySetExpression(
 
   expr.getValue()->accept(*this);
 
-  applyContextualEmptyArrayTypeIfNeeded(
-      *expr.getValue(), expr.getType(), *errorHandler,
-      CompilerErrorKind::AssignTypeMismatch);
+  applyContextualEmptyArrayTypeIfNeeded(*expr.getValue(), expr.getType(),
+                                        *errorHandler,
+                                        CompilerErrorKind::AssignTypeMismatch);
 
   if (expr.getOperator() != ast::AssignOperator::Assign) {
     if (!validateComposedAssignTypes(expr.getOperator(), expr.getType(),
@@ -1009,9 +1091,9 @@ void SemanticAnalyzer::visitAssignExpression(ast::AssignExpression& expr) {
 
   expr.getValue()->accept(*this);
 
-  applyContextualEmptyArrayTypeIfNeeded(
-      *expr.getValue(), expr.getType(), *errorHandler,
-      CompilerErrorKind::AssignTypeMismatch);
+  applyContextualEmptyArrayTypeIfNeeded(*expr.getValue(), expr.getType(),
+                                        *errorHandler,
+                                        CompilerErrorKind::AssignTypeMismatch);
 
   if (expr.getOperator() != ast::AssignOperator::Assign) {
     if (!validateComposedAssignTypes(expr.getOperator(), expr.getType(),

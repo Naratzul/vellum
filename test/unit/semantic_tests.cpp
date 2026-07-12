@@ -4902,3 +4902,266 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(localVar->getMangledPexName().has_value());
   CHECK(localVar->getMangledPexName()->toString() == "num_2");
 }
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Match_StringLiteralPattern_NoError") {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("a"))),
+      makeUnique<ast::BlockStatement>(std::move(armBody))});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(
+          VellumLiteral(std::string_view("a"))),
+      std::move(arms), nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Match_ObjectScrutinee_MatchScrutineeTypeInvalid") {
+  Vec<Unique<ast::Declaration>> members;
+  members.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "obj", VellumType::unresolved("testscript"), nullptr));
+
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      makeUnique<ast::BlockStatement>(std::move(armBody))});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("obj"), Token{}),
+      std::move(arms), nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::MatchScrutineeTypeInvalid));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Match_PatternTypeMismatch_MatchPatternTypeMismatch") {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("a"))),
+      makeUnique<ast::BlockStatement>(std::move(armBody))});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), std::move(arms),
+      nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE(
+      errorHandler->hasError(CompilerErrorKind::MatchPatternTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Match_Empty_MatchEmpty") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), Vec<ast::MatchArm>{},
+      nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::MatchEmpty));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Match_FunctionPattern_MatchInvalidPattern") {
+  Vec<Unique<ast::Declaration>> members;
+  members.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "foo", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo"), Token{}),
+      makeUnique<ast::BlockStatement>(std::move(armBody))});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), std::move(arms),
+      nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::MatchInvalidPattern));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Match_ElseOnly_NoError") {
+  Vec<Unique<ast::Statement>> elseStmts;
+  elseStmts.push_back(
+      makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)), Vec<ast::MatchArm>{},
+      makeUnique<ast::BlockStatement>(std::move(elseStmts)),
+      makeToken(TokenType::MATCH, 1, "match")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Match_IntLiteralPatterns_NoError") {
+  Vec<Unique<ast::Statement>> arm1Body;
+  arm1Body.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+  Vec<Unique<ast::Statement>> arm2Body;
+  arm2Body.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      makeUnique<ast::BlockStatement>(std::move(arm1Body))});
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::LiteralExpression>(VellumLiteral(2)),
+      makeUnique<ast::BlockStatement>(std::move(arm2Body))});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0)), std::move(arms),
+      nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Match_BoolScrutinee_NoError") {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::BlockStatement>(std::move(armBody))});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(false)),
+      std::move(arms), nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Match_GlobalVariablePattern_NoError") {
+  Vec<Unique<ast::Declaration>> members;
+  members.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "MyConst", VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("MyConst"),
+                                            Token{}),
+      makeUnique<ast::BlockStatement>(std::move(armBody))});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42)), std::move(arms),
+      nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Match_WithElseAndArms_NoError") {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+  Vec<Unique<ast::Statement>> elseStmts;
+  elseStmts.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("a"))),
+      makeUnique<ast::BlockStatement>(std::move(armBody))});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(
+          VellumLiteral(std::string_view("x"))),
+      std::move(arms),
+      makeUnique<ast::BlockStatement>(std::move(elseStmts)),
+      makeToken(TokenType::MATCH, 1, "match")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Match_BoolIntPattern_MatchPatternTypeMismatch") {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(ast::MatchArm{
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(1))),
+      makeUnique<ast::BlockStatement>(std::move(armBody))});
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      std::move(arms), nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE(
+      errorHandler->hasError(CompilerErrorKind::MatchPatternTypeMismatch));
+}

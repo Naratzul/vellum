@@ -225,5 +225,33 @@ class ForStatement : public Statement {
   std::string counterMangledName;
 };
 
+struct MatchArm {
+  Unique<Expression> pattern;
+  Unique<Statement> body;
+};
+
+class MatchStatement : public Statement {
+ public:
+  MatchStatement(Unique<Expression> scrutinee, Vec<MatchArm> arms,
+                 Unique<Statement> elseBody, Token matchToken)
+      : scrutinee(std::move(scrutinee)),
+        arms(std::move(arms)),
+        elseBody(std::move(elseBody)),
+        matchToken(std::move(matchToken)) {}
+
+  const Unique<Expression>& getScrutinee() const { return scrutinee; }
+  const Vec<MatchArm>& getArms() const { return arms; }
+  const Unique<Statement>& getElseBody() const { return elseBody; }
+  const Token& getMatchToken() const { return matchToken; }
+  
+  void accept(StatementVisitor& visitor) override;
+  bool equals(const Statement& other) const override;
+
+ private:
+  Unique<Expression> scrutinee;
+  Vec<MatchArm> arms;
+  Unique<Statement> elseBody;
+  Token matchToken;
+};
 }  // namespace ast
 }  // namespace vellum

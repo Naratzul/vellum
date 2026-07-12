@@ -324,6 +324,20 @@ class StatementExtentCollector : public ast::StatementVisitor {
     bodyCollector.collect(*statement.getBody());
     mergeExtent(extent, bodyCollector.extent);
   }
+  void visitMatchStatement(ast::MatchStatement& statement) override {
+    mergeExtent(extent, expressionExtent(*statement.getScrutinee()));
+    for (const auto& arm : statement.getArms()) {
+      mergeExtent(extent, expressionExtent(*arm.pattern));
+      StatementExtentCollector bodyCollector;
+      bodyCollector.collect(*arm.body);
+      mergeExtent(extent, bodyCollector.extent);
+    }
+    if (statement.getElseBody()) {
+      StatementExtentCollector elseCollector;
+      elseCollector.collect(*statement.getElseBody());
+      mergeExtent(extent, elseCollector.extent);
+    }
+  }
 };
 
 LocationRange statementExtent(ast::Statement& statement) {

@@ -71,7 +71,13 @@ Token Lexer::scanToken() {
     case '?':
       return makeToken(TokenType::QUES);
     case '=':
-      return makeToken(match('=') ? TokenType::EQUAL_EQUAL : TokenType::EQUAL);
+      if (match('=')) {
+        return makeToken(TokenType::EQUAL_EQUAL);
+      }
+      if (match('>')) {
+        return makeToken(TokenType::FAT_ARROW);
+      }
+      return makeToken(TokenType::EQUAL);
     case '<':
       return makeToken(match('=') ? TokenType::LESS_EQUAL : TokenType::LESS);
     case '>':
@@ -86,7 +92,7 @@ Token Lexer::scanToken() {
       if (match('|')) {
         return makeToken(TokenType::OR);
       }
-      break;
+      return makeToken(TokenType::PIPE);
     case '"':
       return string();
   }

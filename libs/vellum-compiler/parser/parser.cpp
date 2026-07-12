@@ -53,6 +53,10 @@ void Parser::advance() {
   if (lookahead.has_value()) {
     current = lookahead.value();
     lookahead.reset();
+    if (lookahead2.has_value()) {
+      lookahead = lookahead2.value();
+      lookahead2.reset();
+    }
   } else {
     current = scanToken();
   }
@@ -63,6 +67,44 @@ bool Parser::peek(TokenType type) {
     lookahead = scanToken();
   }
   return lookahead->type == type;
+}
+
+bool Parser::peek2(TokenType type) {
+  if (!lookahead.has_value()) {
+    lookahead = scanToken();
+  }
+  if (!lookahead2.has_value()) {
+    lookahead2 = scanToken();
+  }
+  return lookahead2->type == type;
+}
+
+bool Parser::peekAny(std::initializer_list<TokenType> types) {
+  if (!lookahead.has_value()) {
+    lookahead = scanToken();
+  }
+  for (TokenType type : types) {
+    if (lookahead->type == type) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Parser::looksLikeNextMatchArm() {
+  if (checkAny({TokenType::ELSE, TokenType::RIGHT_BRACE})) {
+    return true;
+  }
+  if (checkAny({TokenType::INT, TokenType::FLOAT, TokenType::STRING,
+                TokenType::TRUE, TokenType::FALSE, TokenType::IDENTIFIER}) &&
+      peek(TokenType::FAT_ARROW)) {
+    return true;
+  }
+  if (check(TokenType::MINUS) && peekAny({TokenType::INT, TokenType::FLOAT}) &&
+      peek2(TokenType::FAT_ARROW)) {
+    return true;
+  }
+  return false;
 }
 
 Unique<ast::Declaration> Parser::topDeclaration() {
@@ -476,6 +518,8 @@ Unique<ast::Statement> Parser::statement() {
     stmt = continueStatement();
   } else if (match(TokenType::FOR)) {
     stmt = forStatement();
+  } else if (match(TokenType::MATCH)) {
+    stmt = matchStatement();
   } else {
     stmt = expressionStatement();
   }
@@ -484,7 +528,7 @@ Unique<ast::Statement> Parser::statement() {
 }
 
 Unique<ast::Statement> Parser::ifStatement() {
-  auto condition = expression();
+  auto condition = conditionExpression();
   auto thenBlock = blockStatement();
 
   Unique<ast::Statement> elseBlock;
@@ -545,7 +589,7 @@ Unique<ast::Statement> Parser::varStatement() {
 }
 
 Unique<ast::Statement> Parser::whileStatement() {
-  auto condition = expression();
+  auto condition = conditionExpression();
   return makeUnique<ast::WhileStatement>(std::move(condition),
                                          blockStatement());
 }
@@ -598,6 +642,61 @@ Unique<ast::BlockStatement> Parser::parseBlockStatement() {
 
 Unique<ast::Statement> Parser::blockStatement() {
   return parseBlockStatement();
+}
+
+Unique<ast::Statement> Parser::matchArmBody() {
+  if (check(TokenType::LEFT_BRACE)) {
+    return blockStatement();
+  }
+  if (match(TokenType::RETURN)) {
+    const Token returnToken = previous;
+    if (canStartExpression(current) && !looksLikeNextMatchArm()) {
+      return makeUnique<ast::ReturnStatement>(expression(), returnToken);
+    }
+    return makeUnique<ast::ReturnStatement>(nullptr, returnToken);
+  }
+  if (match(TokenType::BREAK)) {
+    return breakStatement();
+  }
+  if (match(TokenType::CONTINUE)) {
+    return continueStatement();
+  }
+  return expressionStatement();
+}
+
+Unique<ast::Statement> Parser::matchStatement() {
+  Token matchToken = previous;
+
+  auto scrutinee = logicalOrExpression();
+
+  consume(TokenType::LEFT_BRACE, CompilerErrorKind::ExpectLeftBrace,
+          "Expect '{{' after match scrutinee.");
+
+  Vec<ast::MatchArm> arms;
+  while (!check(TokenType::ELSE) && !check(TokenType::RIGHT_BRACE)) {
+    auto pattern = patternExpression();
+
+    consume(TokenType::FAT_ARROW, CompilerErrorKind::ExpectFatArrow,
+            "Expect '=>' after pattern.");
+
+    Unique<ast::Statement> body = matchArmBody();
+
+    arms.emplace_back(std::move(pattern), std::move(body));
+  }
+
+  Unique<ast::Statement> elseBody;
+  if (match(TokenType::ELSE)) {
+    consume(TokenType::FAT_ARROW, CompilerErrorKind::ExpectFatArrow,
+            "Expect '=>' after else.");
+
+    elseBody = matchArmBody();
+  }
+
+  consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+          "Expect '}}' after match statement.");
+
+  return makeUnique<ast::MatchStatement>(std::move(scrutinee), std::move(arms),
+                                         std::move(elseBody), matchToken);
 }
 
 Unique<ast::Statement> Parser::expressionStatement() {
@@ -905,7 +1004,7 @@ Unique<ast::Expression> Parser::arrayExpression() {
   consume(TokenType::RIGHT_BRACK, CompilerErrorKind::ExpectRightBracket,
           "Expect ']' after array.");
   return makeUnique<ast::NewArrayElementsExpression>(std::move(elements),
-                                                   previous);
+                                                     previous);
 }
 
 Unique<ast::Expression> Parser::ternaryExpression(
@@ -944,6 +1043,38 @@ Unique<ast::Expression> Parser::unaryNumericToLiteral(
   }
 
   return expr;
+}
+
+Unique<ast::Expression> Parser::conditionExpression() {
+  return logicalOrExpression();
+}
+
+Unique<ast::Expression> Parser::patternExpression() {
+  if (match(TokenType::MINUS)) {
+    const Token minusToken = previous;
+    if (!matchAny({TokenType::INT, TokenType::FLOAT})) {
+      throw ParseException(current, CompilerErrorKind::ExpectMatchPattern,
+                           "Expect a numeric literal after '-' in pattern.");
+    }
+    auto literal =
+        makeUnique<ast::LiteralExpression>(*previous.value, previous);
+    return unaryNumericToLiteral(makeUnique<ast::UnaryExpression>(
+        ast::UnaryExpression::Operator::Negate, std::move(literal),
+        minusToken));
+  }
+
+  if (matchAny({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
+                TokenType::TRUE, TokenType::STRING})) {
+    return makeUnique<ast::LiteralExpression>(*previous.value, previous);
+  }
+
+  if (match(TokenType::IDENTIFIER)) {
+    return makeUnique<ast::IdentifierExpression>(
+        VellumIdentifier(previous.lexeme), previous);
+  }
+
+  throw ParseException(current, CompilerErrorKind::ExpectMatchPattern,
+                       "Expect a match pattern.");
 }
 
 bool Parser::canStartExpression(const Token& token) {
@@ -998,6 +1129,7 @@ void Parser::synchronizeStatement() {
       case TokenType::IF:
       case TokenType::WHILE:
       case TokenType::RETURN:
+      case TokenType::MATCH:
       case TokenType::RIGHT_BRACE:
         return;
       default:

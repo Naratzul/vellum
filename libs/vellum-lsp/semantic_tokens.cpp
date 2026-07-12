@@ -307,6 +307,17 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
     statement.getBody()->accept(*this);
   }
 
+  void visitMatchStatement(ast::MatchStatement& statement) override {
+    statement.getScrutinee()->accept(*this);
+    for (const auto& arm : statement.getArms()) {
+      arm.pattern->accept(*this);
+      arm.body->accept(*this);
+    }
+    if (const auto& elseBody = statement.getElseBody()) {
+      elseBody->accept(*this);
+    }
+  }
+
   void visitBlockStatement(ast::BlockStatement& statement) override {
     for (const auto& stmt : statement.getStatements()) {
       stmt->accept(*this);
