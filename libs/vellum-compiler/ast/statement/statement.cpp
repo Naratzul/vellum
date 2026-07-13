@@ -178,7 +178,8 @@ bool MatchStatement::equals(const Statement& other_) const {
     return false;
   }
 
-  return matchArmsEqual(arms, other.arms) && matchToken == other.matchToken;
+  return matchArmsEqual(arms, other.arms) && matchToken == other.matchToken &&
+         promoteType == other.promoteType;
 }
 }  // namespace ast
 }  // namespace vellum

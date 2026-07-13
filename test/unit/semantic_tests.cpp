@@ -5191,3 +5191,64 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Match_OrPatterns_NoError") {
 
   REQUIRE_FALSE(errorHandler->hadError());
 }
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Match_IntFloatPattern_SetsPromoteType") {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(makeMatchArm(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1.0f)),
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(1))),
+      std::move(arms), nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  const auto result = analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* script = dynamic_cast<const ast::ScriptDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(script != nullptr);
+  const auto* func = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  REQUIRE(func != nullptr);
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      func->getBody()->getStatements()[0].get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE(matchStmt->getPromoteType().has_value());
+  CHECK(matchStmt->getPromoteType()->isFloat());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "Match_IntOnlyPatterns_NoPromoteType") {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(makeMatchArm(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(1))),
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(0))),
+      std::move(arms), nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  const auto result = analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* script = dynamic_cast<const ast::ScriptDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(script != nullptr);
+  const auto* func = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  REQUIRE(func != nullptr);
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      func->getBody()->getStatements()[0].get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE_FALSE(matchStmt->getPromoteType().has_value());
+}

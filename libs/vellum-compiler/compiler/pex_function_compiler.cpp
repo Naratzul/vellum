@@ -154,6 +154,31 @@ void PexFunctionCompiler::emitLogicalOr(const pex::PexValue& dest,
   jmpInstr.setArg(1, pex::PexValue(int32_t(instructions.size() - offset)));
 }
 
+void PexFunctionCompiler::emitMatchPatternCmpEq(
+    const pex::PexValue& dest, const pex::PexValue& scrutineeVal,
+    const VellumType& scrutineeType, const ast::Expression& pattern,
+    Opt<VellumType> promoteType, const Opt<pex::PexValue>& scrutineeFloatVal) {
+  pex::PexValue lhs = scrutineeVal;
+  pex::PexValue rhs = pattern.compile(*this);
+  const VellumType& patternType = pattern.getType();
+
+  if (promoteType.has_value() && promoteType->isFloat()) {
+    if (scrutineeType.isInt() && patternType.isFloat() && scrutineeFloatVal) {
+      lhs = *scrutineeFloatVal;
+    } else if (scrutineeType.isFloat() && patternType.isInt()) {
+      pex::PexValue floatTemp = makeTempVarId(*promoteType);
+      setCurrentLocation(pattern.getLocation());
+      Vec<pex::PexValue> castArgs = {floatTemp, rhs};
+      emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
+      rhs = floatTemp;
+    }
+  }
+
+  setCurrentLocation(pattern.getLocation());
+  Vec<pex::PexValue> cmpArgs = {dest, lhs, rhs};
+  emitInstruction(pex::PexOpCode::CmpEq, std::move(cmpArgs));
+}
+
 pex::PexFunction PexFunctionCompiler::compile(
     const ast::FunctionDeclaration& func,
     pex::PexDebugFunctionInfo* debugInfo) {
@@ -408,11 +433,22 @@ void PexFunctionCompiler::visitBlockStatement(ast::BlockStatement& statement) {
 void PexFunctionCompiler::visitMatchStatement(ast::MatchStatement& statement) {
   setCurrentLocation(statement.getScrutinee()->getLocation());
 
+  const VellumType scrutineeType = statement.getScrutinee()->getType();
+  const Opt<VellumType> promoteType = statement.getPromoteType();
+
   const pex::PexIdentifier scrutinee =
-      makeTempVarId(statement.getScrutinee()->getType());
+      makeTempVarId(scrutineeType);
   Vec<pex::PexValue> args = {scrutinee,
                              statement.getScrutinee()->compile(*this)};
   emitInstruction(pex::PexOpCode::Assign, std::move(args));
+
+  Opt<pex::PexValue> scrutineeFloatVal;
+  if (promoteType.has_value() && promoteType->isFloat() && scrutineeType.isInt()) {
+    scrutineeFloatVal = makeTempVarId(*promoteType);
+    setCurrentLocation(statement.getScrutinee()->getLocation());
+    Vec<pex::PexValue> castArgs = {*scrutineeFloatVal, scrutinee};
+    emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
+  }
 
   Vec<std::size_t> jumpToEndInstructions;
   jumpToEndInstructions.reserve(statement.getArms().size());
@@ -428,16 +464,15 @@ void PexFunctionCompiler::visitMatchStatement(ast::MatchStatement& statement) {
     bool firstPattern = true;
     for (const auto& pattern : arm.patterns) {
       if (firstPattern) {
-        Vec<pex::PexValue> cmpArgs = {check, scrutinee, pattern->compile(*this)};
-        emitInstruction(pex::PexOpCode::CmpEq, std::move(cmpArgs));
+        emitMatchPatternCmpEq(check, scrutinee, scrutineeType, *pattern,
+                              promoteType, scrutineeFloatVal);
         firstPattern = false;
       } else {
         pex::PexValue patternResult =
             makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
 
-        Vec<pex::PexValue> cmpArgs = {patternResult, scrutinee,
-                                      pattern->compile(*this)};
-        emitInstruction(pex::PexOpCode::CmpEq, std::move(cmpArgs));
+        emitMatchPatternCmpEq(patternResult, scrutinee, scrutineeType,
+                              *pattern, promoteType, scrutineeFloatVal);
         emitLogicalOr(check, check, patternResult);
       }
     }

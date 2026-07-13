@@ -589,6 +589,25 @@ void SemanticAnalyzer::visitMatchStatement(ast::MatchStatement& statement) {
   if (auto& elseBody = statement.getElseBody()) {
     elseBody->accept(*this);
   }
+
+  const VellumType scrutineeType = scrutinee->getType();
+  Opt<VellumType> promoteType;
+  for (const auto& arm : statement.getArms()) {
+    for (const auto& pattern : arm.patterns) {
+      if (!pattern->hasResolvedType()) {
+        continue;
+      }
+      const Opt<VellumType> commonType = checker.commonComparisonType(
+          scrutineeType, pattern->getType());
+      if (commonType && commonType->isFloat() &&
+          (scrutineeType.isInt() || pattern->getType().isInt())) {
+        promoteType = *commonType;
+      }
+    }
+  }
+  if (promoteType) {
+    statement.setPromoteType(*promoteType);
+  }
 }
 
 void SemanticAnalyzer::visitIdentifierExpression(

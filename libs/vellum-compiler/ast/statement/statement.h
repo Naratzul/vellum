@@ -244,7 +244,10 @@ class MatchStatement : public Statement {
   Vec<MatchArm>& getArms() { return arms; }
   const Unique<Statement>& getElseBody() const { return elseBody; }
   const Token& getMatchToken() const { return matchToken; }
-  
+
+  Opt<VellumType> getPromoteType() const { return promoteType; }
+  void setPromoteType(VellumType type) { promoteType = std::move(type); }
+
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
 
@@ -253,6 +256,7 @@ class MatchStatement : public Statement {
   Vec<MatchArm> arms;
   Unique<Statement> elseBody;
   Token matchToken;
+  Opt<VellumType> promoteType;
 };
 }  // namespace ast
 }  // namespace vellum

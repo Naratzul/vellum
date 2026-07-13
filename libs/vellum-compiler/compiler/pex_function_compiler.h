@@ -21,6 +21,7 @@ class CompilerErrorHandler;
 
 namespace ast {
 class CallExpression;
+class Expression;
 class FunctionDeclaration;
 class SelfExpression;
 class Statement;
@@ -88,6 +89,13 @@ class PexFunctionCompiler : public ast::StatementVisitor,
 
   void emitLogicalOr(const pex::PexValue& dest, const pex::PexValue& left,
                      const pex::PexValue& right);
+
+  void emitMatchPatternCmpEq(const pex::PexValue& dest,
+                             const pex::PexValue& scrutineeVal,
+                             const VellumType& scrutineeType,
+                             const ast::Expression& pattern,
+                             Opt<VellumType> promoteType,
+                             const Opt<pex::PexValue>& scrutineeFloatVal);
 
   Shared<CompilerErrorHandler> errorHandler;
   pex::PexFile& file;
