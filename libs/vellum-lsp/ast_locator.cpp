@@ -169,7 +169,9 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
   void visitMatchStatement(ast::MatchStatement& statement) override {
     visitExpression(*statement.getScrutinee(), depth + 1);
     for (const auto& arm : statement.getArms()) {
-      visitExpression(*arm.pattern, depth + 1);
+      for (const auto& pattern : arm.patterns) {
+        visitExpression(*pattern, depth + 1);
+      }
       arm.body->accept(*this);
     }
     if (const auto& elseBody = statement.getElseBody()) {

@@ -226,7 +226,7 @@ class ForStatement : public Statement {
 };
 
 struct MatchArm {
-  Unique<Expression> pattern;
+  Vec<Unique<Expression>> patterns;
   Unique<Statement> body;
 };
 
@@ -241,6 +241,7 @@ class MatchStatement : public Statement {
 
   const Unique<Expression>& getScrutinee() const { return scrutinee; }
   const Vec<MatchArm>& getArms() const { return arms; }
+  Vec<MatchArm>& getArms() { return arms; }
   const Unique<Statement>& getElseBody() const { return elseBody; }
   const Token& getMatchToken() const { return matchToken; }
   

@@ -18,8 +18,15 @@ bool statementsEqual(const Vec<Unique<Statement>>& lhs,
 bool matchArmsEqual(const Vec<MatchArm>& lhs, const Vec<MatchArm>& rhs) {
   if (lhs.size() != rhs.size()) return false;
   for (std::size_t i = 0; i < lhs.size(); ++i) {
-    if (!lhs[i].pattern->equals(*rhs[i].pattern) ||
-        !lhs[i].body->equals(*rhs[i].body)) {
+    if (lhs[i].patterns.size() != rhs[i].patterns.size()) {
+      return false;
+    }
+    for (std::size_t j = 0; j < lhs[i].patterns.size(); ++j) {
+      if (!lhs[i].patterns[j]->equals(*rhs[i].patterns[j])) {
+        return false;
+      }
+    }
+    if (!lhs[i].body->equals(*rhs[i].body)) {
       return false;
     }
   }

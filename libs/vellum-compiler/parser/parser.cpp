@@ -97,11 +97,11 @@ bool Parser::looksLikeNextMatchArm() {
   }
   if (checkAny({TokenType::INT, TokenType::FLOAT, TokenType::STRING,
                 TokenType::TRUE, TokenType::FALSE, TokenType::IDENTIFIER}) &&
-      peek(TokenType::FAT_ARROW)) {
+      (peek(TokenType::FAT_ARROW) || peek(TokenType::PIPE))) {
     return true;
   }
   if (check(TokenType::MINUS) && peekAny({TokenType::INT, TokenType::FLOAT}) &&
-      peek2(TokenType::FAT_ARROW)) {
+      (peek2(TokenType::FAT_ARROW) || peek2(TokenType::PIPE))) {
     return true;
   }
   return false;
@@ -674,14 +674,17 @@ Unique<ast::Statement> Parser::matchStatement() {
 
   Vec<ast::MatchArm> arms;
   while (!check(TokenType::ELSE) && !check(TokenType::RIGHT_BRACE)) {
-    auto pattern = patternExpression();
+    Vec<Unique<ast::Expression>> patterns;
+    do {
+      patterns.push_back(patternExpression());
+    } while (match(TokenType::PIPE));
 
     consume(TokenType::FAT_ARROW, CompilerErrorKind::ExpectFatArrow,
-            "Expect '=>' after pattern.");
+            "Expect '=>' after pattern(s).");
 
     Unique<ast::Statement> body = matchArmBody();
 
-    arms.emplace_back(std::move(pattern), std::move(body));
+    arms.emplace_back(std::move(patterns), std::move(body));
   }
 
   Unique<ast::Statement> elseBody;
@@ -1058,9 +1061,9 @@ Unique<ast::Expression> Parser::patternExpression() {
     }
     auto literal =
         makeUnique<ast::LiteralExpression>(*previous.value, previous);
-    return unaryNumericToLiteral(makeUnique<ast::UnaryExpression>(
-        ast::UnaryExpression::Operator::Negate, std::move(literal),
-        minusToken));
+    return unaryNumericToLiteral(
+        makeUnique<ast::UnaryExpression>(ast::UnaryExpression::Operator::Negate,
+                                         std::move(literal), minusToken));
   }
 
   if (matchAny({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,

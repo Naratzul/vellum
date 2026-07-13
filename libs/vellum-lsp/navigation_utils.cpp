@@ -93,7 +93,9 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
   void visitMatchStatement(ast::MatchStatement& statement) override {
     statement.getScrutinee()->accept(*this);
     for (const auto& arm : statement.getArms()) {
-      arm.pattern->accept(*this);
+      for (const auto& pattern : arm.patterns) {
+        pattern->accept(*this);
+      }
       arm.body->accept(*this);
     }
     if (statement.getElseBody()) {

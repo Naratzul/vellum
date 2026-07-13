@@ -545,34 +545,42 @@ void SemanticAnalyzer::visitMatchStatement(ast::MatchStatement& statement) {
   }
 
   for (auto& arm : statement.getArms()) {
-    arm.pattern->accept(*this);
-    if (!arm.pattern->hasResolvedType()) {
-      continue;
-    }
-
-    if (!isValidMatchPattern(*arm.pattern)) {
-      const std::string_view patternName =
-          arm.pattern->isIdentifierExpression()
-              ? arm.pattern->asIdentifier().getIdentifier().toString()
-              : arm.pattern->getLocation().lexeme;
-      errorHandler->errorAt(arm.pattern->getLocation(),
+    if (arm.patterns.empty()) {
+      errorHandler->errorAt(statement.getMatchToken(),
                             CompilerErrorKind::MatchInvalidPattern,
-                            "Invalid match pattern '{}'. Patterns must be "
-                            "literals or variable/property references.",
-                            patternName);
+                            "Match arm must have at least one pattern.");
       continue;
     }
 
-    Opt<VellumType> commonType = checker.commonComparisonType(
-        scrutinee->getType(), arm.pattern->getType());
-    if (!commonType) {
-      errorHandler->errorAt(arm.pattern->getLocation(),
-                            CompilerErrorKind::MatchPatternTypeMismatch,
-                            "Pattern type '{}' does not match scrutinee type "
-                            "'{}'.",
-                            arm.pattern->getType().toString(),
-                            scrutinee->getType().toString());
-      continue;
+    for (auto& pattern : arm.patterns) {
+      pattern->accept(*this);
+      if (!pattern->hasResolvedType()) {
+        continue;
+      }
+
+      if (!isValidMatchPattern(*pattern)) {
+        const std::string_view patternName =
+            pattern->isIdentifierExpression()
+                ? pattern->asIdentifier().getIdentifier().toString()
+                : pattern->getLocation().lexeme;
+        errorHandler->errorAt(pattern->getLocation(),
+                              CompilerErrorKind::MatchInvalidPattern,
+                              "Invalid match pattern '{}'. Patterns must be "
+                              "literals or variable/property references.",
+                              patternName);
+        continue;
+      }
+
+      Opt<VellumType> commonType = checker.commonComparisonType(
+          scrutinee->getType(), pattern->getType());
+      if (!commonType) {
+        errorHandler->errorAt(
+            pattern->getLocation(), CompilerErrorKind::MatchPatternTypeMismatch,
+            "Pattern type '{}' does not match scrutinee type "
+            "'{}'.",
+            pattern->getType().toString(), scrutinee->getType().toString());
+        continue;
+      }
     }
 
     arm.body->accept(*this);

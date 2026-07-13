@@ -313,7 +313,9 @@ class StatementExtentCollector : public ast::StatementVisitor {
   void visitMatchStatement(ast::MatchStatement& statement) override {
     mergeExtent(extent, expressionExtent(*statement.getScrutinee()));
     for (const auto& arm : statement.getArms()) {
-      mergeExtent(extent, expressionExtent(*arm.pattern));
+      for (const auto& pattern : arm.patterns) {
+        mergeExtent(extent, expressionExtent(*pattern));
+      }
       StatementExtentCollector bodyCollector;
       bodyCollector.collect(*arm.body);
       mergeExtent(extent, bodyCollector.extent);
@@ -1015,9 +1017,11 @@ class ExpressionTypeBeforeDotFinder : public ast::DeclarationVisitor,
       return;
     }
     for (const auto& arm : statement.getArms()) {
-      if (expressionContainsPosition(*arm.pattern, cursor_)) {
-        visitor_.visitExpression(*arm.pattern, 0);
-        return;
+      for (const auto& pattern : arm.patterns) {
+        if (expressionContainsPosition(*pattern, cursor_)) {
+          visitor_.visitExpression(*pattern, 0);
+          return;
+        }
       }
       if (statementContainsUse(*arm.body, cursor_)) {
         searchStatement(*arm.body);

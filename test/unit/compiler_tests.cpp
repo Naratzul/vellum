@@ -502,9 +502,21 @@ Vec<Unique<ast::Statement>> makeMatchReturnBody(
 ast::MatchArm makeLiteralArm(int32_t pattern) {
   Vec<Unique<ast::Statement>> armBody;
   armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
-  return ast::MatchArm{
+  return makeMatchArm(
       makeUnique<ast::LiteralExpression>(VellumLiteral(pattern)),
-      makeUnique<ast::BlockStatement>(std::move(armBody))};
+      makeUnique<ast::BlockStatement>(std::move(armBody)));
+}
+
+ast::MatchArm makeOrLiteralArm(std::initializer_list<int32_t> patterns) {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+  Vec<Unique<ast::Expression>> patternExprs;
+  for (int32_t pattern : patterns) {
+    patternExprs.push_back(
+        makeUnique<ast::LiteralExpression>(VellumLiteral(pattern)));
+  }
+  return makeMatchArm(std::move(patternExprs),
+                      makeUnique<ast::BlockStatement>(std::move(armBody)));
 }
 
 int countOpCodes(const Vec<pex::PexInstruction>& instructions,
@@ -631,6 +643,30 @@ TEST_CASE("CompileMatch_ScrutineeEvaluatedOnce") {
   }
   REQUIRE(seenCmpEq);
   CHECK(assignBeforeFirstCmpEq == 1);
+}
+
+TEST_CASE("CompileMatch_OrPatterns_HasMultipleCmpEqPerArm") {
+  Vec<ast::MatchArm> arms;
+  arms.push_back(makeOrLiteralArm({1, 2}));
+
+  auto body = makeMatchReturnBody(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0)), std::move(arms));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(countOpCodes(instructions, pex::PexOpCode::CmpEq) == 2);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::JmpF) == 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Jmp) == 1);
 }
 
 TEST_CASE("CompileDefaultArgs_EndToEnd") {

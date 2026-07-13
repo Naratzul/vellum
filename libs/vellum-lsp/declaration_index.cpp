@@ -327,7 +327,9 @@ class StatementExtentCollector : public ast::StatementVisitor {
   void visitMatchStatement(ast::MatchStatement& statement) override {
     mergeExtent(extent, expressionExtent(*statement.getScrutinee()));
     for (const auto& arm : statement.getArms()) {
-      mergeExtent(extent, expressionExtent(*arm.pattern));
+      for (const auto& pattern : arm.patterns) {
+        mergeExtent(extent, expressionExtent(*pattern));
+      }
       StatementExtentCollector bodyCollector;
       bodyCollector.collect(*arm.body);
       mergeExtent(extent, bodyCollector.extent);

@@ -4908,9 +4908,9 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Match_StringLiteralPattern_NoError") {
   armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
 
   Vec<ast::MatchArm> arms;
-  arms.push_back(ast::MatchArm{
+  arms.push_back(makeMatchArm(
       makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("a"))),
-      makeUnique<ast::BlockStatement>(std::move(armBody))});
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
 
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::MatchStatement>(
@@ -4933,9 +4933,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
 
   Vec<ast::MatchArm> arms;
-  arms.push_back(ast::MatchArm{
+  arms.push_back(makeMatchArm(
       makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
-      makeUnique<ast::BlockStatement>(std::move(armBody))});
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
 
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::MatchStatement>(
@@ -4964,9 +4964,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
 
   Vec<ast::MatchArm> arms;
-  arms.push_back(ast::MatchArm{
+  arms.push_back(makeMatchArm(
       makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("a"))),
-      makeUnique<ast::BlockStatement>(std::move(armBody))});
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
 
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::MatchStatement>(
@@ -5001,9 +5001,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
 
   Vec<ast::MatchArm> arms;
-  arms.push_back(ast::MatchArm{
+  arms.push_back(makeMatchArm(
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("foo"), Token{}),
-      makeUnique<ast::BlockStatement>(std::move(armBody))});
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
 
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::MatchStatement>(
@@ -5048,12 +5048,12 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Match_IntLiteralPatterns_NoError") {
   arm2Body.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
 
   Vec<ast::MatchArm> arms;
-  arms.push_back(ast::MatchArm{
+  arms.push_back(makeMatchArm(
       makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
-      makeUnique<ast::BlockStatement>(std::move(arm1Body))});
-  arms.push_back(ast::MatchArm{
+      makeUnique<ast::BlockStatement>(std::move(arm1Body))));
+  arms.push_back(makeMatchArm(
       makeUnique<ast::LiteralExpression>(VellumLiteral(2)),
-      makeUnique<ast::BlockStatement>(std::move(arm2Body))});
+      makeUnique<ast::BlockStatement>(std::move(arm2Body))));
 
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::MatchStatement>(
@@ -5070,9 +5070,9 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Match_BoolScrutinee_NoError") {
   armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
 
   Vec<ast::MatchArm> arms;
-  arms.push_back(ast::MatchArm{
+  arms.push_back(makeMatchArm(
       makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
-      makeUnique<ast::BlockStatement>(std::move(armBody))});
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
 
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::MatchStatement>(
@@ -5095,10 +5095,10 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
 
   Vec<ast::MatchArm> arms;
-  arms.push_back(ast::MatchArm{
+  arms.push_back(makeMatchArm(
       makeUnique<ast::IdentifierExpression>(VellumIdentifier("MyConst"),
                                             Token{}),
-      makeUnique<ast::BlockStatement>(std::move(armBody))});
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
 
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::MatchStatement>(
@@ -5128,9 +5128,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   elseStmts.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
 
   Vec<ast::MatchArm> arms;
-  arms.push_back(ast::MatchArm{
+  arms.push_back(makeMatchArm(
       makeUnique<ast::LiteralExpression>(VellumLiteral(std::string_view("a"))),
-      makeUnique<ast::BlockStatement>(std::move(armBody))});
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
 
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::MatchStatement>(
@@ -5151,9 +5151,9 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
 
   Vec<ast::MatchArm> arms;
-  arms.push_back(ast::MatchArm{
+  arms.push_back(makeMatchArm(
       makeUnique<ast::LiteralExpression>(VellumLiteral(int32_t(1))),
-      makeUnique<ast::BlockStatement>(std::move(armBody))});
+      makeUnique<ast::BlockStatement>(std::move(armBody))));
 
   ast::FunctionBody body;
   body.push_back(makeUnique<ast::MatchStatement>(
@@ -5164,4 +5164,30 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 
   REQUIRE(
       errorHandler->hasError(CompilerErrorKind::MatchPatternTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Match_OrPatterns_NoError") {
+  Vec<Unique<ast::Statement>> armBody;
+  armBody.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
+
+  Vec<Unique<ast::Expression>> patterns;
+  patterns.push_back(makeUnique<ast::LiteralExpression>(
+      VellumLiteral(std::string_view("a"))));
+  patterns.push_back(makeUnique<ast::LiteralExpression>(
+      VellumLiteral(std::string_view("b"))));
+
+  Vec<ast::MatchArm> arms;
+  arms.push_back(makeMatchArm(std::move(patterns),
+                              makeUnique<ast::BlockStatement>(
+                                  std::move(armBody))));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::MatchStatement>(
+      makeUnique<ast::LiteralExpression>(
+          VellumLiteral(std::string_view("a"))),
+      std::move(arms), nullptr, makeToken(TokenType::MATCH, 1, "match")));
+
+  analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+
+  REQUIRE_FALSE(errorHandler->hadError());
 }

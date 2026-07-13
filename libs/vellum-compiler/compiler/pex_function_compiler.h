@@ -86,6 +86,9 @@ class PexFunctionCompiler : public ast::StatementVisitor,
                          const pex::PexValue& index,
                          const pex::PexValue& value);
 
+  void emitLogicalOr(const pex::PexValue& dest, const pex::PexValue& left,
+                     const pex::PexValue& right);
+
   Shared<CompilerErrorHandler> errorHandler;
   pex::PexFile& file;
   pex::PexDebugFunctionInfo* debugInfo_ = nullptr;

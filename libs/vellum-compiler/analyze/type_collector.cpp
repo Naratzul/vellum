@@ -154,7 +154,9 @@ void TypeCollector::visitMatchStatement(ast::MatchStatement& statement) {
   statement.getScrutinee()->accept(*this);
 
   for (auto& arm : statement.getArms()) {
-    arm.pattern->accept(*this);
+    for (auto& pattern : arm.patterns) {
+      pattern->accept(*this);
+    }
     arm.body->accept(*this);
   }
 

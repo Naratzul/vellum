@@ -546,11 +546,14 @@ TEST_CASE("ParserMatch_LiteralAndIdentifierPatterns") {
       funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(matchStmt != nullptr);
   REQUIRE(matchStmt->getArms().size() == 3);
-  REQUIRE(matchStmt->getArms()[0].pattern->isLiteralExpression());
-  REQUIRE(matchStmt->getArms()[1].pattern->isLiteralExpression());
-  CHECK(matchStmt->getArms()[1].pattern->asLiteral().getLiteral().asInt() ==
+  REQUIRE(matchStmt->getArms()[0].patterns.size() == 1);
+  REQUIRE(matchStmt->getArms()[0].patterns[0]->isLiteralExpression());
+  REQUIRE(matchStmt->getArms()[1].patterns.size() == 1);
+  REQUIRE(matchStmt->getArms()[1].patterns[0]->isLiteralExpression());
+  CHECK(matchStmt->getArms()[1].patterns[0]->asLiteral().getLiteral().asInt() ==
         -1);
-  REQUIRE(matchStmt->getArms()[2].pattern->isIdentifierExpression());
+  REQUIRE(matchStmt->getArms()[2].patterns.size() == 1);
+  REQUIRE(matchStmt->getArms()[2].patterns[0]->isIdentifierExpression());
 }
 
 TEST_CASE("ParserMatch_InvalidPattern") {
@@ -835,10 +838,114 @@ TEST_CASE("ParserMatch_BoolAndFloatPatterns") {
       funcDecl->getBody()->getStatements()[0].get());
   REQUIRE(matchStmt != nullptr);
   REQUIRE(matchStmt->getArms().size() == 2);
-  CHECK(matchStmt->getArms()[0].pattern->asLiteral().getLiteral().asBool() ==
+  CHECK(matchStmt->getArms()[0].patterns[0]->asLiteral().getLiteral().asBool() ==
         true);
-  CHECK(matchStmt->getArms()[1].pattern->asLiteral().getLiteral().asFloat() ==
+  CHECK(matchStmt->getArms()[1].patterns[0]->asLiteral().getLiteral().asFloat() ==
         1.5f);
+}
+
+TEST_CASE("ParserMatch_OrPatterns") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::IDENTIFIER, 1, "x"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::STRING, 1, "\"a\"",
+                              VellumLiteral(std::string_view("a"))),
+                    makeToken(TokenType::PIPE, 1, "|"),
+                    makeToken(TokenType::STRING, 1, "\"b\"",
+                              VellumLiteral(std::string_view("b"))),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::PIPE, 1, "|"),
+                    makeToken(TokenType::INT, 1, "2", VellumLiteral(2)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE(matchStmt->getArms().size() == 2);
+  REQUIRE(matchStmt->getArms()[0].patterns.size() == 2);
+  REQUIRE(matchStmt->getArms()[1].patterns.size() == 2);
+  CHECK(matchStmt->getArms()[0].patterns[0]->asLiteral().getLiteral().asString() ==
+        "a");
+  CHECK(matchStmt->getArms()[0].patterns[1]->asLiteral().getLiteral().asString() ==
+        "b");
+  CHECK(matchStmt->getArms()[1].patterns[0]->asLiteral().getLiteral().asInt() ==
+        1);
+  CHECK(matchStmt->getArms()[1].patterns[1]->asLiteral().getLiteral().asInt() ==
+        2);
+}
+
+TEST_CASE("ParserMatch_BareReturnBeforeOrArm") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::MATCH, 1, "match"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::INT, 1, "2", VellumLiteral(2)),
+                    makeToken(TokenType::PIPE, 1, "|"),
+                    makeToken(TokenType::INT, 1, "3", VellumLiteral(3)),
+                    makeToken(TokenType::FAT_ARROW, 1, "=>"),
+                    makeToken(TokenType::RETURN, 1, "return"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* matchStmt = dynamic_cast<const ast::MatchStatement*>(
+      dynamic_cast<const ast::FunctionDeclaration*>(
+          dynamic_cast<const ast::ScriptDeclaration*>(
+              result.declarations[0].get())
+              ->getMemberDecls()[0]
+              .get())
+          ->getBody()
+          ->getStatements()[0]
+          .get());
+  REQUIRE(matchStmt != nullptr);
+  REQUIRE(matchStmt->getArms().size() == 2);
+  const auto* firstReturn = dynamic_cast<const ast::ReturnStatement*>(
+      matchStmt->getArms()[0].body.get());
+  REQUIRE(firstReturn != nullptr);
+  REQUIRE(firstReturn->getExpression() == nullptr);
+  REQUIRE(matchStmt->getArms()[1].patterns.size() == 2);
 }
 
 TEST_CASE("ParserReturn_BareReturn") {
