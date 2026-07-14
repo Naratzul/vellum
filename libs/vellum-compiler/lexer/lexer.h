@@ -5,6 +5,21 @@
 #include "ilexer.h"
 
 namespace vellum {
+using common::Vec;
+
+enum class LexerMode {
+  Normal,
+  InterpText,
+  InterpExpr,
+};
+
+struct LexerFrame {
+  LexerMode mode;
+  int interpExprDepth{0};
+
+  LexerFrame(LexerMode mode, int depth = 0)
+      : mode(mode), interpExprDepth(depth) {}
+};
 
 class Lexer : public ILexer {
  public:
@@ -17,6 +32,9 @@ class Lexer : public ILexer {
   const char* current;
   int line = 0;
   int position = 0;
+  Vec<LexerFrame> frames;
+
+  Token scanNormalToken();
 
   Token makeToken(TokenType type,
                   common::Opt<VellumLiteral> value = std::nullopt) const;
@@ -24,6 +42,12 @@ class Lexer : public ILexer {
   Token string();
   Token number();
   Token identifier();
+
+  Token startInterpolatedString();
+  Token endInterpolatedString();
+
+  Token interpolatedText();
+  Token interpolatedExpression();
 
   TokenType identifierType() const;
   TokenType checkKeyword(int start, int length, const char* rest,

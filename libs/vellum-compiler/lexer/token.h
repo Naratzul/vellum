@@ -80,6 +80,10 @@ enum class TokenType {
   VAR,
   WHILE,
   MATCH,
+  // String interpolation
+  INTERP_START,
+  STRING_FRAGMENT,
+  INTERP_END,
   // Papyrus keywords
   SCRIPTNAME,
   EXTENDS,

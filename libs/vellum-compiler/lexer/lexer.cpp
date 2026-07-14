@@ -1,6 +1,7 @@
 #include "lexer.h"
 
 #include <charconv>
+#include <string>
 
 #include "common/string_set.h"
 #include "token.h"
@@ -12,16 +13,44 @@
 namespace vellum {
 
 Lexer::Lexer(std::string_view source)
-    : start(source.data()), current(source.data()) {}
+    : start(source.data()), current(source.data()) {
+  frames.emplace_back(LexerMode::Normal);
+}
 
 Token Lexer::scanToken() {
-  skipWhitespaces();
+  // Spaces inside $"..." are part of the string; do not skip them in text mode.
+  if (frames.back().mode != LexerMode::InterpText) {
+    skipWhitespaces();
+  }
   start = current;
 
   if (isAtEnd()) {
+    const LexerMode mode = frames.back().mode;
+    if (mode == LexerMode::InterpText || mode == LexerMode::InterpExpr) {
+      // Leave interp modes so the next scanToken can return EOF instead of
+      // repeating the same ERROR forever.
+      frames.clear();
+      frames.emplace_back(LexerMode::Normal);
+      return errorToken(mode == LexerMode::InterpText
+                            ? "Unterminated interpolated string."
+                            : "Unterminated interpolated expression.");
+    }
     return makeToken(TokenType::END_OF_FILE);
   }
 
+  switch (frames.back().mode) {
+    case LexerMode::Normal:
+      return scanNormalToken();
+    case LexerMode::InterpText:
+      return interpolatedText();
+    case LexerMode::InterpExpr:
+      return interpolatedExpression();
+  }
+
+  return errorToken("Invalid lexer mode.");
+}
+
+Token Lexer::scanNormalToken() {
   const char c = advance();
 
   if (isDigit(c)) {
@@ -95,6 +124,10 @@ Token Lexer::scanToken() {
       return makeToken(TokenType::PIPE);
     case '"':
       return string();
+    case '$':
+      if (match('"')) {
+        return startInterpolatedString();
+      }
   }
 
   return errorToken(
@@ -180,6 +213,106 @@ Token Lexer::identifier() {
   }
 
   return makeToken(type);
+}
+
+Token Lexer::startInterpolatedString() {
+  frames.emplace_back(LexerMode::InterpText);
+  return makeToken(TokenType::INTERP_START);
+}
+
+Token Lexer::endInterpolatedString() {
+  frames.pop_back();
+  return makeToken(TokenType::INTERP_END);
+}
+
+Token Lexer::interpolatedText() {
+  const char c = peek();
+
+  if (c == '"') {
+    advance();
+    return endInterpolatedString();
+  }
+
+  if (c == '{') {
+    if (peekNext() != '{') {
+      advance();
+      frames.emplace_back(LexerMode::InterpExpr, 1);
+      return makeToken(TokenType::LEFT_BRACE);
+    }
+  } else if (c == '}') {
+    if (peekNext() != '}') {
+      advance();
+      return errorToken("Unexpected '}' in interpolated string.");
+    }
+  }
+
+  std::string decoded;
+  bool hasEscape = false;
+
+  while (!isAtEnd()) {
+    const char ch = peek();
+
+    if (ch == '"') {
+      break;
+    }
+
+    if (ch == '{') {
+      if (peekNext() == '{') {
+        hasEscape = true;
+        advance();
+        advance();
+        decoded.push_back('{');
+        continue;
+      }
+      break;
+    }
+
+    if (ch == '}') {
+      if (peekNext() == '}') {
+        hasEscape = true;
+        advance();
+        advance();
+        decoded.push_back('}');
+        continue;
+      }
+      break;
+    }
+
+    if (ch == '\n') {
+      line++;
+      position = 0;
+    }
+
+    decoded.push_back(ch);
+    advance();
+  }
+
+  if (hasEscape) {
+    return makeToken(TokenType::STRING_FRAGMENT,
+                     common::StringSet::insert(decoded));
+  }
+
+  return makeToken(TokenType::STRING_FRAGMENT,
+                   std::string_view(start, current - start));
+}
+
+Token Lexer::interpolatedExpression() {
+  if (peek() == '{') {
+    advance();
+    frames.back().interpExprDepth++;
+    return makeToken(TokenType::LEFT_BRACE);
+  }
+
+  if (peek() == '}') {
+    advance();
+    frames.back().interpExprDepth--;
+    if (frames.back().interpExprDepth == 0) {
+      frames.pop_back();
+    }
+    return makeToken(TokenType::RIGHT_BRACE);
+  }
+
+  return scanNormalToken();
 }
 
 TokenType Lexer::identifierType() const {

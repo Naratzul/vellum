@@ -282,3 +282,199 @@ TEST_CASE("LexerOrAndArrowAndGreaterEqualStillWork") {
   CHECK_THAT(scanTokens(makeUnique<Lexer>("a || b -> Int >= 0")),
              Catch::Matchers::Equals(expected));
 }
+
+TEST_CASE("LexerInterpolatedString_Empty") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\"\"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_LiteralOnly") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::STRING_FRAGMENT, 1, "hello", VellumLiteral(std::string_view("hello"))),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\"hello\"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_PreservesSpaces") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::STRING_FRAGMENT, 1, " a b ", VellumLiteral(std::string_view(" a b "))),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\" a b \"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_SingleHole") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::STRING_FRAGMENT, 1, "Hi ", VellumLiteral(std::string_view("Hi "))),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "name"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::STRING_FRAGMENT, 1, "!", VellumLiteral(std::string_view("!"))),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\"Hi {name}!\"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_HoleOnly") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "x"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\"{x}\"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_EscapedBraces") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::STRING_FRAGMENT, 1, "{{x}}", VellumLiteral(std::string_view("{x}"))),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\"{{x}}\"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_EscapeAroundHole") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::STRING_FRAGMENT, 1, "{{", VellumLiteral(std::string_view("{"))),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "x"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::STRING_FRAGMENT, 1, "}}", VellumLiteral(std::string_view("}"))),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\"{{{x}}}\"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_ExpressionInHole") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "a"),
+      makeToken(TokenType::PLUS, 1, "+"),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\"{a + 1}\"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_NestedBracesInHole") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::MATCH, 1, "match"),
+      makeToken(TokenType::IDENTIFIER, 1, "x"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::INT, 1, "1", VellumLiteral(1)),
+      makeToken(TokenType::FAT_ARROW, 1, "=>"),
+      makeToken(TokenType::IDENTIFIER, 1, "a"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\"{match x { 1 => a }}\"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_NestedInterpolatedString") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::STRING_FRAGMENT, 1, "outer ",
+               VellumLiteral(std::string_view("outer "))),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::STRING_FRAGMENT, 1, "inner ",
+               VellumLiteral(std::string_view("inner "))),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "x"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  CHECK_THAT(scanTokens(makeUnique<Lexer>("$\"outer {$\"inner {x}\"}\"")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_StringLiteralInHole") {
+  Vec<Token> expected{
+      makeToken(TokenType::INTERP_START, 1, "$\""),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::STRING, 1, "\"}\"", VellumLiteral(std::string_view("}"))),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::INTERP_END, 1, "\""),
+  };
+  // Hole contains a plain string whose contents is `}` — must not close the
+  // hole. Source: $"{"}"}"
+  CHECK_THAT(scanTokens(makeUnique<Lexer>(R"($"{"}"}")")),
+             Catch::Matchers::Equals(expected));
+}
+
+TEST_CASE("LexerInterpolatedString_UnexpectedCloseBrace") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("$\"}\""));
+  REQUIRE(tokens.size() >= 2);
+  CHECK(tokens[0].type == TokenType::INTERP_START);
+  CHECK(tokens[1].type == TokenType::ERROR);
+}
+
+TEST_CASE("LexerInterpolatedString_UnterminatedText") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("$\"hello"));
+  REQUIRE(tokens.size() == 3);
+  CHECK(tokens[0].type == TokenType::INTERP_START);
+  CHECK(tokens[1].type == TokenType::STRING_FRAGMENT);
+  CHECK(tokens[1].lexeme == "hello");
+  CHECK(tokens[2].type == TokenType::ERROR);
+  CHECK(tokens[2].lexeme == "Unterminated interpolated string.");
+}
+
+TEST_CASE("LexerInterpolatedString_UnterminatedTextEmpty") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("$\""));
+  REQUIRE(tokens.size() == 2);
+  CHECK(tokens[0].type == TokenType::INTERP_START);
+  CHECK(tokens[1].type == TokenType::ERROR);
+  CHECK(tokens[1].lexeme == "Unterminated interpolated string.");
+}
+
+TEST_CASE("LexerInterpolatedString_UnterminatedExpression") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("$\"{x"));
+  REQUIRE(tokens.size() == 4);
+  CHECK(tokens[0].type == TokenType::INTERP_START);
+  CHECK(tokens[1].type == TokenType::LEFT_BRACE);
+  CHECK(tokens[2].type == TokenType::IDENTIFIER);
+  CHECK(tokens[2].lexeme == "x");
+  CHECK(tokens[3].type == TokenType::ERROR);
+  CHECK(tokens[3].lexeme == "Unterminated interpolated expression.");
+}
+
+TEST_CASE("LexerInterpolatedString_UnterminatedExpressionEmptyHole") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("$\"{"));
+  REQUIRE(tokens.size() == 3);
+  CHECK(tokens[0].type == TokenType::INTERP_START);
+  CHECK(tokens[1].type == TokenType::LEFT_BRACE);
+  CHECK(tokens[2].type == TokenType::ERROR);
+  CHECK(tokens[2].lexeme == "Unterminated interpolated expression.");
+}
+
+TEST_CASE("LexerDollarWithoutQuoteIsError") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("$foo"));
+  REQUIRE_FALSE(tokens.empty());
+  CHECK(tokens[0].type == TokenType::ERROR);
+}
