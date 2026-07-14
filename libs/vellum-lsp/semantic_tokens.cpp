@@ -122,6 +122,9 @@ common::Opt<SemanticTokenLegendType> mapLexerTokenType(TokenType type) {
 
   switch (type) {
     case TokenType::STRING:
+    case TokenType::INTERP_START:
+    case TokenType::STRING_FRAGMENT:
+    case TokenType::INTERP_END:
       return SemanticTokenLegendType::String;
     case TokenType::INT:
     case TokenType::FLOAT:

@@ -25,6 +25,7 @@ add_executable(tests
     unit/lsp/document_store_tests.cpp
     unit/lsp/lsp_locations_tests.cpp
     unit/lsp/array_syntax_lsp_tests.cpp
+    unit/lsp/semantic_tokens_tests.cpp
 )
 
 target_compile_definitions(tests

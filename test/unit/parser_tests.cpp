@@ -3303,3 +3303,16 @@ TEST_CASE("ParserInterpolatedString_UnexpectedTokenInText") {
   Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
   REQUIRE(errorHandler->hadError());
 }
+
+TEST_CASE("ParserInterpolatedString_EmptyHole") {
+  constexpr const char* kSource = R"(script TestScript {
+  fun test() {
+    $"{}"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser(makeUnique<Lexer>(kSource), errorHandler).parse();
+  REQUIRE(errorHandler->hadError());
+}

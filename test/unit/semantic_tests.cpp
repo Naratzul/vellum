@@ -5252,3 +5252,63 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(matchStmt != nullptr);
   REQUIRE_FALSE(matchStmt->getPromoteType().has_value());
 }
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "InterpolatedString_ResultTypeIsString") {
+  Vec<Unique<ast::Expression>> parts;
+  parts.push_back(makeUnique<ast::LiteralExpression>(
+      VellumLiteral(std::string_view("Hi "))));
+  parts.push_back(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("name")));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("name", VellumType::unresolved("String"));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("msg"), std::nullopt,
+      makeUnique<ast::InterpolatedStringExpression>(std::move(parts))));
+
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto* script = dynamic_cast<const ast::ScriptDeclaration*>(
+      result.declarations[0].get());
+  REQUIRE(script != nullptr);
+  const auto* func = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  REQUIRE(func != nullptr);
+  const auto* local = dynamic_cast<const ast::LocalVariableStatement*>(
+      func->getBody()->getStatements()[0].get());
+  REQUIRE(local != nullptr);
+  REQUIRE(local->getInitializer() != nullptr);
+  CHECK(local->getInitializer()->getType().isString());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "InterpolatedString_Empty_ResultTypeIsString") {
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("msg"), std::nullopt,
+      makeUnique<ast::InterpolatedStringExpression>(
+          Vec<Unique<ast::Expression>>{})));
+
+  const auto result =
+      analyzer->analyze(makeScriptWithFunctionBody(std::move(body)));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto* local = getLocalVarFromResult(result);
+  REQUIRE(local->getInitializer() != nullptr);
+  CHECK(local->getInitializer()->getType().isString());
+}
