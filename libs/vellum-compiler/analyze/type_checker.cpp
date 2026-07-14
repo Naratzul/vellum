@@ -113,12 +113,12 @@ TypeChecker::Result TypeChecker::checkValidValueExpression(
 }
 
 bool TypeChecker::areTypesCompatible(VellumType actual, VellumType expected) {
-  if (actual == expected) return true;
+  if (canImplicitlyCast(actual, expected)) {
+    return true;
+  }
 
-  if (actual.isInt() && expected.isFloat()) return true;
-
-  if (actual.isNone() && (expected.getState() == VellumTypeState::Identifier ||
-                          expected.isArray())) {
+  // None → Array is allowed for assignment/args but not general implicit casts.
+  if (actual.isNone() && expected.isArray()) {
     return true;
   }
 

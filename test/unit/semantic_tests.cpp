@@ -1465,6 +1465,237 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticCall_ScriptSubtype_Argument_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("ParentCallArg")));
+  addTestObjectWithParent(VellumObject(VellumType::identifier("ChildCallArg")),
+                          VellumIdentifier("ParentCallArg"));
+
+  Vec<ast::FunctionParameter> calleeParams;
+  calleeParams.emplace_back("p", VellumType::unresolved("ParentCallArg"));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "takeParent", std::move(calleeParams), VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+
+  Vec<ast::FunctionParameter> callerParams;
+  callerParams.emplace_back("c", VellumType::unresolved("ChildCallArg"));
+  auto args = Vec<Unique<ast::Expression>>{};
+  args.emplace_back(makeUnique<ast::IdentifierExpression>(
+      VellumIdentifier("c"), Token{}));
+  auto call = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("takeParent"),
+                                            Token{}),
+      std::move(args));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(callerParams), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[1]);
+  auto& stmt =
+      dynamic_cast<ast::ExpressionStatement&>(*fn.getBody()->getStatements()[0]);
+  auto& callExpr = dynamic_cast<ast::CallExpression&>(*stmt.getExpression());
+  REQUIRE(callExpr.getArgumentTypes().size() == 1);
+  CHECK(callExpr.getArgumentTypes()[0].asIdentifier().toString() ==
+        "ParentCallArg");
+  CHECK(callExpr.getArguments()[0]->getType().asIdentifier().toString() ==
+        "ChildCallArg");
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticCall_UnrelatedScript_Argument_TypeMismatch") {
+  addTestObject(VellumObject(VellumType::identifier("QuestCallArg")));
+  addTestObject(VellumObject(VellumType::identifier("ObjectRefCallArg")));
+
+  Vec<ast::FunctionParameter> calleeParams;
+  calleeParams.emplace_back("q", VellumType::unresolved("QuestCallArg"));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "takeQuest", std::move(calleeParams), VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+
+  Vec<ast::FunctionParameter> callerParams;
+  callerParams.emplace_back("o", VellumType::unresolved("ObjectRefCallArg"));
+  auto args = Vec<Unique<ast::Expression>>{};
+  args.emplace_back(makeUnique<ast::IdentifierExpression>(
+      VellumIdentifier("o"), Token{}));
+  auto call = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("takeQuest"),
+                                            Token{}),
+      std::move(args));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(callerParams), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(
+      errorHandler->hasError(CompilerErrorKind::FunctionArgumentTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticLocalInit_ScriptSubtype_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("ParentCoerceInit")));
+  addTestObjectWithParent(
+      VellumObject(VellumType::identifier("ChildCoerceInit")),
+      VellumIdentifier("ParentCoerceInit"));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("c", VellumType::unresolved("ChildCoerceInit"));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("p"), VellumType::unresolved("ParentCoerceInit"),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  REQUIRE_FALSE(analyzer->analyze(std::move(ast)).declarations.empty());
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticAssign_ScriptSubtype_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("ParentCoerceAssign")));
+  addTestObjectWithParent(
+      VellumObject(VellumType::identifier("ChildCoerceAssign")),
+      VellumIdentifier("ParentCoerceAssign"));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "holder", VellumType::unresolved("ParentCoerceAssign"), nullptr));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("c", VellumType::unresolved("ChildCoerceAssign"));
+  auto assign = makeUnique<ast::AssignExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("holder"),
+                                            Token{}),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{}),
+      ast::AssignOperator::Assign, Token{});
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(assign)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  REQUIRE_FALSE(analyzer->analyze(std::move(ast)).declarations.empty());
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticPropertySet_ScriptSubtype_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("ParentCoerceProp")));
+  addTestObjectWithParent(
+      VellumObject(VellumType::identifier("ChildCoerceProp")),
+      VellumIdentifier("ParentCoerceProp"));
+
+  VellumObject holder(VellumType::identifier("HolderCoerceProp"));
+  holder.addProperty(VellumProperty(
+      VellumIdentifier("slot"), VellumType::identifier("ParentCoerceProp"),
+      noFunctionModifiers));
+  addTestObject(holder);
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("c", VellumType::unresolved("ChildCoerceProp"));
+  auto set = makeUnique<ast::PropertySetExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("HolderCoerceProp"),
+                                            Token{}),
+      VellumIdentifier("slot"),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{}),
+      ast::AssignOperator::Assign, Token{});
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(set)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  REQUIRE_FALSE(analyzer->analyze(std::move(ast)).declarations.empty());
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticReturn_ScriptSubtype_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("ParentCoerceRet")));
+  addTestObjectWithParent(
+      VellumObject(VellumType::identifier("ChildCoerceRet")),
+      VellumIdentifier("ParentCoerceRet"));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("c", VellumType::unresolved("ChildCoerceRet"));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::unresolved("ParentCoerceRet"),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  REQUIRE_FALSE(analyzer->analyze(std::move(ast)).declarations.empty());
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticArrayIndexSet_ScriptSubtype_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("ParentCoerceArr")));
+  addTestObjectWithParent(
+      VellumObject(VellumType::identifier("ChildCoerceArr")),
+      VellumIdentifier("ParentCoerceArr"));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back(
+      "arr", VellumType::array(VellumType::unresolved("ParentCoerceArr")));
+  params.emplace_back("c", VellumType::unresolved("ChildCoerceArr"));
+  auto set = makeUnique<ast::ArrayIndexSetExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("arr"), Token{}),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token{}),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{}),
+      ast::AssignOperator::Assign, Token{});
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(set)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  REQUIRE_FALSE(analyzer->analyze(std::move(ast)).declarations.empty());
+  REQUIRE_FALSE(errorHandler->hadError());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticAssign_UnrelatedScript_TypeMismatch") {
+  addTestObject(VellumObject(VellumType::identifier("QuestCoerceAssign")));
+  addTestObject(VellumObject(VellumType::identifier("ObjectRefCoerceAssign")));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "holder", VellumType::unresolved("QuestCoerceAssign"), nullptr));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("o", VellumType::unresolved("ObjectRefCoerceAssign"));
+  auto assign = makeUnique<ast::AssignExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("holder"),
+                                            Token{}),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("o"), Token{}),
+      ast::AssignOperator::Assign, Token{});
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(assign)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  analyzer->analyze(std::move(ast));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::AssignTypeMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
                  "Comparison_ScriptSubtype_Equal_UnifiesToAncestorType") {
   addTestObject(VellumObject(VellumType::identifier("ParentSubtypeTest")));
   addTestObjectWithParent(

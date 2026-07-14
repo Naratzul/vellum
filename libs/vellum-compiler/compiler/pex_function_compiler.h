@@ -11,9 +11,11 @@
 #include "pex/pex_file.h"
 #include "pex/pex_function_parameter.h"
 #include "pex/pex_instruction.h"
+#include "vellum/vellum_type.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
+using common::Opt;
 using common::Shared;
 using common::Vec;
 
@@ -72,9 +74,9 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::InterpolatedStringExpression& expr) override;
 
  private:
-  void setCurrentLine(int line) { currentLine_ = line; }
+  void setCurrentLine(int line) { currentLine = line; }
   void setCurrentLocation(const Token& token) {
-    currentLine_ = token.location.start.line;
+    currentLine = token.location.start.line;
   }
   void recordInstructionLine();
   void emitInstruction(pex::PexOpCode opcode, Vec<pex::PexValue> args);
@@ -98,10 +100,15 @@ class PexFunctionCompiler : public ast::StatementVisitor,
                              Opt<VellumType> promoteType,
                              const Opt<pex::PexValue>& scrutineeFloatVal);
 
+  pex::PexValue coerceToType(pex::PexValue value, const VellumType& srcType,
+                             const VellumType& destType,
+                             const Token& location);
+
   Shared<CompilerErrorHandler> errorHandler;
   pex::PexFile& file;
-  pex::PexDebugFunctionInfo* debugInfo_ = nullptr;
-  int currentLine_ = 1;
+  pex::PexDebugFunctionInfo* debugInfo = nullptr;
+  int currentLine = 1;
+  Opt<VellumType> currentReturnType;
 
   Vec<pex::PexFunctionParameter> localVariables;
   Vec<pex::PexInstruction> instructions;

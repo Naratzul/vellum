@@ -88,14 +88,14 @@ PexFunctionCompiler::PexFunctionCompiler(
       noneVar(file.getString("::nonevar")) {}
 
 void PexFunctionCompiler::recordInstructionLine() {
-  if (!debugInfo_) return;
-  int line = currentLine_;
+  if (!debugInfo) return;
+  int line = currentLine;
   if (line > static_cast<int>(std::numeric_limits<uint16_t>::max()))
     line = static_cast<int>(std::numeric_limits<uint16_t>::max());
-  if (!debugInfo_->instructionLineMap.empty() &&
-      line < static_cast<int>(debugInfo_->instructionLineMap.back()))
-    line = static_cast<int>(debugInfo_->instructionLineMap.back());
-  debugInfo_->instructionLineMap.push_back(static_cast<uint16_t>(line));
+  if (!debugInfo->instructionLineMap.empty() &&
+      line < static_cast<int>(debugInfo->instructionLineMap.back()))
+    line = static_cast<int>(debugInfo->instructionLineMap.back());
+  debugInfo->instructionLineMap.push_back(static_cast<uint16_t>(line));
 }
 
 void PexFunctionCompiler::emitInstruction(pex::PexOpCode opcode,
@@ -182,19 +182,22 @@ void PexFunctionCompiler::emitMatchPatternCmpEq(
 
 pex::PexFunction PexFunctionCompiler::compile(
     const ast::FunctionDeclaration& func,
-    pex::PexDebugFunctionInfo* debugInfo) {
+    pex::PexDebugFunctionInfo* debugInfo_) {
   localVariables.clear();
   instructions.clear();
   breakInstructions.clear();
   continueInstructions.clear();
-  debugInfo_ = debugInfo;
-  currentLine_ = 1;
+  debugInfo = debugInfo_;
+  currentLine = 1;
+  currentReturnType = func.getReturnTypeName();
 
   if (func.isNative()) {
     assert(func.getBody()->IsEmpty());
   }
 
   func.getBody()->accept(*this);
+
+  currentReturnType = std::nullopt;
 
   Opt<pex::PexString> name;
   if (auto funcName = func.getName()) {
@@ -219,6 +222,29 @@ pex::PexFunction PexFunctionCompiler::compile(
                           func.isStatic(), func.isNative());
 }
 
+pex::PexValue PexFunctionCompiler::coerceToType(pex::PexValue value,
+                                                const VellumType& srcType,
+                                                const VellumType& destType,
+                                                const Token& location) {
+  if (srcType == destType) {
+    return value;
+  }
+
+  const bool promoteIntToFloat = destType.isFloat() && srcType.isInt();
+  const bool promoteScriptSubtype =
+      destType.getState() == VellumTypeState::Identifier &&
+      srcType.getState() == VellumTypeState::Identifier;
+  if (!promoteIntToFloat && !promoteScriptSubtype) {
+    return value;
+  }
+
+  pex::PexValue promotedTemp = makeTempVarId(destType);
+  setCurrentLocation(location);
+  Vec<pex::PexValue> castArgs = {promotedTemp, value};
+  emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
+  return promotedTemp;
+}
+
 void PexFunctionCompiler::visitExpressionStatement(
     ast::ExpressionStatement& statement) {
   setCurrentLocation(statement.getExpression()->getLocation());
@@ -231,6 +257,12 @@ void PexFunctionCompiler::visitReturnStatement(
   pex::PexValue returnValue;
   if (statement.getExpression()) {
     returnValue = statement.getExpression()->compile(*this);
+    if (currentReturnType.has_value()) {
+      returnValue =
+          coerceToType(std::move(returnValue),
+                       statement.getExpression()->getType(), *currentReturnType,
+                       statement.getExpression()->getLocation());
+    }
   } else {
     returnValue = pex::PexValue(getNoneVar());
   }
@@ -283,8 +315,15 @@ void PexFunctionCompiler::visitLocalVariableStatement(
   if (statement.getInitializer()) {
     setCurrentLocation(statement.getInitializer()->getLocation());
     pex::PexFunctionParameter localVar = localVariables.back();
+    pex::PexValue initVal = statement.getInitializer()->compile(*this);
+    if (statement.getType().has_value()) {
+      initVal = coerceToType(std::move(initVal),
+                             statement.getInitializer()->getType(),
+                             *statement.getType(),
+                             statement.getInitializer()->getLocation());
+    }
     Vec<pex::PexValue> args = {pex::PexIdentifier(localVar.getName()),
-                               statement.getInitializer()->compile(*this)};
+                               std::move(initVal)};
     emitInstruction(pex::PexOpCode::Assign, std::move(args));
   }
 }
@@ -598,13 +637,9 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CallExpression& expr) {
   for (size_t i = 0; i < expr.getArguments().size(); i++) {
     const auto& arg = expr.getArguments()[i];
     pex::PexValue val = arg->compile(*this);
-    if (i < expectedTypes.size() && expectedTypes[i].isFloat() &&
-        arg->getType().isInt()) {
-      pex::PexValue floatTemp = makeTempVarId(expectedTypes[i]);
-      setCurrentLocation(arg->getLocation());
-      Vec<pex::PexValue> castArgs = {floatTemp, val};
-      emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
-      val = floatTemp;
+    if (i < expectedTypes.size()) {
+      val = coerceToType(std::move(val), arg->getType(), expectedTypes[i],
+                         arg->getLocation());
     }
     variadicArgs.push_back(val);
   }
@@ -744,14 +779,9 @@ pex::PexValue PexFunctionCompiler::compile(
     const ast::PropertySetExpression& expr) {
   const pex::PexValue object = expr.getObject()->compile(*this);
   if (expr.getOperator() == ast::AssignOperator::Assign) {
-    pex::PexValue value = expr.getValue()->compile(*this);
-    if (expr.getType().isFloat() && expr.getValue()->getType().isInt()) {
-      pex::PexValue floatTemp = makeTempVarId(expr.getType());
-      setCurrentLocation(expr.getValue()->getLocation());
-      Vec<pex::PexValue> castArgs = {floatTemp, value};
-      emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
-      value = floatTemp;
-    }
+    pex::PexValue value = coerceToType(
+        expr.getValue()->compile(*this), expr.getValue()->getType(),
+        expr.getType(), expr.getValue()->getLocation());
     setCurrentLocation(expr.getLocation());
     Vec<pex::PexValue> args = {makePexValue(expr.getProperty(), file), object,
                                value};
@@ -801,14 +831,9 @@ pex::PexValue PexFunctionCompiler::compile(
   const pex::PexValue arrayVal = expr.getArray()->compile(*this);
   const pex::PexValue indexVal = expr.getIndex()->compile(*this);
   if (expr.getOperator() == ast::AssignOperator::Assign) {
-    pex::PexValue value = expr.getValue()->compile(*this);
-    if (expr.getType().isFloat() && expr.getValue()->getType().isInt()) {
-      pex::PexValue floatTemp = makeTempVarId(expr.getType());
-      setCurrentLocation(expr.getValue()->getLocation());
-      Vec<pex::PexValue> castArgs = {floatTemp, value};
-      emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
-      value = floatTemp;
-    }
+    pex::PexValue value = coerceToType(
+        expr.getValue()->compile(*this), expr.getValue()->getType(),
+        expr.getType(), expr.getValue()->getLocation());
     emitArrayIndexSet(expr.getLocation(), arrayVal, indexVal, value);
     return value;
   }
@@ -837,14 +862,9 @@ pex::PexValue PexFunctionCompiler::compile(
 pex::PexValue PexFunctionCompiler::compile(const ast::AssignExpression& expr) {
   pex::PexValue name = expr.getName()->compile(*this);
   if (expr.getOperator() == ast::AssignOperator::Assign) {
-    pex::PexValue value = expr.getValue()->compile(*this);
-    if (expr.getType().isFloat() && expr.getValue()->getType().isInt()) {
-      pex::PexValue floatTemp = makeTempVarId(expr.getType());
-      setCurrentLocation(expr.getValue()->getLocation());
-      Vec<pex::PexValue> castArgs = {floatTemp, value};
-      emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
-      value = floatTemp;
-    }
+    pex::PexValue value = coerceToType(
+        expr.getValue()->compile(*this), expr.getValue()->getType(),
+        expr.getType(), expr.getValue()->getLocation());
     setCurrentLocation(expr.getLocation());
     Vec<pex::PexValue> args = {name, value};
     emitInstruction(pex::PexOpCode::Assign, std::move(args));

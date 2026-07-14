@@ -1534,6 +1534,294 @@ TEST_CASE("CompileComparison_IntFloat_EmitsCastBeforeCmpEq") {
   CHECK(castBeforeCmp);
 }
 
+TEST_CASE("CompileCall_ScriptSubtype_EmitsCastBeforeCallMethod") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  auto addModule = [&](const VellumObject& obj, Opt<VellumType> parent) {
+    VellumIdentifier name = obj.getType().asIdentifier();
+    auto module =
+        makeShared<ImportModule>(name, ImportModuleType::Vellum, fs::path(""));
+    auto modResolver = makeShared<Resolver>(obj, errorHandler, importLibrary,
+                                            builtinFunctions);
+    if (parent.has_value()) {
+      modResolver->setParentType(std::move(*parent));
+    }
+    module->setResolver(modResolver);
+    importLibrary->addTestModule(module);
+  };
+
+  addModule(VellumObject(VellumType::identifier("ParentPexCall")), std::nullopt);
+  addModule(VellumObject(VellumType::identifier("ChildPexCall")),
+            VellumType::identifier("ParentPexCall"));
+
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  Vec<ast::FunctionParameter> calleeParams;
+  calleeParams.emplace_back("p", VellumType::unresolved("ParentPexCall"));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "takeParent", std::move(calleeParams), VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+
+  Vec<ast::FunctionParameter> callerParams;
+  callerParams.emplace_back("c", VellumType::unresolved("ChildPexCall"));
+  auto args = Vec<Unique<ast::Expression>>{};
+  args.emplace_back(makeUnique<ast::IdentifierExpression>(
+      VellumIdentifier("c"), Token{}));
+  auto call = makeUnique<ast::CallExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("takeParent"),
+                                            Token{}),
+      std::move(args));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(call)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(callerParams), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& functions = file.objects()[0].getStates()[0].getFunctions();
+  REQUIRE(functions.size() >= 2);
+  const auto& instructions = functions[1].getInstructions();
+  size_t callIdx = 0;
+  for (; callIdx < instructions.size(); ++callIdx) {
+    if (instructions[callIdx].getOpCode() == pex::PexOpCode::CallMethod) break;
+  }
+  REQUIRE(callIdx < instructions.size());
+  bool castBeforeCall = false;
+  for (size_t j = 0; j < callIdx; ++j) {
+    if (instructions[j].getOpCode() == pex::PexOpCode::Cast) {
+      castBeforeCall = true;
+      break;
+    }
+  }
+  CHECK(castBeforeCall);
+}
+
+namespace {
+void addParentChildModules(Shared<ImportLibrary> importLibrary,
+                           Shared<CompilerErrorHandler> errorHandler,
+                           Shared<BuiltinFunctions> builtinFunctions,
+                           std::string_view parentName,
+                           std::string_view childName) {
+  auto addModule = [&](const VellumObject& obj, Opt<VellumType> parent) {
+    VellumIdentifier name = obj.getType().asIdentifier();
+    auto module =
+        makeShared<ImportModule>(name, ImportModuleType::Vellum, fs::path(""));
+    auto modResolver = makeShared<Resolver>(obj, errorHandler, importLibrary,
+                                            builtinFunctions);
+    if (parent.has_value()) {
+      modResolver->setParentType(std::move(*parent));
+    }
+    module->setResolver(modResolver);
+    importLibrary->addTestModule(module);
+  };
+  addModule(VellumObject(VellumType::identifier(parentName)), std::nullopt);
+  addModule(VellumObject(VellumType::identifier(childName)),
+            VellumType::identifier(parentName));
+}
+
+bool hasCastBeforeOpcode(const Vec<pex::PexInstruction>& instructions,
+                         pex::PexOpCode opcode) {
+  size_t idx = 0;
+  for (; idx < instructions.size(); ++idx) {
+    if (instructions[idx].getOpCode() == opcode) break;
+  }
+  if (idx >= instructions.size()) return false;
+  for (size_t j = 0; j < idx; ++j) {
+    if (instructions[j].getOpCode() == pex::PexOpCode::Cast) return true;
+  }
+  return false;
+}
+}  // namespace
+
+TEST_CASE("CompileAssign_ScriptSubtype_EmitsCastBeforeAssign") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  addParentChildModules(importLibrary, errorHandler, builtinFunctions,
+                        "ParentPexAssign", "ChildPexAssign");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::GlobalVariableDeclaration>(
+      "holder", VellumType::unresolved("ParentPexAssign"), nullptr));
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("c", VellumType::unresolved("ChildPexAssign"));
+  auto assign = makeUnique<ast::AssignExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("holder"),
+                                            Token{}),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{}),
+      ast::AssignOperator::Assign, Token{});
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(assign)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(hasCastBeforeOpcode(instructions, pex::PexOpCode::Assign));
+}
+
+TEST_CASE("CompileLocalInit_ScriptSubtype_EmitsCastBeforeAssign") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  addParentChildModules(importLibrary, errorHandler, builtinFunctions,
+                        "ParentPexInit", "ChildPexInit");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("c", VellumType::unresolved("ChildPexInit"));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("p"), VellumType::unresolved("ParentPexInit"),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(hasCastBeforeOpcode(instructions, pex::PexOpCode::Assign));
+}
+
+TEST_CASE("CompileReturn_ScriptSubtype_EmitsCastBeforeReturn") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  addParentChildModules(importLibrary, errorHandler, builtinFunctions,
+                        "ParentPexRet", "ChildPexRet");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("c", VellumType::unresolved("ChildPexRet"));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::unresolved("ParentPexRet"),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(hasCastBeforeOpcode(instructions, pex::PexOpCode::Return));
+}
+
+TEST_CASE("CompileArrayIndexSet_ScriptSubtype_EmitsCastBeforeArraySet") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  addParentChildModules(importLibrary, errorHandler, builtinFunctions,
+                        "ParentPexArr", "ChildPexArr");
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back(
+      "arr", VellumType::array(VellumType::unresolved("ParentPexArr")));
+  params.emplace_back("c", VellumType::unresolved("ChildPexArr"));
+  auto set = makeUnique<ast::ArrayIndexSetExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("arr"), Token{}),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0), Token{}),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("c"), Token{}),
+      ast::AssignOperator::Assign, Token{});
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ExpressionStatement>(std::move(set)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(hasCastBeforeOpcode(instructions, pex::PexOpCode::ArraySetElement));
+}
+
+TEST_CASE("CompileReturn_IntToFloat_EmitsCastBeforeReturn") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("n", VellumType::unresolved("Int"));
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("n"), Token{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::unresolved("Float"),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+  pex::PexFile file =
+      Compiler(errorHandler).compile(ScriptMetadata(), result.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(hasCastBeforeOpcode(instructions, pex::PexOpCode::Return));
+}
+
 TEST_CASE("CompileComparison_ScriptSubtype_EmitsCastBeforeCmpEq") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
