@@ -81,6 +81,8 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   void visitArrayIndexSetExpression(
       ast::ArrayIndexSetExpression& expr) override;
   void visitTernaryExpression(ast::TernaryExpression& expr) override;
+  void visitInterpolatedStringExpression(
+      ast::InterpolatedStringExpression& expr) override;
 
  private:
   Shared<CompilerErrorHandler> errorHandler;

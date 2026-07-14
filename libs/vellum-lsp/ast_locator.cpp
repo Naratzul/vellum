@@ -269,6 +269,12 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
     visitExpression(*expr.getLeft(), depth + 1);
     visitExpression(*expr.getRight(), depth + 1);
   }
+  void visitInterpolatedStringExpression(
+      ast::InterpolatedStringExpression& expr) override {
+    for (const auto& part : expr.getParts()) {
+      visitExpression(*part, depth + 1);
+    }
+  }
 
  private:
   lsp::Position pos;

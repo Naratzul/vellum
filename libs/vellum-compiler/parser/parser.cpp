@@ -970,6 +970,10 @@ Unique<ast::Expression> Parser::primaryExpression() {
     return arrayExpression();
   }
 
+  if (match(TokenType::INTERP_START)) {
+    return interpolatedStringExpression();
+  }
+
   throw ParseException(current, "Expect an expression.");
 }
 
@@ -1080,12 +1084,44 @@ Unique<ast::Expression> Parser::patternExpression() {
                        "Expect a match pattern.");
 }
 
+Unique<ast::Expression> Parser::interpolatedStringExpression() {
+  Vec<Unique<ast::Expression>> parts;
+
+  Token location = previous;
+
+  while (!check(TokenType::INTERP_END) && !check(TokenType::END_OF_FILE)) {
+    if (match(TokenType::STRING_FRAGMENT)) {
+      if (!previous.value) {
+        throw ParseException(previous, CompilerErrorKind::UnexpectedToken,
+                             "Expect a string fragment value.");
+      }
+      parts.push_back(
+          makeUnique<ast::LiteralExpression>(*previous.value, previous));
+    } else if (match(TokenType::LEFT_BRACE)) {
+      parts.push_back(logicalOrExpression());
+      consume(TokenType::RIGHT_BRACE, CompilerErrorKind::ExpectRightBrace,
+              "Expect '}}' after interpolated expression.");
+    } else {
+      throw ParseException(
+          current, CompilerErrorKind::UnexpectedToken,
+          "Expect a string fragment or '{{' in interpolated string.");
+    }
+  }
+
+  consume(TokenType::INTERP_END, CompilerErrorKind::UnexpectedToken,
+          "Expect '\"' to close interpolated string.");
+
+  return makeUnique<ast::InterpolatedStringExpression>(std::move(parts),
+                                                       location);
+}
+
 bool Parser::canStartExpression(const Token& token) {
+  (void)token;
   return checkAny({TokenType::INT, TokenType::FLOAT, TokenType::FALSE,
                    TokenType::TRUE, TokenType::STRING, TokenType::NONE,
                    TokenType::MINUS, TokenType::BANG, TokenType::IDENTIFIER,
                    TokenType::SUPER, TokenType::SELF, TokenType::LEFT_PAREN,
-                   TokenType::LEFT_BRACK});
+                   TokenType::LEFT_BRACK, TokenType::INTERP_START});
 }
 
 void Parser::synchronizeTopDeclaration() {

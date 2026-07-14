@@ -441,6 +441,13 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
     expr.getRight()->accept(*this);
   }
 
+  void visitInterpolatedStringExpression(
+      ast::InterpolatedStringExpression& expr) override {
+    for (const auto& part : expr.getParts()) {
+      part->accept(*this);
+    }
+  }
+
  private:
   common::Vec<SemanticTokenSpan>& spans;
 };

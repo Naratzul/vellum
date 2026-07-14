@@ -3105,3 +3105,201 @@ TEST_CASE("ParserTrailingDotAfterIdentifier") {
   REQUIRE(numsStmt != nullptr);
   REQUIRE(numsStmt->getExpression()->isIdentifierExpression());
 }
+
+namespace {
+
+const ast::InterpolatedStringExpression* firstInterpInFunction(
+    const ParserResult& result) {
+  const auto* script =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(script != nullptr);
+  const auto* function = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  REQUIRE(function != nullptr);
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      function->getBody()->getStatements()[0].get());
+  REQUIRE(exprStmt != nullptr);
+  return dynamic_cast<const ast::InterpolatedStringExpression*>(
+      exprStmt->getExpression().get());
+}
+
+}  // namespace
+
+TEST_CASE("ParserInterpolatedString_Empty") {
+  constexpr const char* kSource = R"(script TestScript {
+  fun test() {
+    $""
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<Lexer>(kSource), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* interp = firstInterpInFunction(result);
+  REQUIRE(interp != nullptr);
+  CHECK(interp->getParts().empty());
+}
+
+TEST_CASE("ParserInterpolatedString_LiteralOnly") {
+  constexpr const char* kSource = R"(script TestScript {
+  fun test() {
+    $"hello"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<Lexer>(kSource), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* interp = firstInterpInFunction(result);
+  REQUIRE(interp != nullptr);
+  REQUIRE(interp->getParts().size() == 1);
+  REQUIRE(interp->getParts()[0]->isLiteralExpression());
+  CHECK(interp->getParts()[0]->asLiteral().getLiteral().asString() == "hello");
+}
+
+TEST_CASE("ParserInterpolatedString_HoleFirstVsHoleLast") {
+  constexpr const char* kSource = R"(script TestScript {
+  fun test() {
+    $"{a}y"
+    $"x{a}"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<Lexer>(kSource), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* script =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  const auto* function = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  REQUIRE(function->getBody()->getStatements().size() == 2);
+
+  const auto* firstStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      function->getBody()->getStatements()[0].get());
+  const auto* first = dynamic_cast<const ast::InterpolatedStringExpression*>(
+      firstStmt->getExpression().get());
+  REQUIRE(first != nullptr);
+  REQUIRE(first->getParts().size() == 2);
+  CHECK(first->getParts()[0]->isIdentifierExpression());
+  CHECK(first->getParts()[0]->asIdentifier().getIdentifier().toString() == "a");
+  REQUIRE(first->getParts()[1]->isLiteralExpression());
+  CHECK(first->getParts()[1]->asLiteral().getLiteral().asString() == "y");
+
+  const auto* secondStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      function->getBody()->getStatements()[1].get());
+  const auto* second = dynamic_cast<const ast::InterpolatedStringExpression*>(
+      secondStmt->getExpression().get());
+  REQUIRE(second != nullptr);
+  REQUIRE(second->getParts().size() == 2);
+  REQUIRE(second->getParts()[0]->isLiteralExpression());
+  CHECK(second->getParts()[0]->asLiteral().getLiteral().asString() == "x");
+  CHECK(second->getParts()[1]->isIdentifierExpression());
+  CHECK(second->getParts()[1]->asIdentifier().getIdentifier().toString() ==
+        "a");
+}
+
+TEST_CASE("ParserInterpolatedString_AdjacentHoles") {
+  constexpr const char* kSource = R"(script TestScript {
+  fun test() {
+    $"{a}{b}"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<Lexer>(kSource), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* interp = firstInterpInFunction(result);
+  REQUIRE(interp != nullptr);
+  REQUIRE(interp->getParts().size() == 2);
+  CHECK(interp->getParts()[0]->isIdentifierExpression());
+  CHECK(interp->getParts()[1]->isIdentifierExpression());
+}
+
+TEST_CASE("ParserInterpolatedString_NestedInterp") {
+  constexpr const char* kSource = R"(script TestScript {
+  fun test() {
+    $"outer {$"inner {x}"}"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<Lexer>(kSource), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* interp = firstInterpInFunction(result);
+  REQUIRE(interp != nullptr);
+  REQUIRE(interp->getParts().size() == 2);
+  REQUIRE(interp->getParts()[0]->isLiteralExpression());
+  CHECK(interp->getParts()[0]->asLiteral().getLiteral().asString() ==
+        "outer ");
+  const auto* nested = dynamic_cast<const ast::InterpolatedStringExpression*>(
+      interp->getParts()[1].get());
+  REQUIRE(nested != nullptr);
+  REQUIRE(nested->getParts().size() == 2);
+  CHECK(nested->getParts()[1]->isIdentifierExpression());
+}
+
+TEST_CASE("ParserInterpolatedString_ReturnValue") {
+  constexpr const char* kSource = R"(script TestScript {
+  fun test() -> String {
+    return $"Hi {name}"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<Lexer>(kSource), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* script =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  const auto* function = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  const auto* retStmt = dynamic_cast<const ast::ReturnStatement*>(
+      function->getBody()->getStatements()[0].get());
+  REQUIRE(retStmt != nullptr);
+  REQUIRE(retStmt->getExpression() != nullptr);
+  const auto* interp = dynamic_cast<const ast::InterpolatedStringExpression*>(
+      retStmt->getExpression().get());
+  REQUIRE(interp != nullptr);
+  REQUIRE(interp->getParts().size() == 2);
+  REQUIRE(interp->getParts()[0]->isLiteralExpression());
+  CHECK(interp->getParts()[0]->asLiteral().getLiteral().asString() == "Hi ");
+  CHECK(interp->getParts()[1]->isIdentifierExpression());
+}
+
+TEST_CASE("ParserInterpolatedString_UnexpectedTokenInText") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::INTERP_START, 1, "$\""),
+                    makeToken(TokenType::IDENTIFIER, 1, "oops"),
+                    makeToken(TokenType::INTERP_END, 1, "\""),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+  REQUIRE(errorHandler->hadError());
+}

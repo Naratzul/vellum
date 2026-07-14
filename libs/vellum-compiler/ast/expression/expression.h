@@ -520,5 +520,22 @@ class TernaryExpression : public Expression {
   Unique<Expression> left;
   Unique<Expression> right;
 };
+
+class InterpolatedStringExpression : public Expression {
+ public:
+  InterpolatedStringExpression(Vec<Unique<Expression>> parts,
+                               Token location = {})
+      : Expression(location), parts(std::move(parts)) {}
+
+  const Vec<Unique<Expression>>& getParts() const { return parts; }
+
+  bool equals(const Expression& other) const override;
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+ private:
+  // Ordered fragments and hole expressions in source order.
+  Vec<Unique<Expression>> parts;
+};
 }  // namespace ast
 }  // namespace vellum

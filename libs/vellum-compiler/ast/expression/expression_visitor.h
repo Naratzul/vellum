@@ -22,6 +22,7 @@ class CastExpression;
 class NewArrayExpression;
 class NewArrayElementsExpression;
 class TernaryExpression;
+class InterpolatedStringExpression;
 
 class ExpressionVisitor {
  public:
@@ -42,6 +43,8 @@ class ExpressionVisitor {
   virtual void visitSelfExpression(ast::SelfExpression& expr) = 0;
   virtual void visitSuperExpression(ast::SuperExpression& expr) = 0;
   virtual void visitTernaryExpression(ast::TernaryExpression& expr) = 0;
+  virtual void visitInterpolatedStringExpression(
+      ast::InterpolatedStringExpression& expr) = 0;
 };
 
 class ExpressionCompiler {
@@ -58,10 +61,13 @@ class ExpressionCompiler {
   virtual pex::PexValue compile(const ast::UnaryExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::CastExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::NewArrayExpression& expr) = 0;
-  virtual pex::PexValue compile(const ast::NewArrayElementsExpression& expr) = 0;
+  virtual pex::PexValue compile(
+      const ast::NewArrayElementsExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::SelfExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::SuperExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::TernaryExpression& expr) = 0;
+  virtual pex::PexValue compile(
+      const ast::InterpolatedStringExpression& expr) = 0;
 };
 
 }  // namespace ast

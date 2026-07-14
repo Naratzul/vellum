@@ -191,6 +191,13 @@ class ExpressionExtentCollector : public ast::ExpressionVisitor {
     expr.getLeft()->accept(*this);
     expr.getRight()->accept(*this);
   }
+  void visitInterpolatedStringExpression(
+      ast::InterpolatedStringExpression& expr) override {
+    mergeExtent(extent, expr.getLocation());
+    for (const auto& part : expr.getParts()) {
+      part->accept(*this);
+    }
+  }
 
  private:
 };
@@ -873,6 +880,15 @@ class ExpressionTypeAtDotVisitor : public ast::ExpressionVisitor {
     visitExpression(*expr.getCondition(), depth_ + 1);
     visitExpression(*expr.getLeft(), depth_ + 1);
     visitExpression(*expr.getRight(), depth_ + 1);
+  }
+  void visitInterpolatedStringExpression(
+      ast::InterpolatedStringExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    for (const auto& part : expr.getParts()) {
+      visitExpression(*part, depth_ + 1);
+    }
   }
 
  private:

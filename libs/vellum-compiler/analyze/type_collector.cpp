@@ -244,4 +244,10 @@ void TypeCollector::visitTernaryExpression(ast::TernaryExpression& expr) {
   expr.getRight()->accept(*this);
 }
 
+void TypeCollector::visitInterpolatedStringExpression(
+    ast::InterpolatedStringExpression& expr) {
+  for (const auto& part : expr.getParts()) {
+    part->accept(*this);
+  }
+}
 }  // namespace vellum

@@ -2457,3 +2457,157 @@ TEST_CASE("CompileLocalVarShadowing_InWhileBlock_EmitsDistinctPexLocals") {
   CHECK(hasOuter);
   CHECK(hasInner);
 }
+
+namespace {
+
+pex::PexFile compileInterpolatedScript(
+    std::string_view source, Shared<CompilerErrorHandler> errorHandler) {
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  Parser parser(makeUnique<Lexer>(source), errorHandler);
+  ParserResult parseResult = parser.parse();
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  TypeCollector typeCollector;
+  typeCollector.collect(parseResult.declarations);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(parseResult.declarations));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file = Compiler(errorHandler).compile(
+      ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+  return file;
+}
+
+const Vec<pex::PexInstruction>& firstFunctionInstructions(
+    const pex::PexFile& file) {
+  return file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+}
+
+}  // namespace
+
+TEST_CASE("CompileInterpolatedString_Empty_NoStrCat") {
+  constexpr const char* kSource = R"(script testscript {
+  fun test() -> String {
+    return $""
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file = compileInterpolatedScript(kSource, errorHandler);
+  const auto& instructions = firstFunctionInstructions(file);
+
+  CHECK(countOpCodes(instructions, pex::PexOpCode::StrCat) == 0);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Cast) == 0);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Return) == 1);
+}
+
+TEST_CASE("CompileInterpolatedString_LiteralOnly_NoStrCat") {
+  constexpr const char* kSource = R"(script testscript {
+  fun test() -> String {
+    return $"hello"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file = compileInterpolatedScript(kSource, errorHandler);
+  const auto& instructions = firstFunctionInstructions(file);
+
+  CHECK(countOpCodes(instructions, pex::PexOpCode::StrCat) == 0);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Cast) == 0);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Return) == 1);
+}
+
+TEST_CASE("CompileInterpolatedString_StringHole_OneStrCatNoCast") {
+  constexpr const char* kSource = R"(script testscript {
+  fun test(name: String) -> String {
+    return $"Hi {name}"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file = compileInterpolatedScript(kSource, errorHandler);
+  const auto& instructions = firstFunctionInstructions(file);
+
+  CHECK(countOpCodes(instructions, pex::PexOpCode::StrCat) == 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Cast) == 0);
+}
+
+TEST_CASE("CompileInterpolatedString_IntHole_CastThenStrCat") {
+  constexpr const char* kSource = R"(script testscript {
+  fun test(n: Int) -> String {
+    return $"n={n}"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file = compileInterpolatedScript(kSource, errorHandler);
+  const auto& instructions = firstFunctionInstructions(file);
+
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Cast) == 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::StrCat) == 1);
+  CHECK(countOpCodesBefore(instructions, pex::PexOpCode::StrCat,
+                           pex::PexOpCode::Cast) == 1);
+}
+
+TEST_CASE("CompileInterpolatedString_ThreeParts_TwoStrCats") {
+  constexpr const char* kSource = R"(script testscript {
+  fun test(x: String) -> String {
+    return $"a{x}b"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file = compileInterpolatedScript(kSource, errorHandler);
+  const auto& instructions = firstFunctionInstructions(file);
+
+  CHECK(countOpCodes(instructions, pex::PexOpCode::StrCat) == 2);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Cast) == 0);
+}
+
+TEST_CASE("CompileInterpolatedString_AdjacentHoles_OneStrCat") {
+  constexpr const char* kSource = R"(script testscript {
+  fun test(a: String, b: String) -> String {
+    return $"{a}{b}"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file = compileInterpolatedScript(kSource, errorHandler);
+  const auto& instructions = firstFunctionInstructions(file);
+
+  CHECK(countOpCodes(instructions, pex::PexOpCode::StrCat) == 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Cast) == 0);
+}
+
+TEST_CASE("CompileInterpolatedString_Nested_InnerAndOuterStrCat") {
+  constexpr const char* kSource = R"(script testscript {
+  fun test(x: Int) -> String {
+    return $"outer {$"inner {x}"}"
+  }
+}
+)";
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  pex::PexFile file = compileInterpolatedScript(kSource, errorHandler);
+  const auto& instructions = firstFunctionInstructions(file);
+
+  // Inner: "inner " + cast(x)  => Cast + StrCat
+  // Outer: "outer " + inner    => StrCat
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Cast) == 1);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::StrCat) == 2);
+}

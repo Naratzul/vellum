@@ -5,6 +5,17 @@
 namespace vellum {
 namespace ast {
 
+namespace {
+bool expressionsEqual(const Vec<Unique<Expression>>& lhs,
+                      const Vec<Unique<Expression>>& rhs) {
+  if (lhs.size() != rhs.size()) return false;
+  for (std::size_t i = 0; i < lhs.size(); ++i) {
+    if (!lhs[i]->equals(*rhs[i])) return false;
+  }
+  return true;
+}
+}  // namespace
+
 bool LiteralExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const LiteralExpression&>(other_);
   return literal == other.literal;
@@ -293,6 +304,20 @@ void TernaryExpression::accept(ExpressionVisitor& visitor) {
 }
 
 pex::PexValue TernaryExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
+bool InterpolatedStringExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const InterpolatedStringExpression&>(other_);
+  return expressionsEqual(parts, other.parts);
+}
+
+void InterpolatedStringExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitInterpolatedStringExpression(*this);
+}
+
+pex::PexValue InterpolatedStringExpression::compile(
+    ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
 

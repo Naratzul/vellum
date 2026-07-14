@@ -129,6 +129,7 @@ class Parser {
   Unique<ast::Expression> ternaryExpression(Unique<ast::Expression> condition);
   Unique<ast::Expression> conditionExpression();
   Unique<ast::Expression> patternExpression();
+  Unique<ast::Expression> interpolatedStringExpression();
 
   Unique<ast::Expression> unaryNumericToLiteral(Unique<ast::Expression> expr);
 

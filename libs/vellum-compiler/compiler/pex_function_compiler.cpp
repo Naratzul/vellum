@@ -11,6 +11,7 @@
 #include "compiler_error_handler.h"
 #include "pex/pex_file.h"
 #include "pex/pex_identifier.h"
+#include "vellum/vellum_literal.h"
 #include "vellum/vellum_value.h"
 
 namespace vellum {
@@ -677,6 +678,37 @@ pex::PexValue PexFunctionCompiler::compile(const ast::TernaryExpression& expr) {
       0, pex::PexValue(int32_t(instructions.size() - jmp_to_end_pos)));
 
   return result;
+}
+
+pex::PexValue PexFunctionCompiler::compile(
+    const ast::InterpolatedStringExpression& expr) {
+  setCurrentLocation(expr.getLocation());
+  const VellumType stringType = VellumType::literal(VellumLiteralType::String);
+
+  if (expr.getParts().empty()) {
+    return makePexValue(VellumLiteral(std::string_view("")), file);
+  }
+
+  Opt<pex::PexValue> result;
+  for (const auto& part : expr.getParts()) {
+    setCurrentLocation(part->getLocation());
+    pex::PexValue partValue = part->compile(*this);
+    if (!part->getType().isString()) {
+      const pex::PexValue casted = makeTempVarId(stringType);
+      Vec<pex::PexValue> castArgs = {casted, partValue};
+      emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
+      partValue = casted;
+    }
+    if (!result) {
+      result = partValue;
+    } else {
+      const pex::PexValue dest = makeTempVarId(stringType);
+      Vec<pex::PexValue> catArgs = {dest, *result, partValue};
+      emitInstruction(pex::PexOpCode::StrCat, std::move(catArgs));
+      result = dest;
+    }
+  }
+  return *result;
 }
 
 pex::PexValue PexFunctionCompiler::compile(

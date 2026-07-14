@@ -1629,6 +1629,14 @@ void SemanticAnalyzer::visitTernaryExpression(ast::TernaryExpression& expr) {
   expr.setType(resultType.value());
 }
 
+void SemanticAnalyzer::visitInterpolatedStringExpression(
+    ast::InterpolatedStringExpression& expr) {
+  for (auto& part : expr.getParts()) {
+    part->accept(*this);
+  }
+  expr.setType(VellumType::literal(VellumLiteralType::String));
+}
+
 bool SemanticAnalyzer::validateComposedAssignTypes(ast::AssignOperator op,
                                                    const VellumType& lhsType,
                                                    const VellumType& rhsType,

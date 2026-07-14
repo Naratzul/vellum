@@ -171,6 +171,12 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
     expr.getLeft()->accept(*this);
     expr.getRight()->accept(*this);
   }
+  void visitInterpolatedStringExpression(
+      ast::InterpolatedStringExpression& expr) override {
+    for (const auto& part : expr.getParts()) {
+      part->accept(*this);
+    }
+  }
 
  private:
   lsp::Position pos;
