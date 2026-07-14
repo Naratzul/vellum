@@ -32,6 +32,8 @@ class Lexer : public ILexer {
   const char* current;
   int line = 0;
   int position = 0;
+  Location tokenStart{};
+  Location lastChar{};
   Vec<LexerFrame> frames;
 
   Token scanNormalToken();

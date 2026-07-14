@@ -220,6 +220,77 @@ TEST_CASE("LexerColumnZeroTokenPosition") {
   CHECK(tokens[1].location.start.position == 7);
 }
 
+TEST_CASE("LexerOneLineStringLocation") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("\"hello\""));
+  REQUIRE(tokens.size() == 1);
+  CHECK(tokens[0].type == TokenType::STRING);
+  CHECK(tokens[0].location.start.line == 0);
+  CHECK(tokens[0].location.start.position == 0);
+  CHECK(tokens[0].location.end.line == 0);
+  CHECK(tokens[0].location.end.position == 6);
+}
+
+TEST_CASE("LexerMultiLineStringLocation") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("\"a\nb\""));
+  REQUIRE(tokens.size() == 1);
+  CHECK(tokens[0].type == TokenType::STRING);
+  CHECK(tokens[0].location.start.line == 0);
+  CHECK(tokens[0].location.start.position == 0);
+  CHECK(tokens[0].location.end.line == 1);
+  CHECK(tokens[0].location.end.position == 1);
+}
+
+TEST_CASE("LexerTokenAfterMultiLineStringLocation") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("\"a\nb\"\nfoo"));
+  REQUIRE(tokens.size() == 2);
+  CHECK(tokens[0].type == TokenType::STRING);
+  CHECK(tokens[1].type == TokenType::IDENTIFIER);
+  CHECK(tokens[1].lexeme == "foo");
+  CHECK(tokens[1].location.start.line == 2);
+  CHECK(tokens[1].location.start.position == 0);
+}
+
+TEST_CASE("LexerOneLineInterpolatedFragmentLocation") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("$\"hello\""));
+  REQUIRE(tokens.size() == 3);
+  CHECK(tokens[0].type == TokenType::INTERP_START);
+  CHECK(tokens[0].location.start.line == 0);
+  CHECK(tokens[0].location.start.position == 0);
+  CHECK(tokens[0].location.end.line == 0);
+  CHECK(tokens[0].location.end.position == 1);
+
+  CHECK(tokens[1].type == TokenType::STRING_FRAGMENT);
+  CHECK(tokens[1].location.start.line == 0);
+  CHECK(tokens[1].location.start.position == 2);
+  CHECK(tokens[1].location.end.line == 0);
+  CHECK(tokens[1].location.end.position == 6);
+
+  CHECK(tokens[2].type == TokenType::INTERP_END);
+  CHECK(tokens[2].location.start.line == 0);
+  CHECK(tokens[2].location.start.position == 7);
+  CHECK(tokens[2].location.end.line == 0);
+  CHECK(tokens[2].location.end.position == 7);
+}
+
+TEST_CASE("LexerMultiLineInterpolatedFragmentLocation") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("$\"a\nb\""));
+  REQUIRE(tokens.size() == 3);
+  CHECK(tokens[0].type == TokenType::INTERP_START);
+
+  CHECK(tokens[1].type == TokenType::STRING_FRAGMENT);
+  CHECK(tokens[1].lexeme == "a\nb");
+  CHECK(tokens[1].location.start.line == 0);
+  CHECK(tokens[1].location.start.position == 2);
+  CHECK(tokens[1].location.end.line == 1);
+  CHECK(tokens[1].location.end.position == 0);
+
+  CHECK(tokens[2].type == TokenType::INTERP_END);
+  CHECK(tokens[2].location.start.line == 1);
+  CHECK(tokens[2].location.start.position == 1);
+  CHECK(tokens[2].location.end.line == 1);
+  CHECK(tokens[2].location.end.position == 1);
+}
+
 TEST_CASE("LexerQuesToken") {
   Vec<Token> tokens = scanTokens(makeUnique<Lexer>("?"));
   REQUIRE_FALSE(tokens.empty());

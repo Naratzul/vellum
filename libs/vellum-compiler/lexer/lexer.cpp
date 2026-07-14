@@ -23,6 +23,7 @@ Token Lexer::scanToken() {
     skipWhitespaces();
   }
   start = current;
+  tokenStart = {.line = line, .position = position};
 
   if (isAtEnd()) {
     const LexerMode mode = frames.back().mode;
@@ -138,10 +139,8 @@ Token Lexer::makeToken(TokenType type, common::Opt<VellumLiteral> value) const {
   Token token;
   token.type = type;
   token.lexeme = currentLexeme();
-  token.location = {
-      .start = {.line = line,
-                .position = position - (int)token.lexeme.length()},
-      .end = {.line = line, .position = position - 1}};
+  token.location = {.start = tokenStart,
+                    .end = (current > start) ? lastChar : tokenStart};
   token.value = value;
   return token;
 }
@@ -150,19 +149,13 @@ Token Lexer::errorToken(std::string_view message) const {
   Token token;
   token.type = TokenType::ERROR;
   token.lexeme = message;
-  token.location = {
-      .start = {.line = line,
-                .position = position - (int)token.lexeme.length()},
-      .end = {.line = line, .position = position}};
+  token.location = {.start = tokenStart,
+                    .end = (current > start) ? lastChar : tokenStart};
   return token;
 }
 
 Token Lexer::string() {
   while (peek() != '"' && !isAtEnd()) {
-    if (peek() == '\n') {
-      line++;
-      position = 0;
-    }
     advance();
   }
 
@@ -276,11 +269,6 @@ Token Lexer::interpolatedText() {
         continue;
       }
       break;
-    }
-
-    if (ch == '\n') {
-      line++;
-      position = 0;
     }
 
     decoded.push_back(ch);
@@ -429,8 +417,15 @@ bool Lexer::compare(int start, int length, const char* rest) const {
 }
 
 char Lexer::advance() {
-  position++;
-  return *current++;
+  lastChar = {.line = line, .position = position};
+  const char c = *current++;
+  if (c == '\n') {
+    line++;
+    position = 0;
+  } else {
+    position++;
+  }
+  return c;
 }
 
 char Lexer::peek() { return *current; }
@@ -443,8 +438,7 @@ char Lexer::peekNext() {
 bool Lexer::match(char expected) {
   if (isAtEnd()) return false;
   if (*current != expected) return false;
-  current++;
-  position++;
+  advance();
   return true;
 }
 
@@ -457,20 +451,17 @@ void Lexer::skipWhitespaces() {
         advance();
         break;
       case '\r':
-        if (peekNext() == '\n') {
-          line++;
-          position = 0;
-          current += 2;
+        advance();
+        if (peek() == '\n') {
+          advance();
         } else {
+          // Lone CR counts as a newline (legacy behavior).
           line++;
           position = 0;
-          current++;
         }
         break;
       case '\n':
-        line++;
-        position = 0;
-        current++;
+        advance();
         break;
       case '/':
         if (peekNext() == '/') {
