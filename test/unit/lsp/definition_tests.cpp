@@ -202,3 +202,70 @@ script TrainingMannequin {
 
   REQUIRE(define(5, 4).empty());
 }
+
+TEST_CASE_METHOD(LspTestFixture,
+                 "LspDefinition cast type is not confused with param") {
+  const path actorPath = path("/test/Actor.vel");
+  addParsedVelModule(actorPath, R"(script Actor {
+}
+)");
+  const path objectReferencePath = path("/test/ObjectReference.vel");
+  addParsedVelModule(objectReferencePath, R"(script ObjectReference {
+}
+)");
+
+  openDoc(R"(script Hello {
+  event onActivate(actor: ObjectReference) {
+    var a = actor as Actor
+  }
+}
+)");
+  analyze();
+
+  // Cast target "Actor" → Actor script, not the actor parameter.
+  const auto typeLinks = define(2, 21);
+  REQUIRE_FALSE(typeLinks.empty());
+  REQUIRE(LspTestFixture::definesInFile(typeLinks, actorPath));
+  REQUIRE(LspTestFixture::definesOnLine(typeLinks, 0));
+
+  // Operand "actor" → parameter declaration on the event line.
+  const auto paramLinks = define(2, 12);
+  REQUIRE_FALSE(paramLinks.empty());
+  REQUIRE(LspTestFixture::definesInFile(paramLinks, docPath()));
+  REQUIRE(LspTestFixture::definesOnLine(paramLinks, 1));
+}
+
+TEST_CASE_METHOD(LspTestFixture,
+                 "LspDefinition cast type inside interpolated string") {
+  const path actorPath = path("/test/Actor.vel");
+  addParsedVelModule(actorPath, R"(script Actor {
+}
+)");
+  const path objectReferencePath = path("/test/ObjectReference.vel");
+  addParsedVelModule(objectReferencePath, R"(script ObjectReference {
+}
+)");
+
+  openDoc(R"(script Hello {
+  event onActivate(actor: ObjectReference) {
+    foo($"Hi {bar(actor as Actor)}")
+  }
+  fun foo(s: String) {}
+  fun bar(a: Actor) -> String { return "" }
+}
+)");
+  analyze();
+
+  // "    foo($"Hi {bar(actor as Actor)}")" → Actor at column 27
+  const auto typeLinks = define(2, 27);
+  REQUIRE_FALSE(typeLinks.empty());
+  REQUIRE(LspTestFixture::definesInFile(typeLinks, actorPath));
+  REQUIRE(LspTestFixture::definesOnLine(typeLinks, 0));
+  REQUIRE_FALSE(LspTestFixture::definesOnLine(typeLinks, 1));
+
+  // Operand "actor" inside the hole still goes to the parameter.
+  const auto paramLinks = define(2, 18);
+  REQUIRE_FALSE(paramLinks.empty());
+  REQUIRE(LspTestFixture::definesInFile(paramLinks, docPath()));
+  REQUIRE(LspTestFixture::definesOnLine(paramLinks, 1));
+}

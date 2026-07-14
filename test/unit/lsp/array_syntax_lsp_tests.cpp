@@ -181,4 +181,60 @@ TEST_CASE_METHOD(LspTestFixture,
   REQUIRE_FALSE(hasLabel(list, "find"));
 }
 
+TEST_CASE("AstLocator cast target is TypeReference") {
+  constexpr const char* kSource = R"(script TestScript {
+  event onActivate(actor: ObjectReference) {
+    var a = actor as Actor
+  }
+}
+)";
+
+  auto result = parseSource(kSource);
+  // "    var a = actor as Actor" → Actor starts at column 21
+  const auto target =
+      AstLocator::locate(result, lsp::Position{.line = 2, .character = 21});
+  REQUIRE(target.has_value());
+  CHECK(target->kind == AstLocatorTargetKind::TypeReference);
+  REQUIRE(target->identifier.has_value());
+  CHECK(target->identifier->toString() == "Actor");
+}
+
+TEST_CASE("AstLocator cast target inside interpolated string is TypeReference") {
+  constexpr const char* kSource = R"(script TestScript {
+  event onActivate(actor: ObjectReference) {
+    foo($"Hi {bar(actor as Actor)}")
+  }
+  fun foo(s: String) {}
+  fun bar(a: Actor) -> String { return "" }
+}
+)";
+
+  auto result = parseSource(kSource);
+  // "    foo($"Hi {bar(actor as Actor)}")" → Actor starts at column 27
+  const auto target =
+      AstLocator::locate(result, lsp::Position{.line = 2, .character = 27});
+  REQUIRE(target.has_value());
+  CHECK(target->kind == AstLocatorTargetKind::TypeReference);
+  REQUIRE(target->identifier.has_value());
+  CHECK(target->identifier->toString() == "Actor");
+}
+
+TEST_CASE("AstLocator cast operand param is IdentifierUse") {
+  constexpr const char* kSource = R"(script TestScript {
+  event onActivate(actor: ObjectReference) {
+    var a = actor as Actor
+  }
+}
+)";
+
+  auto result = parseSource(kSource);
+  // "    var a = actor as Actor" → actor starts at column 12
+  const auto target =
+      AstLocator::locate(result, lsp::Position{.line = 2, .character = 12});
+  REQUIRE(target.has_value());
+  CHECK(target->kind == AstLocatorTargetKind::IdentifierUse);
+  REQUIRE(target->identifier.has_value());
+  CHECK(target->identifier->toString() == "actor");
+}
+
 }  // namespace vellum

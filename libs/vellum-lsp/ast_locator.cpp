@@ -233,7 +233,7 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
   void visitCastExpression(ast::CastExpression& expr) override {
     visitExpression(*expr.getExpression(), depth + 1);
     considerToken(expr.getTargetExpression()->getLocation(),
-                  AstLocatorTargetKind::IdentifierUse,
+                  AstLocatorTargetKind::TypeReference,
                   expr.getTargetExpression()->getIdentifier());
   }
 
