@@ -46,6 +46,7 @@ enum class CompilerErrorKind {
   PropertyGetAlreadyDefined,
 
   ExpectCastTargetType,
+  ExpectIsTargetType,
   ArrayTypeMissing,
   ArraySemicolonMissing,
   ArrayLengthAsIntExpected,

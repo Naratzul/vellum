@@ -1015,6 +1015,34 @@ pex::PexValue PexFunctionCompiler::compile(const ast::CastExpression& expr) {
   return dest;
 }
 
+pex::PexValue PexFunctionCompiler::compile(const ast::IsExpression& expr) {
+  assert(expr.getTargetType().isResolved());
+  setCurrentLocation(expr.getLocation());
+
+  pex::PexValue value = expr.getExpression()->compile(*this);
+  const VellumType boolType = VellumType::literal(VellumLiteralType::Bool);
+
+  if (file.header().gameID == game::GameID::Skyrim) {
+    // Desugar: (expr as Target) as Bool
+    pex::PexValue castTemp = makeTempVarId(expr.getTargetType());
+    Vec<pex::PexValue> castArgs = {castTemp, value};
+    emitInstruction(pex::PexOpCode::Cast, std::move(castArgs));
+
+    pex::PexValue boolTemp = makeTempVarId(boolType);
+    Vec<pex::PexValue> boolArgs = {boolTemp, castTemp};
+    emitInstruction(pex::PexOpCode::Cast, std::move(boolArgs));
+    return boolTemp;
+  }
+
+  // Fallout 4+: dedicated Is opcode (dest, src, type)
+  pex::PexValue dest = makeTempVarId(boolType);
+  Vec<pex::PexValue> args = {
+      dest, value,
+      pex::PexIdentifier(file.getString(expr.getTargetType().toString()))};
+  emitInstruction(pex::PexOpCode::Is, std::move(args));
+  return dest;
+}
+
 pex::PexValue PexFunctionCompiler::compile(
     const ast::NewArrayElementsExpression& expr) {
   pex::PexValue array =

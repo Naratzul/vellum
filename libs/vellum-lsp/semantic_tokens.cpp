@@ -40,6 +40,7 @@ bool isKeyword(TokenType type) {
     case TokenType::GET:
     case TokenType::IF:
     case TokenType::IN:
+    case TokenType::IS:
     case TokenType::IMPORT:
     case TokenType::NONE:
     case TokenType::OR:
@@ -401,6 +402,12 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
   }
 
   void visitCastExpression(ast::CastExpression& expr) override {
+    expr.getExpression()->accept(*this);
+    addSpan(spans, expr.getTargetExpression()->getLocation(),
+            SemanticTokenLegendType::Type);
+  }
+
+  void visitIsExpression(ast::IsExpression& expr) override {
     expr.getExpression()->accept(*this);
     addSpan(spans, expr.getTargetExpression()->getLocation(),
             SemanticTokenLegendType::Type);

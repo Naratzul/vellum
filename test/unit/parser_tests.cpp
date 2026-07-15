@@ -2348,6 +2348,53 @@ TEST_CASE("ParserCall_NotChainedAfterCall_OnNextLine") {
           "Weapon");
 }
 
+TEST_CASE("ParserIs_BuildsIsExpression") {
+  Vec<Token> tokens{
+      makeToken(TokenType::SCRIPT, 1, "script"),
+      makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::FUN, 1, "fun"),
+      makeToken(TokenType::IDENTIFIER, 1, "test"),
+      makeToken(TokenType::LEFT_PAREN, 1, "("),
+      makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+      makeToken(TokenType::LEFT_BRACE, 1, "{"),
+      makeToken(TokenType::IDENTIFIER, 1, "source"),
+      makeToken(TokenType::IS, 1, "is"),
+      makeToken(TokenType::IDENTIFIER, 1, "Weapon"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+      makeToken(TokenType::END_OF_FILE, 1, ""),
+  };
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(scriptDecl != nullptr);
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  REQUIRE(funcDecl != nullptr);
+  REQUIRE(funcDecl->getBody()->getStatements().size() == 1);
+
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(exprStmt != nullptr);
+
+  const auto* isExpr =
+      dynamic_cast<const ast::IsExpression*>(exprStmt->getExpression().get());
+  REQUIRE(isExpr != nullptr);
+  REQUIRE(isExpr->getExpression()->isIdentifierExpression());
+  REQUIRE(isExpr->getExpression()->asIdentifier().getIdentifier().toString() ==
+          "source");
+  REQUIRE(isExpr->getTargetExpression()->getIdentifier().toString() ==
+          "Weapon");
+}
+
 TEST_CASE("ParserCall_NotChainedAfterGroupedCall_OnNextLine") {
   Vec<Token> tokens{
       makeToken(TokenType::SCRIPT, 1, "script"),

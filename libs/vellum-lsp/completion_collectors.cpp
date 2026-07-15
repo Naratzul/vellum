@@ -154,6 +154,11 @@ class ExpressionExtentCollector : public ast::ExpressionVisitor {
     expr.getExpression()->accept(*this);
     mergeExtent(extent, expr.getTargetExpression()->getLocation());
   }
+  void visitIsExpression(ast::IsExpression& expr) override {
+    mergeExtent(extent, expr.getLocation());
+    expr.getExpression()->accept(*this);
+    mergeExtent(extent, expr.getTargetExpression()->getLocation());
+  }
   void visitArrayIndexExpression(ast::ArrayIndexExpression& expr) override {
     mergeExtent(extent, expr.getLocation());
     expr.getArray()->accept(*this);
@@ -824,6 +829,14 @@ class ExpressionTypeAtDotVisitor : public ast::ExpressionVisitor {
   }
 
   void visitCastExpression(ast::CastExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    considerLeaf(expr);
+    visitExpression(*expr.getExpression(), depth_ + 1);
+  }
+
+  void visitIsExpression(ast::IsExpression& expr) override {
     if (!expressionContainsPosition(expr, cursor_)) {
       return;
     }

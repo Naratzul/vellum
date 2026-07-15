@@ -4402,6 +4402,54 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Cast_ValidBoolToInt") {
   REQUIRE(localStmt.getInitializer()->getType().isInt());
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture, "Is_ValidFormToWeapon_IsBool") {
+  addTestObject(VellumObject(VellumType::identifier("Form")));
+  addTestObject(VellumObject(VellumType::identifier("Weapon")));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("source", VellumType::unresolved("Form"));
+
+  Vec<Unique<ast::Declaration>> ast;
+  auto isExpr = makeUnique<ast::IsExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("source")),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("Weapon")),
+      Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("ok"), std::nullopt, std::move(isExpr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 1);
+  const auto& funcDecl =
+      dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  const auto& localStmt = dynamic_cast<ast::LocalVariableStatement&>(
+      *funcDecl.getBody()->getStatements()[0]);
+  REQUIRE(localStmt.getInitializer()->getType().isBool());
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "Is_InvalidToNone_Errors") {
+  Vec<Unique<ast::Declaration>> ast;
+  auto isExpr = makeUnique<ast::IsExpression>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("None")), Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("ok"), std::nullopt, std::move(isExpr)));
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::InvalidCast));
+}
+
 TEST_CASE_METHOD(SemanticTestsFixture, "ImplicitIntToFloat_Assignment") {
   Vec<Unique<ast::Declaration>> ast;
   auto varStmt = makeUnique<ast::LocalVariableStatement>(

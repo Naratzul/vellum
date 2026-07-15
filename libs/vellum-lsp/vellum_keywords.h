@@ -8,7 +8,7 @@ inline constexpr std::string_view kExpressionKeywords[] = {
     "if",       "else",     "while",    "for",      "break",
     "continue", "return",   "var",      "self",     "super",
     "true",     "false",    "none",
-    "in",       "as",       "match",
+    "in",       "as",       "is",       "match",
 };
 
 inline constexpr std::string_view kTopLevelKeywords[] = {
@@ -20,7 +20,7 @@ inline constexpr std::string_view kAllCompletionKeywords[] = {
     "if",       "else",     "while",    "for",      "break",
     "continue", "return",   "var",      "self",     "super",
     "true",     "false",    "none",     "native",   "static",
-    "in",       "as",       "match",    "script",
+    "in",       "as",       "is",       "match",    "script",
     "import",   "fun",      "event",    "state",    "property",
 };
 

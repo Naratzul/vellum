@@ -72,6 +72,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   void visitBinaryExpression(ast::BinaryExpression& expr) override;
   void visitUnaryExpression(ast::UnaryExpression& expr) override;
   void visitCastExpression(ast::CastExpression& expr) override;
+  void visitIsExpression(ast::IsExpression& expr) override;
   void visitNewArrayExpression(ast::NewArrayExpression& expr) override;
   void visitNewArrayElementsExpression(
       ast::NewArrayElementsExpression& expr) override;

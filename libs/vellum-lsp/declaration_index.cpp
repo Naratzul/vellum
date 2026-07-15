@@ -218,6 +218,10 @@ class ExpressionExtentCollector : public ast::ExpressionVisitor {
     mergeExtent(extent, expr.getLocation());
     expr.getExpression()->accept(*this);
   }
+  void visitIsExpression(ast::IsExpression& expr) override {
+    mergeExtent(extent, expr.getLocation());
+    expr.getExpression()->accept(*this);
+  }
   void visitArrayIndexExpression(ast::ArrayIndexExpression& expr) override {
     mergeExtent(extent, expr.getLocation());
     expr.getArray()->accept(*this);
@@ -720,6 +724,13 @@ class LocalBindingFinder : public ast::DeclarationVisitor {
       }
 
       void visitCastExpression(ast::CastExpression& expr) override {
+        if (!positionInRange(usePos, expr.getLocation().location)) {
+          return;
+        }
+        expr.getExpression()->accept(*this);
+      }
+
+      void visitIsExpression(ast::IsExpression& expr) override {
         if (!positionInRange(usePos, expr.getLocation().location)) {
           return;
         }

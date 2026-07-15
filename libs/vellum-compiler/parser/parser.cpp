@@ -884,6 +884,17 @@ Unique<ast::Expression> Parser::castExpression() {
         op);
   }
 
+  if (match(TokenType::IS)) {
+    const Token op = previous;
+    consume(TokenType::IDENTIFIER, CompilerErrorKind::ExpectIsTargetType,
+            "Expect a target type for 'is'.");
+    return makeUnique<ast::IsExpression>(
+        std::move(expr),
+        makeUnique<ast::IdentifierExpression>(VellumIdentifier(previous.lexeme),
+                                              previous),
+        op);
+  }
+
   return expr;
 }
 

@@ -1488,6 +1488,66 @@ TEST_CASE("CompileCastAndIntFloatArithmetic") {
   CHECK(hasCast);
 }
 
+TEST_CASE("CompileIs_Skyrim_EmitsTwoCasts") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  {
+    auto module = makeShared<ImportModule>(VellumIdentifier("Form"),
+                                           ImportModuleType::Vellum,
+                                           fs::path(""));
+    module->setResolver(makeShared<Resolver>(
+        VellumObject(VellumType::identifier("Form")), errorHandler,
+        importLibrary, builtinFunctions));
+    importLibrary->addTestModule(module);
+  }
+  {
+    auto module = makeShared<ImportModule>(VellumIdentifier("Weapon"),
+                                           ImportModuleType::Vellum,
+                                           fs::path(""));
+    module->setResolver(makeShared<Resolver>(
+        VellumObject(VellumType::identifier("Weapon")), errorHandler,
+        importLibrary, builtinFunctions));
+    importLibrary->addTestModule(module);
+  }
+
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("source", VellumType::unresolved("Form"));
+  auto isExpr = makeUnique<ast::IsExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("source")),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("Weapon")),
+      Token{});
+  Vec<Unique<ast::Statement>> body;
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("ok"), std::nullopt, std::move(isExpr)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  auto result = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  ScriptMetadata metadata;
+  metadata.gameID = game::GameID::Skyrim;
+  pex::PexFile file =
+      Compiler(errorHandler).compile(metadata, result.declarations);
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(file.objects().size() == 1);
+  const auto& instructions =
+      file.objects()[0].getStates()[0].getFunctions()[0].getInstructions();
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Cast) == 2);
+  CHECK(countOpCodes(instructions, pex::PexOpCode::Is) == 0);
+}
+
 TEST_CASE("CompileComparison_IntFloat_EmitsCastBeforeCmpEq") {
   auto errorHandler = makeShared<CompilerErrorHandler>();
   auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});

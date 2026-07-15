@@ -355,6 +355,8 @@ TokenType Lexer::identifierType() const {
             return checkKeyword(2, 4, "port", TokenType::IMPORT);
           case 'n':
             return checkKeyword(2, 0, "", TokenType::IN);
+          case 's':
+            return checkKeyword(2, 0, "", TokenType::IS);
         }
       }
       break;

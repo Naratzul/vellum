@@ -1364,6 +1364,70 @@ void SemanticAnalyzer::visitCastExpression(ast::CastExpression& expr) {
   expr.setType(targetType);
 }
 
+void SemanticAnalyzer::visitIsExpression(ast::IsExpression& expr) {
+  auto& innerExpr = expr.getExpression();
+  innerExpr->accept(*this);
+
+  if (!innerExpr->hasResolvedType()) {
+    return;
+  }
+
+  auto& target = *expr.getTargetExpression();
+  VellumType targetType = resolver->resolveType(
+      VellumType::unresolved(target.getIdentifier().toString()),
+      target.getLocation());
+
+  if (!targetType.isResolved()) {
+    return;
+  }
+
+  target.setType(targetType);
+  if (targetType.getState() == VellumTypeState::Identifier) {
+    target.setIdentifierType(VellumValueType::ScriptType);
+  }
+
+  const VellumType innerType = innerExpr->getType();
+
+  if (!checker.canExplicitlyCast(innerType, targetType)) {
+    if (targetType.isArray()) {
+      errorHandler->errorAt(
+          target.getLocation(), CompilerErrorKind::InvalidCast,
+          "Cannot use 'is' with array type. (Skyrim: nothing can be "
+          "cast to an array, including other arrays.)");
+    } else {
+      bool srcIsFunction =
+          innerExpr->isIdentifierExpression()
+              ? innerExpr->asIdentifier().getIdentifierType() ==
+                    VellumValueType::Function
+              : false;
+
+      bool srcIsMethod = innerExpr->isPropertyGetExpression()
+                             ? innerExpr->asPropertyGet().getIdentifierType() ==
+                                   VellumValueType::Function
+                             : false;
+
+      if (srcIsFunction || srcIsMethod) {
+        VellumIdentifier function =
+            srcIsFunction ? innerExpr->asIdentifier().getIdentifier()
+                          : innerExpr->asPropertyGet().getProperty();
+
+        errorHandler->errorAt(
+            innerExpr->getLocation(), CompilerErrorKind::InvalidCast,
+            "Cannot use 'is' with function '{}'. Did you mean to call it?",
+            function.toString());
+      } else {
+        errorHandler->errorAt(target.getLocation(),
+                              CompilerErrorKind::InvalidCast,
+                              "Cannot check if '{}' is '{}'.",
+                              innerType.toString(), targetType.toString());
+      }
+    }
+    return;
+  }
+
+  expr.setType(VellumType::literal(VellumLiteralType::Bool));
+}
+
 void SemanticAnalyzer::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   if (const auto& subtype = expr.getSubtype()) {
     const Token typeLocation =

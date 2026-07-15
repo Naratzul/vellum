@@ -223,6 +223,20 @@ pex::PexValue CastExpression::compile(ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
 
+bool IsExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const IsExpression&>(other_);
+  return getTargetExpression()->equals(*other.getTargetExpression()) &&
+         getExpression()->equals(*other.getExpression());
+}
+
+void IsExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitIsExpression(*this);
+}
+
+pex::PexValue IsExpression::compile(ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
 bool NewArrayExpression::equals(const Expression& other_) const {
   auto& other = static_cast<const NewArrayExpression&>(other_);
   return subtype == other.subtype && length == other.length;

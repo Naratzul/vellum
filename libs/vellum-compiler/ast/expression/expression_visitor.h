@@ -19,6 +19,7 @@ class AssignExpression;
 class BinaryExpression;
 class UnaryExpression;
 class CastExpression;
+class IsExpression;
 class NewArrayExpression;
 class NewArrayElementsExpression;
 class TernaryExpression;
@@ -37,6 +38,7 @@ class ExpressionVisitor {
   virtual void visitBinaryExpression(ast::BinaryExpression& expr) = 0;
   virtual void visitUnaryExpression(ast::UnaryExpression& expr) = 0;
   virtual void visitCastExpression(ast::CastExpression& expr) = 0;
+  virtual void visitIsExpression(ast::IsExpression& expr) = 0;
   virtual void visitNewArrayExpression(ast::NewArrayExpression& expr) = 0;
   virtual void visitNewArrayElementsExpression(
       ast::NewArrayElementsExpression& expr) = 0;
@@ -60,6 +62,7 @@ class ExpressionCompiler {
   virtual pex::PexValue compile(const ast::BinaryExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::UnaryExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::CastExpression& expr) = 0;
+  virtual pex::PexValue compile(const ast::IsExpression& expr) = 0;
   virtual pex::PexValue compile(const ast::NewArrayExpression& expr) = 0;
   virtual pex::PexValue compile(
       const ast::NewArrayElementsExpression& expr) = 0;

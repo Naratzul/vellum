@@ -237,6 +237,13 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
                   expr.getTargetExpression()->getIdentifier());
   }
 
+  void visitIsExpression(ast::IsExpression& expr) override {
+    visitExpression(*expr.getExpression(), depth + 1);
+    considerToken(expr.getTargetExpression()->getLocation(),
+                  AstLocatorTargetKind::TypeReference,
+                  expr.getTargetExpression()->getIdentifier());
+  }
+
   void visitNewArrayExpression(ast::NewArrayExpression& expr) override {
     if (const auto& subtype = expr.getSubtype()) {
       if (const auto& subtypeLocation = expr.getSubtypeLocation()) {

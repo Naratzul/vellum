@@ -50,6 +50,8 @@ enum class PexOpCode : uint8_t {
   ArraySetElement,
   ArrayFindElement,
   ArrayRFindElement,
+  // Fallout 4
+  Is,
 };
 
 class PexInstruction {

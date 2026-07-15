@@ -450,6 +450,31 @@ class CastExpression : public Expression {
   Unique<IdentifierExpression> targetExpr;
 };
 
+class IsExpression : public Expression {
+ public:
+  IsExpression(Unique<Expression> expr, Unique<IdentifierExpression> targetExpr,
+               Token location = Token{})
+      : Expression(location),
+        expr(std::move(expr)),
+        targetExpr(std::move(targetExpr)) {}
+
+  const Unique<Expression>& getExpression() const { return expr; }
+  const Unique<IdentifierExpression>& getTargetExpression() const {
+    return targetExpr;
+  }
+
+  VellumType getTargetType() const { return targetExpr->getType(); }
+
+  bool equals(const Expression& other) const override;
+
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+ private:
+  Unique<Expression> expr;
+  Unique<IdentifierExpression> targetExpr;
+};
+
 class NewArrayExpression : public Expression {
  public:
   NewArrayExpression(Opt<VellumType> subtype, VellumLiteral length,

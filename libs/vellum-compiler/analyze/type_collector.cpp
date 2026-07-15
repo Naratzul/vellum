@@ -209,6 +209,12 @@ void TypeCollector::visitCastExpression(ast::CastExpression& expr) {
       expr.getTargetExpression()->getIdentifier().toString()));
 }
 
+void TypeCollector::visitIsExpression(ast::IsExpression& expr) {
+  expr.getExpression()->accept(*this);
+  collectTypeFromVellumType(VellumType::unresolved(
+      expr.getTargetExpression()->getIdentifier().toString()));
+}
+
 void TypeCollector::visitNewArrayExpression(ast::NewArrayExpression& expr) {
   if (auto subtype = expr.getSubtype()) {
     collectTypeFromVellumType(subtype.value());

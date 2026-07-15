@@ -138,6 +138,9 @@ class PropertyObjectTypeFinder : public ast::DeclarationVisitor,
   void visitCastExpression(ast::CastExpression& expr) override {
     expr.getExpression()->accept(*this);
   }
+  void visitIsExpression(ast::IsExpression& expr) override {
+    expr.getExpression()->accept(*this);
+  }
   void visitArrayIndexExpression(ast::ArrayIndexExpression& expr) override {
     expr.getArray()->accept(*this);
     expr.getIndex()->accept(*this);
