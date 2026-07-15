@@ -41,9 +41,12 @@ class SemanticTestsFixture {
   }
 
   void addTestObject(const VellumObject& object) {
+    addTestObject(object, ImportModuleType::Vellum);
+  }
+
+  void addTestObject(const VellumObject& object, ImportModuleType moduleType) {
     VellumIdentifier name = object.getType().asIdentifier();
-    auto module =
-        makeShared<ImportModule>(name, ImportModuleType::Vellum, fs::path(""));
+    auto module = makeShared<ImportModule>(name, moduleType, fs::path(""));
     auto builtinFunctions = makeShared<BuiltinFunctions>();
     auto objectResolver = makeShared<Resolver>(object, errorHandler,
                                                importLibrary, builtinFunctions);
@@ -3149,6 +3152,178 @@ TEST_CASE_METHOD(SemanticTestsFixture, "State_EventAllowedInState") {
 
   ast.emplace_back(makeUnique<ast::StateDeclaration>(
       "MyState", makeToken(TokenType::IDENTIFIER, 2, "MyState"),
+      noParsedModifiers, std::move(stateMembers)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_EventFromParentEmptyState_OnlyInNamedState_Ok") {
+  VellumObject parentObj(VellumType::identifier("ParentWithActivate"));
+  parentObj.addFunction(VellumFunction(
+      VellumIdentifier("onActivate"), VellumType::none(), {},
+      noFunctionModifiers));
+  addTestObject(parentObj);
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"),
+      VellumType::identifier("ParentWithActivate"),
+      makeToken(TokenType::IDENTIFIER, 1, "ParentWithActivate"),
+      Vec<Unique<ast::Declaration>>{}));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onActivate", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onActivate")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Ready", makeToken(TokenType::IDENTIFIER, 2, "Ready"),
+      noParsedModifiers, std::move(stateMembers)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_EventFromGrandparentEmptyState_OnlyInNamedState_Ok") {
+  VellumObject baseObj(VellumType::identifier("BaseWithActivate"));
+  baseObj.addFunction(VellumFunction(VellumIdentifier("onActivate"),
+                                     VellumType::none(), {},
+                                     noFunctionModifiers));
+  addTestObject(baseObj);
+
+  addTestObjectWithParent(VellumObject(VellumType::identifier("MidScript")),
+                          VellumIdentifier("BaseWithActivate"));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"),
+      VellumType::identifier("MidScript"),
+      makeToken(TokenType::IDENTIFIER, 1, "MidScript"),
+      Vec<Unique<ast::Declaration>>{}));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onActivate", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onActivate")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Ready", makeToken(TokenType::IDENTIFIER, 2, "Ready"),
+      noParsedModifiers, std::move(stateMembers)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  REQUIRE(result.declarations.size() == 2);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_EventFromParent_SignatureMismatch") {
+  VellumObject parentObj(VellumType::identifier("ParentActivateSig"));
+  parentObj.addFunction(VellumFunction(
+      VellumIdentifier("onActivate"), VellumType::none(),
+      {VellumVariable(VellumIdentifier("akActionRef"),
+                      VellumType::identifier("ParentActivateSig"))},
+      noFunctionModifiers));
+  addTestObject(parentObj);
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"),
+      VellumType::identifier("ParentActivateSig"),
+      makeToken(TokenType::IDENTIFIER, 1, "ParentActivateSig"),
+      Vec<Unique<ast::Declaration>>{}));
+
+  // Named-state override with no parameters — mismatch vs parent.
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onActivate", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onActivate")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Ready", makeToken(TokenType::IDENTIFIER, 2, "Ready"),
+      noParsedModifiers, std::move(stateMembers)));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  // Declared against a parent empty-state event: caught as override mismatch
+  // during declaration collection (before state signature check).
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::OverrideSignatureMismatch));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_EventFromParent_CaseInsensitiveName_Vellum_NotOk") {
+  // Vellum↔Vellum keeps exact function names; OnActivate ≠ onActivate.
+  VellumObject parentObj(VellumType::identifier("ParentVellumCasing"));
+  parentObj.addFunction(VellumFunction(
+      VellumIdentifier("OnActivate"), VellumType::none(), {},
+      noFunctionModifiers));
+  addTestObject(parentObj);
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"),
+      VellumType::identifier("ParentVellumCasing"),
+      makeToken(TokenType::IDENTIFIER, 1, "ParentVellumCasing"),
+      Vec<Unique<ast::Declaration>>{}));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onActivate", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onActivate")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Ready", makeToken(TokenType::IDENTIFIER, 2, "Ready"),
+      noParsedModifiers, std::move(stateMembers)));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+  REQUIRE(errorHandler->hasError(
+      CompilerErrorKind::StateFunctionNotInEmptyState));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "State_EventFromParent_CaseInsensitiveName_Papyrus_Ok") {
+  // Papyrus parents fold names: OnActivate matches onActivate.
+  VellumObject parentObj(VellumType::identifier("ParentPapyrusCasing"));
+  parentObj.addFunction(VellumFunction(
+      VellumIdentifier("OnActivate"), VellumType::none(), {},
+      noFunctionModifiers));
+  addTestObject(parentObj, ImportModuleType::Papyrus);
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"),
+      VellumType::identifier("ParentPapyrusCasing"),
+      makeToken(TokenType::IDENTIFIER, 1, "ParentPapyrusCasing"),
+      Vec<Unique<ast::Declaration>>{}));
+
+  Vec<Unique<ast::Declaration>> stateMembers;
+  stateMembers.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "onActivate", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{}),
+      noParsedModifiers, makeToken(TokenType::IDENTIFIER, 2, "onActivate")));
+
+  ast.emplace_back(makeUnique<ast::StateDeclaration>(
+      "Ready", makeToken(TokenType::IDENTIFIER, 2, "Ready"),
       noParsedModifiers, std::move(stateMembers)));
 
   const auto result = analyzer->analyze(std::move(ast));

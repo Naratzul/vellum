@@ -211,6 +211,16 @@ Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
       return func;
     }
 
+    // Papyrus treats identifiers as case-insensitive; Vellum modules stay exact.
+    if (auto module =
+            importLibrary->findModule(object.getType().asIdentifier())) {
+      if (module->getType() == ImportModuleType::Papyrus) {
+        if (auto func = object.findFunctionCaseInsensitive(function)) {
+          return func;
+        }
+      }
+    }
+
     if (auto func = builtinFunctions->getFunction(function)) {
       return func;
     }
@@ -227,6 +237,14 @@ Opt<VellumFunction> Resolver::resolveFunction(VellumType type,
   }
 
   return std::nullopt;
+}
+
+Opt<VellumFunction> Resolver::getEmptyStateFunction(
+    VellumIdentifier id) const {
+  if (auto func = getFunction(id)) {
+    return func;
+  }
+  return resolveParentFunction(id);
 }
 
 Opt<VellumFunction> Resolver::resolveParentFunction(

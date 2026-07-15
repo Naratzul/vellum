@@ -203,7 +203,7 @@ void SemanticAnalyzer::visitFunctionDeclaration(
 
   Opt<VellumFunction> rootFunc;
   if (state.has_value()) {
-    rootFunc = resolver->getFunction(funcName);
+    rootFunc = resolver->getEmptyStateFunction(funcName);
   }
 
   if (isStateLifecycleHookName(funcName)) {

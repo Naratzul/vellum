@@ -47,6 +47,9 @@ class VellumObject {
   Opt<VellumValue> findIdentifier(VellumIdentifier identifier) const;
   Opt<VellumValue> findProperty(VellumIdentifier identifier) const;
   Opt<VellumFunction> findFunction(VellumIdentifier identifier) const;
+  /// Papyrus name folding: exact miss, then case-insensitive match.
+  Opt<VellumFunction> findFunctionCaseInsensitive(
+      VellumIdentifier identifier) const;
   Opt<VellumVariable> findVariable(VellumIdentifier identifier) const;
 
  private:

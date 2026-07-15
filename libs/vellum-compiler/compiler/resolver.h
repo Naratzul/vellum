@@ -55,6 +55,10 @@ class Resolver {
     return object.getFunction(id);
   }
 
+  /// Empty-state function on this script, or inherited from an ancestor
+  /// (transitive), matching Caprica/CK searchRootStateForFunction.
+  Opt<VellumFunction> getEmptyStateFunction(VellumIdentifier id) const;
+
   void addProperty(VellumProperty property) {
     object.addProperty(std::move(property));
   }

@@ -64,6 +64,19 @@ Opt<VellumFunction> VellumObject::findFunction(
   return std::nullopt;
 }
 
+Opt<VellumFunction> VellumObject::findFunctionCaseInsensitive(
+    VellumIdentifier identifier) const {
+  if (auto exact = findFunction(identifier)) {
+    return exact;
+  }
+  for (const auto& member : functions) {
+    if (equalsCaseInsensitive(member.getName(), identifier)) {
+      return member;
+    }
+  }
+  return std::nullopt;
+}
+
 Opt<VellumVariable> VellumObject::findVariable(
     VellumIdentifier identifier) const {
   for (const auto& member : variables) {
