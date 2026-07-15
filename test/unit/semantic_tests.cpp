@@ -4060,14 +4060,13 @@ TEST_CASE_METHOD(SemanticTestsFixture, "Break_InsideWhile_NoError") {
   REQUIRE(result.declarations.size() == 1);
 }
 
-TEST_CASE_METHOD(SemanticTestsFixture, "If_NonBoolCondition_Error") {
+TEST_CASE_METHOD(SemanticTestsFixture, "If_IntCondition_CoercesToBool_Ok") {
   ast::FunctionBody body;
-  auto badCond = makeUnique<ast::LiteralExpression>(VellumLiteral(42));
-  badCond->setType(VellumType::literal(VellumLiteralType::Int));
+  auto intCond = makeUnique<ast::LiteralExpression>(VellumLiteral(42));
   Vec<Unique<ast::Statement>> thenStmts;
   thenStmts.push_back(makeUnique<ast::ReturnStatement>(nullptr, Token{}));
   body.push_back(makeUnique<ast::IfStatement>(
-      std::move(badCond), makeUnique<ast::BlockStatement>(std::move(thenStmts)),
+      std::move(intCond), makeUnique<ast::BlockStatement>(std::move(thenStmts)),
       nullptr));
 
   Vec<Unique<ast::Declaration>> members;
@@ -4081,9 +4080,17 @@ TEST_CASE_METHOD(SemanticTestsFixture, "If_NonBoolCondition_Error") {
       makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
       std::nullopt, std::move(members)));
 
-  analyzer->analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& script = dynamic_cast<ast::ScriptDeclaration&>(*result.declarations[0]);
+  auto& fn =
+      dynamic_cast<ast::FunctionDeclaration&>(*script.getMemberDecls()[0]);
+  auto& ifStmt =
+      dynamic_cast<ast::IfStatement&>(*fn.getBody()->getStatements()[0]);
+  REQUIRE(ifStmt.getCondition()->getType().isBool());
+  REQUIRE(dynamic_cast<const ast::CastExpression*>(
+              ifStmt.getCondition().get()) != nullptr);
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
@@ -4553,6 +4560,184 @@ TEST_CASE_METHOD(SemanticTestsFixture,
   REQUIRE(result.declarations.size() == 1);
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture, "ConditionCoerce_IfObject_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("Actor")));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("actor", VellumType::unresolved("Actor"));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::IfStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("actor")),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  auto& ifStmt =
+      dynamic_cast<ast::IfStatement&>(*fn.getBody()->getStatements()[0]);
+  REQUIRE(ifStmt.getCondition()->getType().isBool());
+  REQUIRE(dynamic_cast<const ast::CastExpression*>(
+              ifStmt.getCondition().get()) != nullptr);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "ConditionCoerce_NotObject_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("Actor")));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("actor", VellumType::unresolved("Actor"));
+  auto notExpr = makeUnique<ast::UnaryExpression>(
+      ast::UnaryExpression::Operator::Not,
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("actor")));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::IfStatement>(
+      std::move(notExpr),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  auto& ifStmt =
+      dynamic_cast<ast::IfStatement&>(*fn.getBody()->getStatements()[0]);
+  REQUIRE(ifStmt.getCondition()->getType().isBool());
+  auto* unary =
+      dynamic_cast<const ast::UnaryExpression*>(ifStmt.getCondition().get());
+  REQUIRE(unary != nullptr);
+  REQUIRE(unary->getOperand()->getType().isBool());
+  REQUIRE(dynamic_cast<const ast::CastExpression*>(unary->getOperand().get()) !=
+          nullptr);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "ConditionCoerce_LogicalObjectAndBool_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("Actor")));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("actor", VellumType::unresolved("Actor"));
+  params.emplace_back("flag", VellumType::unresolved("Bool"));
+  auto andExpr = makeUnique<ast::BinaryExpression>(
+      ast::BinaryExpression::Operator::And,
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("actor")),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("flag")));
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::IfStatement>(
+      std::move(andExpr),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  auto& ifStmt =
+      dynamic_cast<ast::IfStatement&>(*fn.getBody()->getStatements()[0]);
+  REQUIRE(ifStmt.getCondition()->getType().isBool());
+  auto* bin =
+      dynamic_cast<const ast::BinaryExpression*>(ifStmt.getCondition().get());
+  REQUIRE(bin != nullptr);
+  REQUIRE(bin->getLeft()->getType().isBool());
+  REQUIRE(bin->getRight()->getType().isBool());
+  REQUIRE(dynamic_cast<const ast::CastExpression*>(bin->getLeft().get()) !=
+          nullptr);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "ConditionCoerce_TernaryObject_Ok") {
+  addTestObject(VellumObject(VellumType::identifier("Actor")));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("actor", VellumType::unresolved("Actor"));
+  auto ternary = makeUnique<ast::TernaryExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("actor")),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(1)),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0)), Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("x"), std::nullopt, std::move(ternary)));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  auto& local = dynamic_cast<ast::LocalVariableStatement&>(
+      *fn.getBody()->getStatements()[0]);
+  auto* ternaryExpr =
+      dynamic_cast<const ast::TernaryExpression*>(local.getInitializer().get());
+  REQUIRE(ternaryExpr != nullptr);
+  REQUIRE(ternaryExpr->getCondition()->getType().isBool());
+  REQUIRE(dynamic_cast<const ast::CastExpression*>(
+              ternaryExpr->getCondition().get()) != nullptr);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "ConditionCoerce_WhileInt_Ok") {
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("n"), VellumType::unresolved("Int"),
+      makeUnique<ast::LiteralExpression>(VellumLiteral(3))));
+  body.emplace_back(makeUnique<ast::WhileStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("n")),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  auto& whileStmt =
+      dynamic_cast<ast::WhileStatement&>(*fn.getBody()->getStatements()[1]);
+  REQUIRE(whileStmt.getCondition()->getType().isBool());
+  REQUIRE(dynamic_cast<const ast::CastExpression*>(
+              whileStmt.getCondition().get()) != nullptr);
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "ConditionCoerce_ExplicitBoolCast_NoDoubleWrap") {
+  addTestObject(VellumObject(VellumType::identifier("Actor")));
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("actor", VellumType::unresolved("Actor"));
+  auto castExpr = makeUnique<ast::CastExpression>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("actor")),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("Bool")), Token{});
+  auto body = Vec<Unique<ast::Statement>>{};
+  body.emplace_back(makeUnique<ast::IfStatement>(
+      std::move(castExpr),
+      makeUnique<ast::BlockStatement>(Vec<Unique<ast::Statement>>{})));
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  auto& ifStmt =
+      dynamic_cast<ast::IfStatement&>(*fn.getBody()->getStatements()[0]);
+  auto* cast =
+      dynamic_cast<const ast::CastExpression*>(ifStmt.getCondition().get());
+  REQUIRE(cast != nullptr);
+  // Already Bool — no outer wrap around the explicit cast.
+  REQUIRE(dynamic_cast<const ast::CastExpression*>(
+              cast->getExpression().get()) == nullptr);
+}
+
 TEST_CASE_METHOD(SemanticTestsFixture, "Cast_ValidBoolToInt") {
   Vec<Unique<ast::Declaration>> ast;
   auto castExpr = makeUnique<ast::CastExpression>(
@@ -4752,7 +4937,7 @@ TEST_CASE_METHOD(SemanticTestsFixture, "SemanticTernary_IntFloat_ResultFloat") {
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
-                 "SemanticTernary_NonBoolCondition_Error") {
+                 "SemanticTernary_IntCondition_CoercesToBool_Ok") {
   Token loc{};
   auto ternary = makeUnique<ast::TernaryExpression>(
       makeUnique<ast::LiteralExpression>(VellumLiteral(42)),
@@ -4765,9 +4950,18 @@ TEST_CASE_METHOD(SemanticTestsFixture,
       "test", Vec<ast::FunctionParameter>{}, VellumType::unresolved("Int"),
       makeUnique<ast::BlockStatement>(std::move(body))));
 
-  (void)analyzer->analyze(std::move(ast));
+  const auto result = analyzer->analyze(std::move(ast));
 
-  REQUIRE(errorHandler->hadError());
+  REQUIRE_FALSE(errorHandler->hadError());
+  auto& fn = dynamic_cast<ast::FunctionDeclaration&>(*result.declarations[0]);
+  const auto& ret = dynamic_cast<ast::ReturnStatement&>(
+      *fn.getBody()->getStatements()[0]);
+  const auto& tern =
+      dynamic_cast<ast::TernaryExpression&>(*ret.getExpression());
+  REQUIRE(tern.getCondition()->getType().isBool());
+  REQUIRE(dynamic_cast<const ast::CastExpression*>(
+              tern.getCondition().get()) != nullptr);
+  REQUIRE(tern.getType().isInt());
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,

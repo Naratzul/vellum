@@ -104,5 +104,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
                                    const VellumType& lhsType,
                                    const VellumType& rhsType,
                                    const Token& location);
+
+  void coerceToBoolCondition(Unique<ast::Expression>& expr);
 };
 }  // namespace vellum

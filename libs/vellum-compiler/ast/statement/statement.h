@@ -86,6 +86,7 @@ class IfStatement : public Statement {
         elseBlock(std::move(elseBlock)) {}
 
   const Unique<Expression>& getCondition() const { return condition; }
+  Unique<Expression>& getCondition() { return condition; }
   const Unique<Statement>& getThenBlock() const { return thenBlock; }
   const Unique<Statement>& getElseBlock() const { return elseBlock; }
 
@@ -140,6 +141,7 @@ class WhileStatement : public Statement {
       : condition(std::move(condition)), body(std::move(body)) {}
 
   const Unique<Expression>& getCondition() const { return condition; }
+  Unique<Expression>& getCondition() { return condition; }
 
   const Unique<Statement>& getBody() const { return body; }
 

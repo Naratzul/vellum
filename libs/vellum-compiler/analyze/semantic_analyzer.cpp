@@ -357,16 +357,9 @@ void SemanticAnalyzer::visitReturnStatement(ast::ReturnStatement& statement) {
 void SemanticAnalyzer::visitIfStatement(ast::IfStatement& statement) {
   auto& condition = statement.getCondition();
   condition->accept(*this);
+  coerceToBoolCondition(condition);
 
-  if (!condition->hasResolvedType()) {
-    return;
-  }
-
-  if (!condition->getType().isBool()) {
-    errorHandler->errorAt(
-        statement.getCondition()->getLocation(),
-        "Condition expression must have 'Bool' type. Given type is '{}'.",
-        condition->getType().toString());
+  if (!condition->hasResolvedType() || !condition->getType().isBool()) {
     return;
   }
 
@@ -439,14 +432,9 @@ void SemanticAnalyzer::visitLocalVariableStatement(
 }
 
 void SemanticAnalyzer::visitWhileStatement(ast::WhileStatement& statement) {
-  statement.getCondition()->accept(*this);
-  if (statement.getCondition()->hasResolvedType() &&
-      !statement.getCondition()->getType().isBool()) {
-    errorHandler->errorAt(
-        statement.getCondition()->getLocation(),
-        "Condition expression must have 'Bool' type. Given type is '{}'.",
-        statement.getCondition()->getType().toString());
-  }
+  auto& condition = statement.getCondition();
+  condition->accept(*this);
+  coerceToBoolCondition(condition);
 
   loopDepth++;
   statement.getBody()->accept(*this);
@@ -1171,12 +1159,12 @@ void SemanticAnalyzer::visitBinaryExpression(ast::BinaryExpression& expr) {
 
   if (expr.getOperator() == ast::BinaryExpression::Operator::And ||
       expr.getOperator() == ast::BinaryExpression::Operator::Or) {
-    if (!(leftType.isBool() && rightType.isBool())) {
-      errorHandler->errorAt(expr.getLocation(),
-                            CompilerErrorKind::LogicalOperationTypeMismatch,
-                            "Cannot perform logical operation on types: '{}' "
-                            "and '{}'. Both operands must be of Bool type.",
-                            leftType.toString(), rightType.toString());
+    coerceToBoolCondition(expr.getLeft());
+    coerceToBoolCondition(expr.getRight());
+    if (!expr.getLeft()->hasResolvedType() ||
+        !expr.getRight()->hasResolvedType() ||
+        !expr.getLeft()->getType().isBool() ||
+        !expr.getRight()->getType().isBool()) {
       return;
     }
     expr.setType(VellumType::literal(VellumLiteralType::Bool));
@@ -1269,6 +1257,23 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
       break;
   }
 
+  if (expr.getOperator() == ast::UnaryExpression::Operator::Not) {
+    auto operandResult = checker.checkValidValue(
+        expr.getOperand(), TypeChecker::Context::UnaryOperand, operatorName);
+    if (!operandResult.compatible) {
+      errorHandler->errorAt(expr.getOperand()->getLocation(),
+                            operandResult.errorKind, operandResult.errorMessage);
+      return;
+    }
+    coerceToBoolCondition(expr.getOperand());
+    if (!expr.getOperand()->hasResolvedType() ||
+        !expr.getOperand()->getType().isBool()) {
+      return;
+    }
+    expr.setType(VellumType::literal(VellumLiteralType::Bool));
+    return;
+  }
+
   auto operandResult = checker.checkValidValue(
       expr.getOperand(), TypeChecker::Context::UnaryOperand, operatorName);
   if (!operandResult.compatible) {
@@ -1279,26 +1284,13 @@ void SemanticAnalyzer::visitUnaryExpression(ast::UnaryExpression& expr) {
 
   expr.setType(expr.getOperand()->getType());
 
-  switch (expr.getOperator()) {
-    case ast::UnaryExpression::Operator::Negate:
-      if (!(expr.getType().isInt() || expr.getType().isFloat())) {
-        errorHandler->errorAt(
-            expr.getOperand()->getLocation(),
-            CompilerErrorKind::UnaryOperatorTypeMismatch,
-            "Unary operator '-' can be applied only to expressions with "
-            "numeric types (Int, Float). Got type is '{}'",
-            expr.getType().toString());
-      }
-      break;
-    case ast::UnaryExpression::Operator::Not:
-      if (!expr.getType().isBool()) {
-        errorHandler->errorAt(expr.getOperand()->getLocation(),
-                              CompilerErrorKind::UnaryOperatorTypeMismatch,
-                              "Unary operator 'not' can be applied only to "
-                              "expressions with Bool type. Got type is '{}'",
-                              expr.getType().toString());
-      }
-      break;
+  if (!(expr.getType().isInt() || expr.getType().isFloat())) {
+    errorHandler->errorAt(
+        expr.getOperand()->getLocation(),
+        CompilerErrorKind::UnaryOperatorTypeMismatch,
+        "Unary operator '-' can be applied only to expressions with "
+        "numeric types (Int, Float). Got type is '{}'",
+        expr.getType().toString());
   }
 }
 
@@ -1627,14 +1619,7 @@ void SemanticAnalyzer::visitArrayIndexSetExpression(
 
 void SemanticAnalyzer::visitTernaryExpression(ast::TernaryExpression& expr) {
   expr.getCondition()->accept(*this);
-
-  if (expr.getCondition()->hasResolvedType() &&
-      !expr.getCondition()->getType().isBool()) {
-    errorHandler->errorAt(
-        expr.getCondition()->getLocation(),
-        "Condition expression must have 'Bool' type. Given type is '{}'.",
-        expr.getCondition()->getType().toString());
-  }
+  coerceToBoolCondition(expr.getCondition());
 
   expr.getLeft()->accept(*this);
   expr.getRight()->accept(*this);
@@ -1737,4 +1722,35 @@ bool SemanticAnalyzer::validateComposedAssignTypes(ast::AssignOperator op,
       return true;
   }
 }
+
+void SemanticAnalyzer::coerceToBoolCondition(Unique<ast::Expression>& expr) {
+  if (!expr || !expr->hasResolvedType()) {
+    return;
+  }
+
+  if (expr->getType().isBool()) {
+    return;
+  }
+
+  const VellumType boolType = VellumType::literal(VellumLiteralType::Bool);
+  if (!checker.canExplicitlyCast(expr->getType(), boolType)) {
+    errorHandler->errorAt(
+        expr->getLocation(),
+        "Condition expression must have 'Bool' type. Given type is '{}'.",
+        expr->getType().toString());
+    return;
+  }
+
+  const Token location = expr->getLocation();
+  auto target = common::makeUnique<ast::IdentifierExpression>(
+      VellumIdentifier("Bool"), location);
+  target->setType(boolType);
+  target->setIdentifierType(VellumValueType::ScriptType);
+
+  auto castExpr = common::makeUnique<ast::CastExpression>(
+      std::move(expr), std::move(target), location);
+  castExpr->setType(boolType);
+  expr = std::move(castExpr);
+}
+
 }  // namespace vellum

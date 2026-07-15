@@ -357,7 +357,9 @@ class BinaryExpression : public Expression {
 
   Operator getOperator() const { return op; }
   const Unique<Expression>& getLeft() const { return left; }
+  Unique<Expression>& getLeft() { return left; }
   const Unique<Expression>& getRight() const { return right; }
+  Unique<Expression>& getRight() { return right; }
 
   Opt<VellumType> getComparisonOperandType() const {
     return comparisonOperandType;
@@ -388,6 +390,7 @@ class UnaryExpression : public Expression {
 
   Operator getOperator() const { return op; }
   const Unique<Expression>& getOperand() const { return operand; }
+  Unique<Expression>& getOperand() { return operand; }
 
   bool equals(const Expression& other) const override;
   void accept(ExpressionVisitor& visitor) override;
@@ -533,6 +536,7 @@ class TernaryExpression : public Expression {
         right(std::move(right)) {}
 
   const Unique<Expression>& getCondition() const { return condition; }
+  Unique<Expression>& getCondition() { return condition; }
   const Unique<Expression>& getLeft() const { return left; }
   const Unique<Expression>& getRight() const { return right; }
 
