@@ -5666,6 +5666,68 @@ TEST_CASE_METHOD(SemanticTestsFixture,
 }
 
 TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticLocalVar_CaseConflict_SameScope_IsError") {
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("value"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("VALUE"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(33))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  analyzer->analyze(std::move(ast));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::CaseConflict));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticLocalVar_CaseConflict_NestedScope_IsError") {
+  Vec<Unique<ast::Statement>> thenBody;
+  thenBody.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("VALUE"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(33))));
+
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("value"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+  body.push_back(makeUnique<ast::IfStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(true)),
+      makeUnique<ast::BlockStatement>(std::move(thenBody)), nullptr));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  analyzer->analyze(std::move(ast));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::CaseConflict));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "SemanticLocalVar_CaseConflict_Parameter_IsError") {
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("Value", VellumType::literal(VellumLiteralType::Int));
+
+  Vec<Unique<ast::Statement>> body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("value"), std::nullopt,
+      makeUnique<ast::LiteralExpression>(VellumLiteral(42))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  analyzer->analyze(std::move(ast));
+  REQUIRE(errorHandler->hasError(CompilerErrorKind::CaseConflict));
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
                  "SemanticLocalVarShadowing_Parameter_ManglesBodyVar") {
   Vec<ast::FunctionParameter> params;
   params.emplace_back("num", VellumType::literal(VellumLiteralType::Int));

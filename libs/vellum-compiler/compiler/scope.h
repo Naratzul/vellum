@@ -20,6 +20,8 @@ class Scope {
 
   bool contains(VellumIdentifier name);
   Opt<VellumVariable> getVariable(VellumIdentifier name) const;
+  /// Case-insensitive lookup for Papyrus/PEX name uniqueness checks.
+  Opt<VellumVariable> findCaseInsensitive(VellumIdentifier name) const;
 
  private:
   Vec<VellumVariable> variables;

@@ -53,9 +53,22 @@ void Resolver::pushLocalVar(const VellumVariable& var, Token location) {
   auto& scope = scopes.back();
   if (scope.contains(var.getName())) {
     errorHandler->errorAt(
-        location, "Variable with name '{}' aleady defined in this scope.",
+        location, "Variable with name '{}' already defined in this scope.",
         var.getName().toString());
     return;
+  }
+  for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+    if (auto existing = it->findCaseInsensitive(var.getName())) {
+      if (existing->getName() != var.getName()) {
+        errorHandler->errorAt(
+            location, CompilerErrorKind::CaseConflict,
+            "Variable '{}' conflicts with '{}'. When compiled to PEX (Papyrus "
+            "format), these names are case-insensitive and would create a "
+            "duplicate.",
+            var.getName().toString(), existing->getName().toString());
+        return;
+      }
+    }
   }
   VellumVariable varToPush = var;
   if (!varToPush.getPexName() &&

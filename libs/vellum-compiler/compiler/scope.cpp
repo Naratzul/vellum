@@ -1,6 +1,7 @@
 #include "scope.h"
 
 #include "common/types.h"
+#include "vellum/vellum_identifier.h"
 
 namespace vellum {
 using common::Opt;
@@ -30,6 +31,15 @@ bool Scope::contains(VellumIdentifier name) {
 Opt<VellumVariable> Scope::getVariable(VellumIdentifier name) const {
   for (const auto& var : variables) {
     if (var.getName() == name) {
+      return var;
+    }
+  }
+  return std::nullopt;
+}
+
+Opt<VellumVariable> Scope::findCaseInsensitive(VellumIdentifier name) const {
+  for (const auto& var : variables) {
+    if (equalsCaseInsensitive(var.getName(), name)) {
       return var;
     }
   }
