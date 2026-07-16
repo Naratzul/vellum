@@ -162,6 +162,11 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
     const Token& varLoc = statement.getVariableNameLocation();
     considerToken(varLoc, AstLocatorTargetKind::DeclName,
                   VellumIdentifier(varLoc.lexeme));
+    if (statement.hasIndex()) {
+      const Token& indexLoc = statement.getIndexNameLocation();
+      considerToken(indexLoc, AstLocatorTargetKind::DeclName,
+                    VellumIdentifier(indexLoc.lexeme));
+    }
     visitExpression(*statement.getArray(), depth + 1);
     statement.getBody()->accept(*this);
   }

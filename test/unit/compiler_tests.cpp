@@ -2072,6 +2072,207 @@ TEST_CASE("CompileForIn_OpcodePatternAndMangledLocals") {
   CHECK(hasIdx);
 }
 
+TEST_CASE("CompileForIn_IndexedArray_AssignsIndexBeforeIncrement") {
+  Token tokA = makeToken(TokenType::IDENTIFIER, 1, "a");
+  Token tokItem = makeToken(TokenType::IDENTIFIER, 1, "item");
+  Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
+  auto newArr = makeUnique<ast::NewArrayExpression>(
+      VellumType::literal(VellumLiteralType::Int), VellumLiteral(1), Token{});
+
+  Vec<Unique<ast::Statement>> forBody;
+  forBody.push_back(makeUnique<ast::ContinueStatement>(
+      makeToken(TokenType::CONTINUE, 1, "continue")));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      std::move(newArr), Token{}, std::nullopt));
+  body.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("item"), tokItem),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("a"), tokA),
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokItem, tokA,
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      tokI));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  const pex::PexFunction* testFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() && file.stringTable().valueByIndex(static_cast<size_t>(
+                           f.getName()->index())) == "test") {
+      testFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(testFunc != nullptr);
+
+  const auto& instr = testFunc->getInstructions();
+  size_t getElemIdx = instr.size();
+  for (size_t i = 0; i < instr.size(); ++i) {
+    if (instr[i].getOpCode() == pex::PexOpCode::ArrayGetElement) {
+      getElemIdx = i;
+      break;
+    }
+  }
+  REQUIRE(getElemIdx + 2 < instr.size());
+  CHECK(instr[getElemIdx + 1].getOpCode() == pex::PexOpCode::Assign);
+  CHECK(instr[getElemIdx + 2].getOpCode() == pex::PexOpCode::IAdd);
+
+  bool hasContinueJmp = false;
+  for (const auto& i : instr) {
+    if (i.getOpCode() == pex::PexOpCode::Jmp) {
+      hasContinueJmp = true;
+      break;
+    }
+  }
+  CHECK(hasContinueJmp);
+}
+
+TEST_CASE("CompileForIn_FormList_EmitsGetSizeAndGetAt") {
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  auto addModule = [&](const VellumObject& obj) {
+    VellumIdentifier name = obj.getType().asIdentifier();
+    auto module =
+        makeShared<ImportModule>(name, ImportModuleType::Vellum, fs::path(""));
+    auto modResolver = makeShared<Resolver>(obj, errorHandler, importLibrary,
+                                            builtinFunctions);
+    module->setResolver(modResolver);
+    importLibrary->addTestModule(module);
+  };
+  addModule(VellumObject(VellumType::identifier("Form")));
+  addModule(VellumObject(VellumType::identifier("FormList")));
+
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  Token tokItems = makeToken(TokenType::IDENTIFIER, 1, "items");
+  Token tokItem = makeToken(TokenType::IDENTIFIER, 1, "item");
+  Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("items", VellumType::unresolved("FormList"));
+
+  Vec<Unique<ast::Statement>> forBody;
+  forBody.push_back(
+      makeUnique<ast::BreakStatement>(makeToken(TokenType::BREAK, 1, "break")));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("item"), tokItem),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("items"),
+                                            tokItems),
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokItem, tokItems,
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      tokI));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto semanticResult = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  const pex::PexFunction* testFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() && file.stringTable().valueByIndex(static_cast<size_t>(
+                           f.getName()->index())) == "test") {
+      testFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(testFunc != nullptr);
+
+  const auto& st = file.stringTable();
+  const auto& instr = testFunc->getInstructions();
+
+  auto callMethodName = [&](const pex::PexInstruction& i) -> std::string_view {
+    if (i.getOpCode() != pex::PexOpCode::CallMethod) return {};
+    const auto& args = i.getArgs();
+    if (args.empty() || args[0].getType() != pex::PexValueType::Identifier) {
+      return {};
+    }
+    return st.valueByIndex(
+        static_cast<size_t>(args[0].asIdentifier().getValue().index()));
+  };
+
+  bool hasGetSize = false;
+  bool hasGetAt = false;
+  size_t getAtIdx = instr.size();
+  for (size_t i = 0; i < instr.size(); ++i) {
+    const auto name = callMethodName(instr[i]);
+    if (name == "GetSize") hasGetSize = true;
+    if (name == "GetAt") {
+      hasGetAt = true;
+      getAtIdx = i;
+    }
+  }
+  CHECK(hasGetSize);
+  CHECK(hasGetAt);
+  CHECK_FALSE([&] {
+    for (const auto& i : instr)
+      if (i.getOpCode() == pex::PexOpCode::ArrayLength) return true;
+    return false;
+  }());
+  CHECK_FALSE([&] {
+    for (const auto& i : instr)
+      if (i.getOpCode() == pex::PexOpCode::ArrayGetElement) return true;
+    return false;
+  }());
+
+  REQUIRE(getAtIdx + 2 < instr.size());
+  CHECK(instr[getAtIdx + 1].getOpCode() == pex::PexOpCode::Assign);
+  CHECK(instr[getAtIdx + 2].getOpCode() == pex::PexOpCode::IAdd);
+}
+
 TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
   auto makeArrBody = Vec<Unique<ast::Statement>>{};
   makeArrBody.push_back(

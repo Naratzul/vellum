@@ -186,12 +186,16 @@ class ForStatement : public Statement {
  public:
   ForStatement(Unique<Expression> variableName, Unique<Expression> array,
                Unique<Statement> body, Token variableNameLocation = {},
-               Token arrayLocation = {})
+               Token arrayLocation = {},
+               Unique<Expression> indexName = nullptr,
+               Token indexNameLocation = {})
       : variableName(std::move(variableName)),
         array(std::move(array)),
         body(std::move(body)),
         variableNameLocation(variableNameLocation),
-        arrayLocation(arrayLocation) {}
+        arrayLocation(arrayLocation),
+        indexName(std::move(indexName)),
+        indexNameLocation(indexNameLocation) {}
 
   void accept(StatementVisitor& visitor) override;
   bool equals(const Statement& other) const override;
@@ -210,6 +214,14 @@ class ForStatement : public Statement {
 
   Token getArrayLocation() const { return arrayLocation; }
 
+  const Unique<Expression>& getIndexName() const { return indexName; }
+
+  Unique<Expression>& getIndexName() { return indexName; }
+
+  bool hasIndex() const { return indexName != nullptr; }
+
+  Token getIndexNameLocation() const { return indexNameLocation; }
+
   void setCounterMangledName(std::string_view name) {
     counterMangledName = name;
   }
@@ -218,13 +230,22 @@ class ForStatement : public Statement {
     return counterMangledName;
   }
 
+  enum class CollectionKind { Array, FormList };
+
+  void setCollectionKind(CollectionKind kind) { collectionKind = kind; }
+
+  CollectionKind getCollectionKind() const { return collectionKind; }
+
  private:
   Unique<Expression> variableName;
   Unique<Expression> array;
   Unique<Statement> body;
   Token variableNameLocation;
   Token arrayLocation;
+  Unique<Expression> indexName;
+  Token indexNameLocation;
   std::string counterMangledName;
+  CollectionKind collectionKind{CollectionKind::Array};
 };
 
 struct MatchArm {

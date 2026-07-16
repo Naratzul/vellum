@@ -466,25 +466,70 @@ void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
     return;
   }
 
-  if (!arrayExpr->getType().isArray()) {
-    errorHandler->errorAt(statement.getArrayLocation(), "Array type expected.");
+  const VellumType& collectionType = arrayExpr->getType();
+  VellumType elementType = VellumType::none();
+
+  if (collectionType.isArray()) {
+    elementType = *collectionType.asArraySubtype();
+    statement.setCollectionKind(ast::ForStatement::CollectionKind::Array);
+  } else if (collectionType.getState() == VellumTypeState::Identifier &&
+             equalsCaseInsensitive(collectionType.asIdentifier(),
+                                   VellumIdentifier("FormList"))) {
+    elementType =
+        resolver->resolveType(VellumType::unresolved("Form"),
+                              statement.getArrayLocation());
+    if (!elementType.isResolved()) {
+      errorHandler->errorAt(statement.getArrayLocation(),
+                            "Unknown type 'Form' required for FormList "
+                            "iteration.");
+      return;
+    }
+    statement.setCollectionKind(ast::ForStatement::CollectionKind::FormList);
+  } else {
+    errorHandler->errorAt(statement.getArrayLocation(),
+                          "Array or FormList type expected.");
     return;
+  }
+
+  auto variableName =
+      statement.getVariableName()->asIdentifier().getIdentifier();
+
+  if (statement.hasIndex()) {
+    auto indexName =
+        statement.getIndexName()->asIdentifier().getIdentifier();
+    if (equalsCaseInsensitive(variableName, indexName)) {
+      errorHandler->errorAt(
+          statement.getIndexNameLocation(),
+          "for loop index '{}' must differ from the value variable.",
+          indexName.toString());
+      return;
+    }
   }
 
   loopCount++;
 
-  auto variableName =
-      statement.getVariableName()->asIdentifier().getIdentifier();
-  VellumVariable loopVar(variableName, *arrayExpr->getType().asArraySubtype());
-
+  VellumVariable loopVar(variableName, elementType);
   VellumIdentifier pexName(
       mangleLocalPexName(variableName.getValue(), loopCount));
   loopVar.setPexName(pexName);
 
   resolver->pushScope();
   resolver->pushLocalVar(loopVar, statement.getVariableNameLocation());
-
   statement.getVariableName()->accept(*this);
+
+  int localsPushed = 1;
+  if (statement.hasIndex()) {
+    auto indexName =
+        statement.getIndexName()->asIdentifier().getIdentifier();
+    VellumVariable indexVar(
+        indexName, VellumType::literal(VellumLiteralType::Int));
+    VellumIdentifier indexPexName(
+        mangleLocalPexName(indexName.getValue(), loopCount));
+    indexVar.setPexName(indexPexName);
+    resolver->pushLocalVar(indexVar, statement.getIndexNameLocation());
+    statement.getIndexName()->accept(*this);
+    localsPushed = 2;
+  }
 
   statement.setCounterMangledName(
       mangleLocalPexName(std::format("{}_index", variableName.getValue()),
@@ -495,7 +540,7 @@ void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
   statement.getBody()->accept(*this);
   loopDepth--;
 
-  resolver->popLocalVar();
+  resolver->popLocalVar(localsPushed);
   resolver->popScope();
 }
 

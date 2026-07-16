@@ -307,6 +307,11 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
     addSpan(spans, statement.getVariableNameLocation(),
             SemanticTokenLegendType::Variable,
             SemanticTokenLegendModifierBits::Declaration);
+    if (statement.hasIndex()) {
+      addSpan(spans, statement.getIndexNameLocation(),
+              SemanticTokenLegendType::Variable,
+              SemanticTokenLegendModifierBits::Declaration);
+    }
     statement.getArray()->accept(*this);
     statement.getBody()->accept(*this);
   }

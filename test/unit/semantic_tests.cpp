@@ -4244,6 +4244,149 @@ TEST_CASE_METHOD(SemanticTestsFixture, "ForIn_NonArrayCollection_Error") {
   REQUIRE(errorHandler->hadError());
 }
 
+TEST_CASE_METHOD(SemanticTestsFixture, "ForIn_OverFormList_NoError") {
+  addTestObject(VellumObject(VellumType::identifier("Form")));
+  addTestObject(VellumObject(VellumType::identifier("FormList")));
+
+  Token tokItems = makeToken(TokenType::IDENTIFIER, 1, "items");
+  Token tokItem = makeToken(TokenType::IDENTIFIER, 1, "item");
+
+  Vec<ast::FunctionParameter> params;
+  params.emplace_back("items", VellumType::unresolved("FormList"));
+
+  Vec<Unique<ast::Statement>> forBody;
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("item"), tokItem),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("items"),
+                                            tokItems),
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokItem, tokItems));
+
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", std::move(params), VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* script =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  REQUIRE(script != nullptr);
+  const auto* func = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  REQUIRE(func != nullptr);
+  const auto* forStmt = dynamic_cast<const ast::ForStatement*>(
+      func->getBody()->getStatements()[0].get());
+  REQUIRE(forStmt != nullptr);
+  CHECK(forStmt->getCollectionKind() ==
+        ast::ForStatement::CollectionKind::FormList);
+  CHECK(forStmt->getVariableName()->getType().asIdentifier().toString() ==
+        "Form");
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture, "ForIn_IndexedArray_IndexIsInt") {
+  Token tokA = makeToken(TokenType::IDENTIFIER, 1, "a");
+  Token tokItem = makeToken(TokenType::IDENTIFIER, 1, "item");
+  Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
+  auto newArr = makeUnique<ast::NewArrayExpression>(
+      VellumType::literal(VellumLiteralType::Int), VellumLiteral(1), Token{});
+
+  Vec<Unique<ast::Statement>> forBody;
+  forBody.push_back(makeUnique<ast::ExpressionStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI)));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      std::move(newArr), Token{}, std::nullopt));
+  body.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("item"), tokItem),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("a"), tokA),
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokItem, tokA,
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      tokI));
+
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  const auto result = analyzer->analyze(std::move(ast));
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* script =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  const auto* func = dynamic_cast<const ast::FunctionDeclaration*>(
+      script->getMemberDecls()[0].get());
+  const auto* forStmt = dynamic_cast<const ast::ForStatement*>(
+      func->getBody()->getStatements()[1].get());
+  REQUIRE(forStmt != nullptr);
+  REQUIRE(forStmt->hasIndex());
+  CHECK(forStmt->getIndexName()->getType().isInt());
+  CHECK(forStmt->getCollectionKind() ==
+        ast::ForStatement::CollectionKind::Array);
+  CHECK(forStmt->getCounterMangledName() == "item_index_1");
+
+  const auto* forBodyBlock =
+      dynamic_cast<const ast::BlockStatement*>(forStmt->getBody().get());
+  const auto* exprStmt = dynamic_cast<const ast::ExpressionStatement*>(
+      forBodyBlock->getStatements()[0].get());
+  const auto* idInBody = dynamic_cast<const ast::IdentifierExpression*>(
+      exprStmt->getExpression().get());
+  REQUIRE(idInBody->getMangledIdentifier().has_value());
+  CHECK(idInBody->getMangledIdentifier()->toString() == "i_1");
+}
+
+TEST_CASE_METHOD(SemanticTestsFixture,
+                 "ForIn_DuplicateValueAndIndexName_Error") {
+  Token tokA = makeToken(TokenType::IDENTIFIER, 1, "a");
+  Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
+  auto newArr = makeUnique<ast::NewArrayExpression>(
+      VellumType::literal(VellumLiteralType::Int), VellumLiteral(1), Token{});
+
+  Vec<Unique<ast::Statement>> forBody;
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::LocalVariableStatement>(
+      VellumIdentifier("a"),
+      VellumType::array(VellumType::literal(VellumLiteralType::Int)),
+      std::move(newArr), Token{}, std::nullopt));
+  body.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("a"), tokA),
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokI, tokA,
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      tokI));
+
+  Vec<Unique<ast::Declaration>> members;
+  members.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"),
+      makeToken(TokenType::IDENTIFIER, 1, "testscript"), VellumType::none(),
+      std::nullopt, std::move(members)));
+
+  analyzer->analyze(std::move(ast));
+
+  REQUIRE(errorHandler->hadError());
+}
+
 TEST_CASE_METHOD(SemanticTestsFixture, "ForIn_BreakInsideFor_NoError") {
   Token tokA = makeToken(TokenType::IDENTIFIER, 1, "a");
   Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");

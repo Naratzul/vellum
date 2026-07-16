@@ -141,6 +141,9 @@ void TypeCollector::visitWhileStatement(ast::WhileStatement& statement) {
 void TypeCollector::visitForStatement(ast::ForStatement& statement) {
   statement.getArray()->accept(*this);
   statement.getVariableName()->accept(*this);
+  if (statement.hasIndex()) {
+    statement.getIndexName()->accept(*this);
+  }
   statement.getBody()->accept(*this);
 }
 

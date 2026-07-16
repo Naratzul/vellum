@@ -146,6 +146,12 @@ bool ForStatement::equals(const Statement& other_) const {
       !array->equals(*other.array)) {
     return false;
   }
+  if (hasIndex() != other.hasIndex()) {
+    return false;
+  }
+  if (hasIndex() && !indexName->equals(*other.indexName)) {
+    return false;
+  }
   return getBody()->equals(*other.getBody());
 }
 

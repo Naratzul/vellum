@@ -331,6 +331,10 @@ class StatementExtentCollector : public ast::StatementVisitor {
     mergeExtent(extent, statement.getArrayLocation());
     mergeExtent(extent, expressionExtent(*statement.getVariableName()));
     mergeExtent(extent, expressionExtent(*statement.getArray()));
+    if (statement.hasIndex()) {
+      mergeExtent(extent, statement.getIndexNameLocation());
+      mergeExtent(extent, expressionExtent(*statement.getIndexName()));
+    }
     StatementExtentCollector bodyCollector;
     bodyCollector.collect(*statement.getBody());
     mergeExtent(extent, bodyCollector.extent);
@@ -612,6 +616,15 @@ class LocalBindingFinder : public ast::DeclarationVisitor {
               tokenForName(queryName, statement.getVariableNameLocation());
         }
       }
+      if (!loopBinding && statement.hasIndex() &&
+          statement.getIndexName()->isIdentifierExpression()) {
+        const VellumIdentifier indexName =
+            statement.getIndexName()->asIdentifier().getIdentifier();
+        if (namesMatch(queryName, indexName)) {
+          loopBinding =
+              tokenForName(queryName, statement.getIndexNameLocation());
+        }
+      }
 
       if (auto inner = searchStatement(*statement.getBody(), loopBinding)) {
         return inner;
@@ -621,6 +634,16 @@ class LocalBindingFinder : public ast::DeclarationVisitor {
 
     if (expressionContainsUse(*statement.getArray(), usePos)) {
       return searchExpression(*statement.getArray(), outerBinding);
+    }
+
+    if (statement.hasIndex() &&
+        statement.getIndexName()->isIdentifierExpression() &&
+        expressionContainsUse(*statement.getIndexName(), usePos)) {
+      const VellumIdentifier indexName =
+          statement.getIndexName()->asIdentifier().getIdentifier();
+      if (namesMatch(queryName, indexName)) {
+        return tokenForName(queryName, statement.getIndexNameLocation());
+      }
     }
 
     if (statement.getVariableName()->isIdentifierExpression() &&

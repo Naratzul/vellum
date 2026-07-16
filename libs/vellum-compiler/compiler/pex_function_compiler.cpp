@@ -393,23 +393,35 @@ void PexFunctionCompiler::visitForStatement(ast::ForStatement& statement) {
   breakInstructions.push_back(loopSentinel);
   continueInstructions.push_back(loopSentinel);
 
+  const bool isFormList =
+      statement.getCollectionKind() ==
+      ast::ForStatement::CollectionKind::FormList;
+
   setCurrentLocation(statement.getArrayLocation());
-  const pex::PexValue arrayVal = statement.getArray()->compile(*this);
-  const pex::PexIdentifier arrayLength =
+  const pex::PexValue collectionVal = statement.getArray()->compile(*this);
+  const pex::PexIdentifier collectionLength =
       makeTempVarId(VellumType::literal(VellumLiteralType::Int));
-  Vec<pex::PexValue> args = {arrayLength, arrayVal};
-  emitInstruction(pex::PexOpCode::ArrayLength, std::move(args));
+
+  if (isFormList) {
+    Vec<pex::PexValue> lengthArgs = {
+        pex::PexIdentifier(file.getString("GetSize")), collectionVal,
+        collectionLength};
+    emitInstruction(pex::PexOpCode::CallMethod, std::move(lengthArgs));
+  } else {
+    Vec<pex::PexValue> args = {collectionLength, collectionVal};
+    emitInstruction(pex::PexOpCode::ArrayLength, std::move(args));
+  }
 
   localVariables.emplace_back(file.getString(statement.getCounterMangledName()),
                               file.getString("Int"));
   const pex::PexValue counter =
       pex::PexIdentifier{file.getString(statement.getCounterMangledName())};
-  args = {counter, pex::PexValue(0)};
+  Vec<pex::PexValue> args = {counter, pex::PexValue(0)};
   emitInstruction(pex::PexOpCode::Assign, std::move(args));
 
   const pex::PexIdentifier condition =
       makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
-  args = {condition, counter, arrayLength};
+  args = {condition, counter, collectionLength};
   size_t conditionOffset = instructions.size();
   emitInstruction(pex::PexOpCode::CmpLt, std::move(args));
 
@@ -420,18 +432,44 @@ void PexFunctionCompiler::visitForStatement(ast::ForStatement& statement) {
                   Vec<pex::PexValue>{condition, jmpToEnd});
 
   setCurrentLocation(statement.getVariableNameLocation());
+  const std::string elementTypeName =
+      isFormList
+          ? std::string("Form")
+          : std::string(
+                statement.getArray()->getType().asArraySubtype()->toString());
   localVariables.emplace_back(
       file.getString(statement.getVariableName()
                          ->asIdentifier()
                          .getMangledIdentifier()
                          ->toString()),
-      file.getString(
-          statement.getArray()->getType().asArraySubtype()->toString()));
+      file.getString(elementTypeName));
   const pex::PexValue loopVariable =
       statement.getVariableName()->compile(*this);
 
-  args = {loopVariable, arrayVal, counter};
-  emitInstruction(pex::PexOpCode::ArrayGetElement, std::move(args));
+  if (isFormList) {
+    Vec<pex::PexValue> getAtArgs = {
+        pex::PexIdentifier(file.getString("GetAt")), collectionVal,
+        loopVariable};
+    emitInstruction(pex::PexOpCode::CallMethod, std::move(getAtArgs),
+                    Vec<pex::PexValue>{counter});
+  } else {
+    args = {loopVariable, collectionVal, counter};
+    emitInstruction(pex::PexOpCode::ArrayGetElement, std::move(args));
+  }
+
+  if (statement.hasIndex()) {
+    setCurrentLocation(statement.getIndexNameLocation());
+    localVariables.emplace_back(
+        file.getString(statement.getIndexName()
+                           ->asIdentifier()
+                           .getMangledIdentifier()
+                           ->toString()),
+        file.getString("Int"));
+    const pex::PexValue indexVariable =
+        statement.getIndexName()->compile(*this);
+    args = {indexVariable, counter};
+    emitInstruction(pex::PexOpCode::Assign, std::move(args));
+  }
 
   args = {counter, counter, pex::PexValue(1)};
   emitInstruction(pex::PexOpCode::IAdd, std::move(args));

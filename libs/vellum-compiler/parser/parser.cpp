@@ -609,15 +609,26 @@ Unique<ast::Statement> Parser::forStatement() {
   }
   Token nameLocation = previous;
 
+  Unique<ast::Expression> indexExpr;
+  Token indexLocation{};
+  if (match(TokenType::COMMA)) {
+    indexExpr = primaryExpression();
+    if (!indexExpr->isIdentifierExpression()) {
+      throw ParseException(previous,
+                           "for loop index must be an identifier");
+    }
+    indexLocation = previous;
+  }
+
   consume(TokenType::IN, CompilerErrorKind::ExpectIn,
           "Expect 'in' keyword after for loop variable.");
 
   auto arrayExpr = expression();
   Token arrayLocation = previous;
 
-  return makeUnique<ast::ForStatement>(std::move(nameExpr),
-                                       std::move(arrayExpr), blockStatement(),
-                                       nameLocation, arrayLocation);
+  return makeUnique<ast::ForStatement>(
+      std::move(nameExpr), std::move(arrayExpr), blockStatement(),
+      nameLocation, arrayLocation, std::move(indexExpr), indexLocation);
 }
 
 Unique<ast::BlockStatement> Parser::parseBlockStatement() {

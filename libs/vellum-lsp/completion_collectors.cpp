@@ -318,6 +318,10 @@ class StatementExtentCollector : public ast::StatementVisitor {
     mergeExtent(extent, statement.getArrayLocation());
     mergeExtent(extent, expressionExtent(*statement.getVariableName()));
     mergeExtent(extent, expressionExtent(*statement.getArray()));
+    if (statement.hasIndex()) {
+      mergeExtent(extent, statement.getIndexNameLocation());
+      mergeExtent(extent, expressionExtent(*statement.getIndexName()));
+    }
     StatementExtentCollector bodyCollector;
     bodyCollector.collect(*statement.getBody());
     mergeExtent(extent, bodyCollector.extent);
@@ -1035,6 +1039,12 @@ class ExpressionTypeBeforeDotFinder : public ast::DeclarationVisitor,
       visitor_.visitExpression(*statement.getArray(), 0);
       return;
     }
+    if (statement.hasIndex() &&
+        statement.getIndexName()->isIdentifierExpression() &&
+        expressionContainsPosition(*statement.getIndexName(), cursor_)) {
+      visitor_.visitExpression(*statement.getIndexName(), 0);
+      return;
+    }
     if (statement.getVariableName()->isIdentifierExpression() &&
         expressionContainsPosition(*statement.getVariableName(), cursor_)) {
       visitor_.visitExpression(*statement.getVariableName(), 0);
@@ -1266,6 +1276,13 @@ class LocalScopeCollector : public ast::DeclarationVisitor {
           const VellumIdentifier loopName =
               forStmt->getVariableName()->asIdentifier().getIdentifier();
           addLocal(loopName.toString(), VellumType::none(), false);
+        }
+        if (forStmt->hasIndex() &&
+            forStmt->getIndexName()->isIdentifierExpression()) {
+          const VellumIdentifier indexName =
+              forStmt->getIndexName()->asIdentifier().getIdentifier();
+          addLocal(indexName.toString(),
+                   VellumType::literal(VellumLiteralType::Int), false);
         }
         searchStatement(*forStmt->getBody());
         return;
