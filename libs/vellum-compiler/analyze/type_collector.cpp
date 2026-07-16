@@ -259,4 +259,9 @@ void TypeCollector::visitInterpolatedStringExpression(
     part->accept(*this);
   }
 }
+
+void TypeCollector::visitRangeExpression(ast::RangeExpression& expr) {
+  expr.getStart()->accept(*this);
+  expr.getEnd()->accept(*this);
+}
 }  // namespace vellum

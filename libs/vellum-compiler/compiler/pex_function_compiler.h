@@ -73,6 +73,7 @@ class PexFunctionCompiler : public ast::StatementVisitor,
   pex::PexValue compile(const ast::SuperExpression& expr) override;
   pex::PexValue compile(const ast::TernaryExpression& expr) override;
   pex::PexValue compile(const ast::InterpolatedStringExpression& expr) override;
+  pex::PexValue compile(const ast::RangeExpression& expr) override;
 
  private:
   void setCurrentLine(int line) { currentLine = line; }
@@ -100,6 +101,22 @@ class PexFunctionCompiler : public ast::StatementVisitor,
                              const ast::Expression& pattern,
                              Opt<VellumType> promoteType,
                              const Opt<pex::PexValue>& scrutineeFloatVal);
+
+  void pushLoopFrame();
+  void patchAndPopLoopFrame(size_t conditionOffset);
+
+  pex::PexValue declareNamedLocal(std::string_view mangledName,
+                                  std::string_view typeName);
+  void emitAssign(const pex::PexValue& dest, const pex::PexValue& src);
+  void emitSelect(const pex::PexValue& dest, const pex::PexValue& cond,
+                  const pex::PexValue& whenTrue,
+                  const pex::PexValue& whenFalse);
+  void emitConditionalIncDec(const pex::PexValue& counter,
+                             const pex::PexValue& goingUp);
+
+  void compileRangeForStatement(ast::ForStatement& statement);
+  void compileCollectionForStatement(ast::ForStatement& statement,
+                                     bool isFormList);
 
   pex::PexValue coerceToType(pex::PexValue value, const VellumType& srcType,
                              const VellumType& destType,

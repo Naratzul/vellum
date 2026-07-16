@@ -30,6 +30,7 @@ class SuperExpression;
 class UnaryExpression;
 class NewArrayExpression;
 class NewArrayElementsExpression;
+class RangeExpression;
 
 class Expression {
  public:
@@ -57,6 +58,7 @@ class Expression {
   virtual bool isSuperExpression() const { return false; }
   virtual bool isNewArrayElementsExpression() const { return false; }
   virtual bool isNewArrayExpression() const { return false; }
+  virtual bool isRangeExpression() const { return false; }
 
   LiteralExpression& asLiteral();
   UnaryExpression& asUnary();
@@ -67,6 +69,7 @@ class Expression {
   SuperExpression& asSuperExpression();
   NewArrayElementsExpression& asNewArrayElementsExpression();
   NewArrayExpression& asNewArrayExpression();
+  RangeExpression& asRange();
 
  protected:
   VellumType type{VellumType::unresolved()};
@@ -548,6 +551,30 @@ class TernaryExpression : public Expression {
   Unique<Expression> condition;
   Unique<Expression> left;
   Unique<Expression> right;
+};
+
+class RangeExpression : public Expression {
+ public:
+  RangeExpression(Unique<Expression> start, Unique<Expression> end,
+                  Token location = Token{})
+      : Expression(location),
+        start(std::move(start)),
+        end(std::move(end)) {}
+
+  const Unique<Expression>& getStart() const { return start; }
+  Unique<Expression>& getStart() { return start; }
+  const Unique<Expression>& getEnd() const { return end; }
+  Unique<Expression>& getEnd() { return end; }
+
+  bool equals(const Expression& other) const override;
+  void accept(ExpressionVisitor& visitor) override;
+  pex::PexValue compile(ExpressionCompiler& compiler) const override;
+
+  bool isRangeExpression() const override { return true; }
+
+ private:
+  Unique<Expression> start;
+  Unique<Expression> end;
 };
 
 class InterpolatedStringExpression : public Expression {

@@ -460,35 +460,68 @@ void SemanticAnalyzer::visitContinueStatement(
 
 void SemanticAnalyzer::visitForStatement(ast::ForStatement& statement) {
   auto& arrayExpr = statement.getArray();
-  arrayExpr->accept(*this);
-
-  if (!arrayExpr->hasResolvedType()) {
-    return;
-  }
-
-  const VellumType& collectionType = arrayExpr->getType();
   VellumType elementType = VellumType::none();
 
-  if (collectionType.isArray()) {
-    elementType = *collectionType.asArraySubtype();
-    statement.setCollectionKind(ast::ForStatement::CollectionKind::Array);
-  } else if (collectionType.getState() == VellumTypeState::Identifier &&
-             equalsCaseInsensitive(collectionType.asIdentifier(),
-                                   VellumIdentifier("FormList"))) {
-    elementType =
-        resolver->resolveType(VellumType::unresolved("Form"),
-                              statement.getArrayLocation());
-    if (!elementType.isResolved()) {
-      errorHandler->errorAt(statement.getArrayLocation(),
-                            "Unknown type 'Form' required for FormList "
-                            "iteration.");
+  if (arrayExpr->isRangeExpression()) {
+    if (statement.hasIndex()) {
+      errorHandler->errorAt(
+          statement.getIndexNameLocation(),
+          "for loop index binding is not allowed with ranges.");
       return;
     }
-    statement.setCollectionKind(ast::ForStatement::CollectionKind::FormList);
+
+    auto& range = arrayExpr->asRange();
+    range.getStart()->accept(*this);
+    range.getEnd()->accept(*this);
+
+    if (!range.getStart()->hasResolvedType() ||
+        !range.getEnd()->hasResolvedType()) {
+      return;
+    }
+
+    if (!range.getStart()->getType().isInt()) {
+      errorHandler->errorAt(range.getStart()->getLocation(),
+                            "Range start must have Int type.");
+      return;
+    }
+    if (!range.getEnd()->getType().isInt()) {
+      errorHandler->errorAt(range.getEnd()->getLocation(),
+                            "Range end must have Int type.");
+      return;
+    }
+
+    arrayExpr->setType(VellumType::literal(VellumLiteralType::Int));
+    statement.setCollectionKind(ast::ForStatement::CollectionKind::Range);
+    elementType = VellumType::literal(VellumLiteralType::Int);
   } else {
-    errorHandler->errorAt(statement.getArrayLocation(),
-                          "Array or FormList type expected.");
-    return;
+    arrayExpr->accept(*this);
+
+    if (!arrayExpr->hasResolvedType()) {
+      return;
+    }
+
+    const VellumType& collectionType = arrayExpr->getType();
+
+    if (collectionType.isArray()) {
+      elementType = *collectionType.asArraySubtype();
+      statement.setCollectionKind(ast::ForStatement::CollectionKind::Array);
+    } else if (collectionType.getState() == VellumTypeState::Identifier &&
+               equalsCaseInsensitive(collectionType.asIdentifier(),
+                                     VellumIdentifier("FormList"))) {
+      elementType = resolver->resolveType(VellumType::unresolved("Form"),
+                                          statement.getArrayLocation());
+      if (!elementType.isResolved()) {
+        errorHandler->errorAt(statement.getArrayLocation(),
+                              "Unknown type 'Form' required for FormList "
+                              "iteration.");
+        return;
+      }
+      statement.setCollectionKind(ast::ForStatement::CollectionKind::FormList);
+    } else {
+      errorHandler->errorAt(statement.getArrayLocation(),
+                            "Array, FormList, or range expected.");
+      return;
+    }
   }
 
   auto variableName =
@@ -1729,6 +1762,14 @@ void SemanticAnalyzer::visitInterpolatedStringExpression(
     part->accept(*this);
   }
   expr.setType(VellumType::literal(VellumLiteralType::String));
+}
+
+void SemanticAnalyzer::visitRangeExpression(ast::RangeExpression& expr) {
+  expr.getStart()->accept(*this);
+  expr.getEnd()->accept(*this);
+  errorHandler->errorAt(
+      expr.getLocation(),
+      "Range expressions are only allowed as the collection in a for-in loop.");
 }
 
 bool SemanticAnalyzer::validateComposedAssignTypes(ast::AssignOperator op,

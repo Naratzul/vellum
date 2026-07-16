@@ -113,6 +113,7 @@ class Parser {
 
   Unique<ast::Expression> expression();
   Unique<ast::Expression> assignExpression();
+  Unique<ast::Expression> rangeExpression();
   Unique<ast::Expression> logicalOrExpression();
   Unique<ast::Expression> logicalAndExpression();
   Unique<ast::Expression> equalityExpression();

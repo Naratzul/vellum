@@ -549,3 +549,29 @@ TEST_CASE("LexerDollarWithoutQuoteIsError") {
   REQUIRE_FALSE(tokens.empty());
   CHECK(tokens[0].type == TokenType::ERROR);
 }
+
+TEST_CASE("LexerDotDot_RangeOperator") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("0..5"));
+  REQUIRE(tokens.size() >= 3);
+  CHECK(tokens[0].type == TokenType::INT);
+  CHECK(tokens[1].type == TokenType::DOT_DOT);
+  CHECK(tokens[1].lexeme == "..");
+  CHECK(tokens[2].type == TokenType::INT);
+}
+
+TEST_CASE("LexerDot_PropertyAccessStillSingleDot") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("obj.prop"));
+  REQUIRE(tokens.size() >= 3);
+  CHECK(tokens[0].type == TokenType::IDENTIFIER);
+  CHECK(tokens[1].type == TokenType::DOT);
+  CHECK(tokens[1].lexeme == ".");
+  CHECK(tokens[2].type == TokenType::IDENTIFIER);
+}
+
+TEST_CASE("LexerFloat_StillLexedBeforeRange") {
+  Vec<Token> tokens = scanTokens(makeUnique<Lexer>("1.5..3"));
+  REQUIRE(tokens.size() >= 3);
+  CHECK(tokens[0].type == TokenType::FLOAT);
+  CHECK(tokens[1].type == TokenType::DOT_DOT);
+  CHECK(tokens[2].type == TokenType::INT);
+}

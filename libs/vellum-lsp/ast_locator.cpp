@@ -287,6 +287,10 @@ class AstLocatorVisitor : public ast::DeclarationVisitor,
       visitExpression(*part, depth + 1);
     }
   }
+  void visitRangeExpression(ast::RangeExpression& expr) override {
+    visitExpression(*expr.getStart(), depth + 1);
+    visitExpression(*expr.getEnd(), depth + 1);
+  }
 
  private:
   lsp::Position pos;

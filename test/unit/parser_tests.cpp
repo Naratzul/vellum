@@ -1149,6 +1149,83 @@ TEST_CASE("ParserForInStatement_WithIndexBinding") {
           "xs");
 }
 
+TEST_CASE("ParserForInStatement_RangeLiteral") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FOR, 1, "for"),
+                    makeToken(TokenType::IDENTIFIER, 1, "i"),
+                    makeToken(TokenType::IN, 1, "in"),
+                    makeToken(TokenType::INT, 1, "0", VellumLiteral(0)),
+                    makeToken(TokenType::DOT_DOT, 1, ".."),
+                    makeToken(TokenType::INT, 1, "5", VellumLiteral(5)),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  const auto* forStmt =
+      dynamic_cast<const ast::ForStatement*>(funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(forStmt != nullptr);
+  REQUIRE(forStmt->getArray()->isRangeExpression());
+  const auto& range = forStmt->getArray()->asRange();
+  REQUIRE(range.getStart()->isLiteralExpression());
+  REQUIRE(range.getEnd()->isLiteralExpression());
+}
+
+TEST_CASE("ParserForInStatement_RangeIdentifiers") {
+  Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
+                    makeToken(TokenType::IDENTIFIER, 1, "TestScript"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FUN, 1, "fun"),
+                    makeToken(TokenType::IDENTIFIER, 1, "test"),
+                    makeToken(TokenType::LEFT_PAREN, 1, "("),
+                    makeToken(TokenType::RIGHT_PAREN, 1, ")"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::FOR, 1, "for"),
+                    makeToken(TokenType::IDENTIFIER, 1, "i"),
+                    makeToken(TokenType::IN, 1, "in"),
+                    makeToken(TokenType::IDENTIFIER, 1, "a"),
+                    makeToken(TokenType::DOT_DOT, 1, ".."),
+                    makeToken(TokenType::IDENTIFIER, 1, "b"),
+                    makeToken(TokenType::LEFT_BRACE, 1, "{"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::RIGHT_BRACE, 1, "}"),
+                    makeToken(TokenType::END_OF_FILE, 1, "")};
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  const auto result =
+      Parser(makeUnique<LexerMock>(tokens), errorHandler).parse();
+
+  REQUIRE_FALSE(errorHandler->hadError());
+  const auto* scriptDecl =
+      dynamic_cast<const ast::ScriptDeclaration*>(result.declarations[0].get());
+  const auto* funcDecl = dynamic_cast<const ast::FunctionDeclaration*>(
+      scriptDecl->getMemberDecls()[0].get());
+  const auto* forStmt =
+      dynamic_cast<const ast::ForStatement*>(funcDecl->getBody()->getStatements()[0].get());
+  REQUIRE(forStmt->getArray()->isRangeExpression());
+  const auto& range = forStmt->getArray()->asRange();
+  CHECK(range.getStart()->asIdentifier().getIdentifier().toString() == "a");
+  CHECK(range.getEnd()->asIdentifier().getIdentifier().toString() == "b");
+}
+
 TEST_CASE("ParserForInStatement_MissingIndexAfterComma_Error") {
   Vec<Token> tokens{makeToken(TokenType::SCRIPT, 1, "script"),
                     makeToken(TokenType::IDENTIFIER, 1, "TestScript"),

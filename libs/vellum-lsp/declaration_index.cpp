@@ -266,6 +266,11 @@ class ExpressionExtentCollector : public ast::ExpressionVisitor {
       part->accept(*this);
     }
   }
+  void visitRangeExpression(ast::RangeExpression& expr) override {
+    mergeExtent(extent, expr.getLocation());
+    expr.getStart()->accept(*this);
+    expr.getEnd()->accept(*this);
+  }
 };
 
 LocationRange expressionExtent(ast::Expression& expression) {
@@ -822,6 +827,12 @@ class LocalBindingFinder : public ast::DeclarationVisitor {
           if (result) {
             return;
           }
+        }
+      }
+      void visitRangeExpression(ast::RangeExpression& expr) override {
+        expr.getStart()->accept(*this);
+        if (!result) {
+          expr.getEnd()->accept(*this);
         }
       }
     } finder(usePos, queryName, outerBinding, *this);

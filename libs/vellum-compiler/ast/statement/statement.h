@@ -230,7 +230,7 @@ class ForStatement : public Statement {
     return counterMangledName;
   }
 
-  enum class CollectionKind { Array, FormList };
+  enum class CollectionKind { Array, FormList, Range };
 
   void setCollectionKind(CollectionKind kind) { collectionKind = kind; }
 

@@ -328,34 +328,12 @@ void PexFunctionCompiler::visitLocalVariableStatement(
   }
 }
 
-void PexFunctionCompiler::visitWhileStatement(ast::WhileStatement& statement) {
+void PexFunctionCompiler::pushLoopFrame() {
   breakInstructions.push_back(loopSentinel);
   continueInstructions.push_back(loopSentinel);
+}
 
-  setCurrentLocation(statement.getCondition()->getLocation());
-  const pex::PexValue condition =
-      makeTempVarId(statement.getCondition()->getType());
-  size_t conditionOffset = instructions.size();
-  emitInstruction(
-      pex::PexOpCode::Assign,
-      Vec<pex::PexValue>{condition, statement.getCondition()->compile(*this)});
-
-  size_t jmpToEndOffset = instructions.size();
-  pex::PexValue jmpToEnd(int32_t(0));
-
-  emitInstruction(pex::PexOpCode::JmpF,
-                  Vec<pex::PexValue>{condition, jmpToEnd});
-
-  statement.getBody()->accept(*this);
-
-  setCurrentLocation(statement.getCondition()->getLocation());
-  emitInstruction(pex::PexOpCode::Jmp,
-                  Vec<pex::PexValue>{pex::PexValue(
-                      int32_t(conditionOffset - instructions.size()))});
-
-  auto loopBodyLength = int32_t(instructions.size() - jmpToEndOffset);
-  instructions[jmpToEndOffset].setArg(1, pex::PexValue(loopBodyLength));
-
+void PexFunctionCompiler::patchAndPopLoopFrame(size_t conditionOffset) {
   while (breakInstructions.back() != loopSentinel) {
     size_t breakIndex = breakInstructions.back();
     breakInstructions.pop_back();
@@ -372,6 +350,83 @@ void PexFunctionCompiler::visitWhileStatement(ast::WhileStatement& statement) {
 
   continueInstructions.pop_back();
   breakInstructions.pop_back();
+}
+
+pex::PexValue PexFunctionCompiler::declareNamedLocal(
+    std::string_view mangledName, std::string_view typeName) {
+  localVariables.emplace_back(file.getString(mangledName),
+                              file.getString(typeName));
+  return pex::PexIdentifier{file.getString(mangledName)};
+}
+
+void PexFunctionCompiler::emitAssign(const pex::PexValue& dest,
+                                     const pex::PexValue& src) {
+  emitInstruction(pex::PexOpCode::Assign, Vec<pex::PexValue>{dest, src});
+}
+
+void PexFunctionCompiler::emitSelect(const pex::PexValue& dest,
+                                     const pex::PexValue& cond,
+                                     const pex::PexValue& whenTrue,
+                                     const pex::PexValue& whenFalse) {
+  // dest = cond ? whenTrue : whenFalse
+  emitAssign(dest, whenTrue);
+  size_t jmpToFalseOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::JmpF,
+                  Vec<pex::PexValue>{cond, pex::PexValue(int32_t(0))});
+  size_t jmpSkipFalseOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::Jmp, Vec<pex::PexValue>{pex::PexValue(int32_t(0))});
+  size_t falseOffset = instructions.size();
+  emitAssign(dest, whenFalse);
+  instructions[jmpToFalseOffset].setArg(
+      1, pex::PexValue(int32_t(falseOffset - jmpToFalseOffset)));
+  instructions[jmpSkipFalseOffset].setArg(
+      0, pex::PexValue(int32_t(instructions.size() - jmpSkipFalseOffset)));
+}
+
+void PexFunctionCompiler::emitConditionalIncDec(
+    const pex::PexValue& counter, const pex::PexValue& goingUp) {
+  // if goingUp: counter += 1; else: counter -= 1
+  size_t jmpDoSubOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::JmpF,
+                  Vec<pex::PexValue>{goingUp, pex::PexValue(int32_t(0))});
+  emitInstruction(pex::PexOpCode::IAdd,
+                  Vec<pex::PexValue>{counter, counter, pex::PexValue(1)});
+  size_t jmpAfterStepOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::Jmp,
+                  Vec<pex::PexValue>{pex::PexValue(int32_t(0))});
+  size_t doSubOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::ISub,
+                  Vec<pex::PexValue>{counter, counter, pex::PexValue(1)});
+  instructions[jmpDoSubOffset].setArg(
+      1, pex::PexValue(int32_t(doSubOffset - jmpDoSubOffset)));
+  instructions[jmpAfterStepOffset].setArg(
+      0, pex::PexValue(int32_t(instructions.size() - jmpAfterStepOffset)));
+}
+
+void PexFunctionCompiler::visitWhileStatement(ast::WhileStatement& statement) {
+  pushLoopFrame();
+
+  setCurrentLocation(statement.getCondition()->getLocation());
+  const pex::PexValue condition =
+      makeTempVarId(statement.getCondition()->getType());
+  size_t conditionOffset = instructions.size();
+  emitAssign(condition, statement.getCondition()->compile(*this));
+
+  size_t jmpToEndOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::JmpF,
+                  Vec<pex::PexValue>{condition, pex::PexValue(int32_t(0))});
+
+  statement.getBody()->accept(*this);
+
+  setCurrentLocation(statement.getCondition()->getLocation());
+  emitInstruction(pex::PexOpCode::Jmp,
+                  Vec<pex::PexValue>{pex::PexValue(
+                      int32_t(conditionOffset - instructions.size()))});
+
+  instructions[jmpToEndOffset].setArg(
+      1, pex::PexValue(int32_t(instructions.size() - jmpToEndOffset)));
+
+  patchAndPopLoopFrame(conditionOffset);
 }
 
 void PexFunctionCompiler::visitBreakStatement(ast::BreakStatement& statement) {
@@ -389,90 +444,64 @@ void PexFunctionCompiler::visitContinueStatement(
   continueInstructions.push_back(instructions.size() - 1);
 }
 
-void PexFunctionCompiler::visitForStatement(ast::ForStatement& statement) {
-  breakInstructions.push_back(loopSentinel);
-  continueInstructions.push_back(loopSentinel);
-
-  const bool isFormList =
-      statement.getCollectionKind() ==
-      ast::ForStatement::CollectionKind::FormList;
-
+void PexFunctionCompiler::compileRangeForStatement(
+    ast::ForStatement& statement) {
   setCurrentLocation(statement.getArrayLocation());
-  const pex::PexValue collectionVal = statement.getArray()->compile(*this);
-  const pex::PexIdentifier collectionLength =
+  auto& range = statement.getArray()->asRange();
+
+  const pex::PexIdentifier startTemp =
       makeTempVarId(VellumType::literal(VellumLiteralType::Int));
+  const pex::PexIdentifier endTemp =
+      makeTempVarId(VellumType::literal(VellumLiteralType::Int));
+  emitAssign(startTemp, range.getStart()->compile(*this));
+  emitAssign(endTemp, range.getEnd()->compile(*this));
 
-  if (isFormList) {
-    Vec<pex::PexValue> lengthArgs = {
-        pex::PexIdentifier(file.getString("GetSize")), collectionVal,
-        collectionLength};
-    emitInstruction(pex::PexOpCode::CallMethod, std::move(lengthArgs));
-  } else {
-    Vec<pex::PexValue> args = {collectionLength, collectionVal};
-    emitInstruction(pex::PexOpCode::ArrayLength, std::move(args));
-  }
-
-  localVariables.emplace_back(file.getString(statement.getCounterMangledName()),
-                              file.getString("Int"));
-  const pex::PexValue counter =
-      pex::PexIdentifier{file.getString(statement.getCounterMangledName())};
-  Vec<pex::PexValue> args = {counter, pex::PexValue(0)};
-  emitInstruction(pex::PexOpCode::Assign, std::move(args));
-
-  const pex::PexIdentifier condition =
+  const pex::PexIdentifier goingUp =
       makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
-  args = {condition, counter, collectionLength};
-  size_t conditionOffset = instructions.size();
-  emitInstruction(pex::PexOpCode::CmpLt, std::move(args));
+  const pex::PexIdentifier isEqual =
+      makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
+  emitInstruction(pex::PexOpCode::CmpLt,
+                  Vec<pex::PexValue>{goingUp, startTemp, endTemp});
+  emitInstruction(pex::PexOpCode::CmpEq,
+                  Vec<pex::PexValue>{isEqual, startTemp, endTemp});
 
-  size_t jmpToEndOffset = instructions.size();
-  pex::PexValue jmpToEnd(int32_t(0));
+  size_t jmpEqualOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::JmpT,
+                  Vec<pex::PexValue>{isEqual, pex::PexValue(int32_t(0))});
 
-  emitInstruction(pex::PexOpCode::JmpF,
-                  Vec<pex::PexValue>{condition, jmpToEnd});
+  const pex::PexValue counter =
+      declareNamedLocal(statement.getCounterMangledName(), "Int");
+  emitAssign(counter, startTemp);
 
-  setCurrentLocation(statement.getVariableNameLocation());
-  const std::string elementTypeName =
-      isFormList
-          ? std::string("Form")
-          : std::string(
-                statement.getArray()->getType().asArraySubtype()->toString());
-  localVariables.emplace_back(
-      file.getString(statement.getVariableName()
-                         ->asIdentifier()
-                         .getMangledIdentifier()
-                         ->toString()),
-      file.getString(elementTypeName));
+  declareNamedLocal(statement.getVariableName()
+                        ->asIdentifier()
+                        .getMangledIdentifier()
+                        ->toString(),
+                    "Int");
   const pex::PexValue loopVariable =
       statement.getVariableName()->compile(*this);
 
-  if (isFormList) {
-    Vec<pex::PexValue> getAtArgs = {
-        pex::PexIdentifier(file.getString("GetAt")), collectionVal,
-        loopVariable};
-    emitInstruction(pex::PexOpCode::CallMethod, std::move(getAtArgs),
-                    Vec<pex::PexValue>{counter});
-  } else {
-    args = {loopVariable, collectionVal, counter};
-    emitInstruction(pex::PexOpCode::ArrayGetElement, std::move(args));
-  }
+  size_t conditionOffset = instructions.size();
+  const pex::PexIdentifier lt =
+      makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
+  const pex::PexIdentifier gt =
+      makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
+  emitInstruction(pex::PexOpCode::CmpLt,
+                  Vec<pex::PexValue>{lt, counter, endTemp});
+  emitInstruction(pex::PexOpCode::CmpGt,
+                  Vec<pex::PexValue>{gt, counter, endTemp});
 
-  if (statement.hasIndex()) {
-    setCurrentLocation(statement.getIndexNameLocation());
-    localVariables.emplace_back(
-        file.getString(statement.getIndexName()
-                           ->asIdentifier()
-                           .getMangledIdentifier()
-                           ->toString()),
-        file.getString("Int"));
-    const pex::PexValue indexVariable =
-        statement.getIndexName()->compile(*this);
-    args = {indexVariable, counter};
-    emitInstruction(pex::PexOpCode::Assign, std::move(args));
-  }
+  const pex::PexIdentifier keepGoing =
+      makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
+  emitSelect(keepGoing, goingUp, lt, gt);
 
-  args = {counter, counter, pex::PexValue(1)};
-  emitInstruction(pex::PexOpCode::IAdd, std::move(args));
+  size_t jmpToEndOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::JmpF,
+                  Vec<pex::PexValue>{keepGoing, pex::PexValue(int32_t(0))});
+
+  setCurrentLocation(statement.getVariableNameLocation());
+  emitAssign(loopVariable, counter);
+  emitConditionalIncDec(counter, goingUp);
 
   statement.getBody()->accept(*this);
 
@@ -481,25 +510,111 @@ void PexFunctionCompiler::visitForStatement(ast::ForStatement& statement) {
                   Vec<pex::PexValue>{pex::PexValue(
                       int32_t(conditionOffset - instructions.size()))});
 
-  auto loopBodyLength = int32_t(instructions.size() - jmpToEndOffset);
-  instructions[jmpToEndOffset].setArg(1, pex::PexValue(loopBodyLength));
+  const auto afterLoop = int32_t(instructions.size());
+  instructions[jmpToEndOffset].setArg(
+      1, pex::PexValue(afterLoop - int32_t(jmpToEndOffset)));
+  instructions[jmpEqualOffset].setArg(
+      1, pex::PexValue(afterLoop - int32_t(jmpEqualOffset)));
 
-  while (breakInstructions.back() != loopSentinel) {
-    size_t breakIndex = breakInstructions.back();
-    breakInstructions.pop_back();
-    instructions[breakIndex].setArg(
-        0, pex::PexValue(int32_t(instructions.size() - breakIndex)));
+  patchAndPopLoopFrame(conditionOffset);
+}
+
+void PexFunctionCompiler::compileCollectionForStatement(
+    ast::ForStatement& statement, bool isFormList) {
+  setCurrentLocation(statement.getArrayLocation());
+  const pex::PexValue collectionVal = statement.getArray()->compile(*this);
+  const pex::PexIdentifier collectionLength =
+      makeTempVarId(VellumType::literal(VellumLiteralType::Int));
+
+  if (isFormList) {
+    emitInstruction(
+        pex::PexOpCode::CallMethod,
+        Vec<pex::PexValue>{pex::PexIdentifier(file.getString("GetSize")),
+                           collectionVal, collectionLength});
+  } else {
+    emitInstruction(pex::PexOpCode::ArrayLength,
+                    Vec<pex::PexValue>{collectionLength, collectionVal});
   }
 
-  while (continueInstructions.back() != loopSentinel) {
-    size_t continueIndex = continueInstructions.back();
-    continueInstructions.pop_back();
-    instructions[continueIndex].setArg(
-        0, pex::PexValue(int32_t(conditionOffset - continueIndex)));
+  const pex::PexValue counter =
+      declareNamedLocal(statement.getCounterMangledName(), "Int");
+  emitAssign(counter, pex::PexValue(0));
+
+  const pex::PexIdentifier condition =
+      makeTempVarId(VellumType::literal(VellumLiteralType::Bool));
+  size_t conditionOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::CmpLt,
+                  Vec<pex::PexValue>{condition, counter, collectionLength});
+
+  size_t jmpToEndOffset = instructions.size();
+  emitInstruction(pex::PexOpCode::JmpF,
+                  Vec<pex::PexValue>{condition, pex::PexValue(int32_t(0))});
+
+  setCurrentLocation(statement.getVariableNameLocation());
+  const std::string elementTypeName =
+      isFormList
+          ? std::string("Form")
+          : std::string(
+                statement.getArray()->getType().asArraySubtype()->toString());
+  declareNamedLocal(statement.getVariableName()
+                        ->asIdentifier()
+                        .getMangledIdentifier()
+                        ->toString(),
+                    elementTypeName);
+  const pex::PexValue loopVariable =
+      statement.getVariableName()->compile(*this);
+
+  if (isFormList) {
+    emitInstruction(
+        pex::PexOpCode::CallMethod,
+        Vec<pex::PexValue>{pex::PexIdentifier(file.getString("GetAt")),
+                           collectionVal, loopVariable},
+        Vec<pex::PexValue>{counter});
+  } else {
+    emitInstruction(
+        pex::PexOpCode::ArrayGetElement,
+        Vec<pex::PexValue>{loopVariable, collectionVal, counter});
   }
 
-  continueInstructions.pop_back();
-  breakInstructions.pop_back();
+  if (statement.hasIndex()) {
+    setCurrentLocation(statement.getIndexNameLocation());
+    declareNamedLocal(statement.getIndexName()
+                          ->asIdentifier()
+                          .getMangledIdentifier()
+                          ->toString(),
+                      "Int");
+    const pex::PexValue indexVariable =
+        statement.getIndexName()->compile(*this);
+    emitAssign(indexVariable, counter);
+  }
+
+  emitInstruction(pex::PexOpCode::IAdd,
+                  Vec<pex::PexValue>{counter, counter, pex::PexValue(1)});
+
+  statement.getBody()->accept(*this);
+
+  setCurrentLocation(statement.getArrayLocation());
+  emitInstruction(pex::PexOpCode::Jmp,
+                  Vec<pex::PexValue>{pex::PexValue(
+                      int32_t(conditionOffset - instructions.size()))});
+
+  instructions[jmpToEndOffset].setArg(
+      1, pex::PexValue(int32_t(instructions.size() - jmpToEndOffset)));
+
+  patchAndPopLoopFrame(conditionOffset);
+}
+
+void PexFunctionCompiler::visitForStatement(ast::ForStatement& statement) {
+  pushLoopFrame();
+
+  const auto kind = statement.getCollectionKind();
+  if (kind == ast::ForStatement::CollectionKind::Range) {
+    compileRangeForStatement(statement);
+    return;
+  }
+
+  compileCollectionForStatement(
+      statement, kind == ast::ForStatement::CollectionKind::FormList);
 }
 
 void PexFunctionCompiler::visitBlockStatement(ast::BlockStatement& statement) {
@@ -782,6 +897,14 @@ pex::PexValue PexFunctionCompiler::compile(
     }
   }
   return *result;
+}
+
+pex::PexValue PexFunctionCompiler::compile(
+    const ast::RangeExpression& expr) {
+  errorHandler->errorAt(
+      expr.getLocation(),
+      "Internal error: range expression compiled as a value.");
+  return makeTempVarId(VellumType::literal(VellumLiteralType::Int));
 }
 
 pex::PexValue PexFunctionCompiler::compile(

@@ -203,6 +203,11 @@ class ExpressionExtentCollector : public ast::ExpressionVisitor {
       part->accept(*this);
     }
   }
+  void visitRangeExpression(ast::RangeExpression& expr) override {
+    mergeExtent(extent, expr.getLocation());
+    expr.getStart()->accept(*this);
+    expr.getEnd()->accept(*this);
+  }
 
  private:
 };
@@ -906,6 +911,13 @@ class ExpressionTypeAtDotVisitor : public ast::ExpressionVisitor {
     for (const auto& part : expr.getParts()) {
       visitExpression(*part, depth_ + 1);
     }
+  }
+  void visitRangeExpression(ast::RangeExpression& expr) override {
+    if (!expressionContainsPosition(expr, cursor_)) {
+      return;
+    }
+    visitExpression(*expr.getStart(), depth_ + 1);
+    visitExpression(*expr.getEnd(), depth_ + 1);
   }
 
  private:

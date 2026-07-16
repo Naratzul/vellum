@@ -82,7 +82,7 @@ Token Lexer::scanNormalToken() {
     case ',':
       return makeToken(TokenType::COMMA);
     case '.':
-      return makeToken(TokenType::DOT);
+      return makeToken(match('.') ? TokenType::DOT_DOT : TokenType::DOT);
     case '-':
       return makeToken(match('=')   ? TokenType::MINUS_EQUAL
                        : match('>') ? TokenType::ARROW

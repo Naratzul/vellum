@@ -462,6 +462,10 @@ class SemanticTokensCollector : public ast::DeclarationVisitor,
       part->accept(*this);
     }
   }
+  void visitRangeExpression(ast::RangeExpression& expr) override {
+    expr.getStart()->accept(*this);
+    expr.getEnd()->accept(*this);
+  }
 
  private:
   common::Vec<SemanticTokenSpan>& spans;

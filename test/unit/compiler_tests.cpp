@@ -2273,6 +2273,231 @@ TEST_CASE("CompileForIn_FormList_EmitsGetSizeAndGetAt") {
   CHECK(instr[getAtIdx + 2].getOpCode() == pex::PexOpCode::IAdd);
 }
 
+TEST_CASE("CompileForIn_RangeAscending_CmpLtAndIAdd") {
+  Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
+  Token rangeTok = makeToken(TokenType::DOT_DOT, 1, "..");
+
+  Vec<Unique<ast::Statement>> forBody;
+  forBody.push_back(
+      makeUnique<ast::BreakStatement>(makeToken(TokenType::BREAK, 1, "break")));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      makeUnique<ast::RangeExpression>(
+          makeUnique<ast::LiteralExpression>(VellumLiteral(0)),
+          makeUnique<ast::LiteralExpression>(VellumLiteral(3)), rangeTok),
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokI, rangeTok));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  auto semanticResult = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  const pex::PexFunction* testFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() && file.stringTable().valueByIndex(static_cast<size_t>(
+                           f.getName()->index())) == "test") {
+      testFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(testFunc != nullptr);
+
+  const auto& instr = testFunc->getInstructions();
+  auto hasOp = [&](pex::PexOpCode op) {
+    for (const auto& i : instr)
+      if (i.getOpCode() == op) return true;
+    return false;
+  };
+  CHECK(hasOp(pex::PexOpCode::CmpLt));
+  CHECK(hasOp(pex::PexOpCode::CmpGt));
+  CHECK(hasOp(pex::PexOpCode::IAdd));
+  CHECK(hasOp(pex::PexOpCode::ISub));
+  CHECK_FALSE(hasOp(pex::PexOpCode::ArrayLength));
+}
+
+TEST_CASE("CompileForIn_RangeDescending_HasISub") {
+  Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
+  Token rangeTok = makeToken(TokenType::DOT_DOT, 1, "..");
+
+  Vec<Unique<ast::Statement>> forBody;
+  forBody.push_back(makeUnique<ast::ContinueStatement>(
+      makeToken(TokenType::CONTINUE, 1, "continue")));
+
+  ast::FunctionBody body;
+  body.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      makeUnique<ast::RangeExpression>(
+          makeUnique<ast::LiteralExpression>(VellumLiteral(5)),
+          makeUnique<ast::LiteralExpression>(VellumLiteral(0)), rangeTok),
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokI, rangeTok));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(body))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+  auto analyzer =
+      makeShared<SemanticAnalyzer>(errorHandler, resolver, "testscript");
+
+  auto semanticResult = analyzer->analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  const pex::PexFunction* testFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() && file.stringTable().valueByIndex(static_cast<size_t>(
+                           f.getName()->index())) == "test") {
+      testFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(testFunc != nullptr);
+
+  bool hasISub = false;
+  bool hasContinueJmp = false;
+  for (const auto& i : testFunc->getInstructions()) {
+    if (i.getOpCode() == pex::PexOpCode::ISub) hasISub = true;
+    if (i.getOpCode() == pex::PexOpCode::Jmp) hasContinueJmp = true;
+  }
+  CHECK(hasISub);
+  CHECK(hasContinueJmp);
+}
+
+TEST_CASE("CompileForIn_RangeBoundsEvaluatedOnce") {
+  auto makeStartBody = Vec<Unique<ast::Statement>>{};
+  makeStartBody.push_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(0))));
+  auto makeEndBody = Vec<Unique<ast::Statement>>{};
+  makeEndBody.push_back(makeUnique<ast::ReturnStatement>(
+      makeUnique<ast::LiteralExpression>(VellumLiteral(3))));
+
+  Token tokI = makeToken(TokenType::IDENTIFIER, 1, "i");
+  Token rangeTok = makeToken(TokenType::DOT_DOT, 1, "..");
+  auto callStart =
+      makeUnique<ast::CallExpression>(makeUnique<ast::IdentifierExpression>(
+                                          VellumIdentifier("startBound"), Token{}),
+                                      Vec<Unique<ast::Expression>>{}, Token{});
+  auto callEnd =
+      makeUnique<ast::CallExpression>(makeUnique<ast::IdentifierExpression>(
+                                          VellumIdentifier("endBound"), Token{}),
+                                      Vec<Unique<ast::Expression>>{}, Token{});
+
+  Vec<Unique<ast::Statement>> forBody;
+  ast::FunctionBody testBody;
+  testBody.push_back(makeUnique<ast::ForStatement>(
+      makeUnique<ast::IdentifierExpression>(VellumIdentifier("i"), tokI),
+      makeUnique<ast::RangeExpression>(std::move(callStart), std::move(callEnd),
+                                       rangeTok),
+      makeUnique<ast::BlockStatement>(std::move(forBody)), tokI, rangeTok));
+
+  Vec<Unique<ast::Declaration>> scriptMembers;
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "startBound", Vec<ast::FunctionParameter>{},
+      VellumType::literal(VellumLiteralType::Int),
+      makeUnique<ast::BlockStatement>(std::move(makeStartBody))));
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "endBound", Vec<ast::FunctionParameter>{},
+      VellumType::literal(VellumLiteralType::Int),
+      makeUnique<ast::BlockStatement>(std::move(makeEndBody))));
+  scriptMembers.push_back(makeUnique<ast::FunctionDeclaration>(
+      "test", Vec<ast::FunctionParameter>{}, VellumType::none(),
+      makeUnique<ast::BlockStatement>(std::move(testBody))));
+
+  Vec<Unique<ast::Declaration>> ast;
+  ast.emplace_back(makeUnique<ast::ScriptDeclaration>(
+      VellumType::identifier("testscript"), Token{}, VellumType::none(),
+      std::nullopt, std::move(scriptMembers)));
+
+  auto errorHandler = makeShared<CompilerErrorHandler>();
+  auto importLibrary = makeShared<ImportLibrary>(Vec<fs::path>{});
+  auto importResolver = makeShared<ImportResolver>(errorHandler, importLibrary);
+  auto builtinFunctions = makeShared<BuiltinFunctions>();
+  auto resolver =
+      makeShared<Resolver>(VellumObject(VellumType::identifier("testscript")),
+                           errorHandler, importLibrary, builtinFunctions);
+
+  TypeCollector typeCollector;
+  typeCollector.collect(ast);
+  importResolver->buildImportGraph(typeCollector.getDiscoveredTypes());
+
+  SemanticAnalyzer semantic(errorHandler, resolver, "testscript");
+  auto semanticResult = semantic.analyze(std::move(ast));
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  pex::PexFile file =
+      Compiler(errorHandler)
+          .compile(ScriptMetadata(), semanticResult.declarations);
+  REQUIRE_FALSE(errorHandler->hadError());
+
+  const auto& funcs = file.objects()[0].getStates()[0].getFunctions();
+  const pex::PexFunction* testFunc = nullptr;
+  for (const auto& f : funcs) {
+    if (f.getName() && file.stringTable().valueByIndex(static_cast<size_t>(
+                           f.getName()->index())) == "test") {
+      testFunc = &f;
+      break;
+    }
+  }
+  REQUIRE(testFunc != nullptr);
+
+  const auto& st = file.stringTable();
+  size_t startCalls = 0;
+  size_t endCalls = 0;
+  for (const auto& i : testFunc->getInstructions()) {
+    if (i.getOpCode() != pex::PexOpCode::CallMethod) continue;
+    const auto& args = i.getArgs();
+    if (args.empty() || args[0].getType() != pex::PexValueType::Identifier)
+      continue;
+    std::string_view name = st.valueByIndex(
+        static_cast<size_t>(args[0].asIdentifier().getValue().index()));
+    if (name == "startBound") ++startCalls;
+    if (name == "endBound") ++endCalls;
+  }
+  CHECK(startCalls == 1);
+  CHECK(endCalls == 1);
+}
+
 TEST_CASE("CompileForIn_CollectionCallEvaluatedOnce") {
   auto makeArrBody = Vec<Unique<ast::Statement>>{};
   makeArrBody.push_back(

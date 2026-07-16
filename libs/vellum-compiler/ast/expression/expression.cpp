@@ -140,6 +140,10 @@ NewArrayExpression& Expression::asNewArrayExpression() {
   return static_cast<NewArrayExpression&>(*this);
 }
 
+RangeExpression& Expression::asRange() {
+  return static_cast<RangeExpression&>(*this);
+}
+
 bool SelfExpression::equals(const Expression& other_) const {
   return other_.isSelfExpression();
 }
@@ -332,6 +336,19 @@ void InterpolatedStringExpression::accept(ExpressionVisitor& visitor) {
 
 pex::PexValue InterpolatedStringExpression::compile(
     ExpressionCompiler& compiler) const {
+  return compiler.compile(*this);
+}
+
+bool RangeExpression::equals(const Expression& other_) const {
+  auto& other = static_cast<const RangeExpression&>(other_);
+  return start->equals(*other.start) && end->equals(*other.end);
+}
+
+void RangeExpression::accept(ExpressionVisitor& visitor) {
+  visitor.visitRangeExpression(*this);
+}
+
+pex::PexValue RangeExpression::compile(ExpressionCompiler& compiler) const {
   return compiler.compile(*this);
 }
 

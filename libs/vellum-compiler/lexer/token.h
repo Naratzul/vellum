@@ -28,6 +28,7 @@ enum class TokenType {
   STAR,
   PERCENT,
   // One or two character tokens.
+  DOT_DOT,
   BANG,
   BANG_EQUAL,
   EQUAL,

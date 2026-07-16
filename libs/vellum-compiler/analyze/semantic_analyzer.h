@@ -84,6 +84,7 @@ class SemanticAnalyzer : public ast::DeclarationVisitor,
   void visitTernaryExpression(ast::TernaryExpression& expr) override;
   void visitInterpolatedStringExpression(
       ast::InterpolatedStringExpression& expr) override;
+  void visitRangeExpression(ast::RangeExpression& expr) override;
 
  private:
   Shared<CompilerErrorHandler> errorHandler;

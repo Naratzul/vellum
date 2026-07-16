@@ -720,7 +720,7 @@ Unique<ast::Statement> Parser::expressionStatement() {
 Unique<ast::Expression> Parser::expression() { return assignExpression(); }
 
 Unique<ast::Expression> Parser::assignExpression() {
-  auto expr = logicalOrExpression();
+  auto expr = rangeExpression();
 
   if (matchAny({TokenType::EQUAL, TokenType::PLUS_EQUAL, TokenType::MINUS_EQUAL,
                 TokenType::STAR_EQUAL, TokenType::SLASH_EQUAL,
@@ -760,6 +760,19 @@ Unique<ast::Expression> Parser::assignExpression() {
 
     return makeUnique<ast::AssignExpression>(std::move(expr),
                                              assignExpression(), op, previous);
+  }
+
+  return expr;
+}
+
+Unique<ast::Expression> Parser::rangeExpression() {
+  auto expr = logicalOrExpression();
+
+  if (match(TokenType::DOT_DOT)) {
+    Token location = previous;
+    auto end = logicalOrExpression();
+    return makeUnique<ast::RangeExpression>(std::move(expr), std::move(end),
+                                            location);
   }
 
   return expr;
