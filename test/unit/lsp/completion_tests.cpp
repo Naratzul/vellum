@@ -1,13 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <filesystem>
-
 #include "lsp_fixture.h"
 
-namespace fs = std::filesystem;
-
 using namespace vellum;
-using common::Vec;
 using vellum::lsp_test::LspTestFixture;
 
 namespace {
@@ -152,6 +147,12 @@ void addMathModule(LspTestFixture& fixture) {
   fixture.addScriptType(math);
 }
 
+void addMathExModule(LspTestFixture& fixture) {
+  VellumObject mathEx(VellumType::identifier("MathEx"));
+  mathEx.addFunction(LspTestFixture::staticFunction(VellumIdentifier("chance")));
+  fixture.addScriptType(mathEx);
+}
+
 }  // namespace
 
 TEST_CASE_METHOD(LspTestFixture, "LspCompletion expression and keyword contexts") {
@@ -180,8 +181,7 @@ TEST_CASE_METHOD(LspTestFixture,
 }
 
 TEST_CASE_METHOD(LspTestFixture, "LspCompletion import module prefix") {
-  setImportPaths(
-      Vec<fs::path>{fs::path(VELLUM_SOURCE_DIR) / "examples"});
+  addMathExModule(*this);
   openDoc(kUsesMathEx);
   analyze();
 
@@ -189,8 +189,7 @@ TEST_CASE_METHOD(LspTestFixture, "LspCompletion import module prefix") {
 }
 
 TEST_CASE_METHOD(LspTestFixture, "LspCompletion MathEx member when only MathEx exists") {
-  setImportPaths(
-      Vec<fs::path>{fs::path(VELLUM_SOURCE_DIR) / "examples"});
+  addMathExModule(*this);
   openDoc(kUsesMathDot);
   analyze();
 
@@ -199,8 +198,7 @@ TEST_CASE_METHOD(LspTestFixture, "LspCompletion MathEx member when only MathEx e
 }
 
 TEST_CASE_METHOD(LspTestFixture, "LspCompletion Math module disambiguation") {
-  setImportPaths(
-      Vec<fs::path>{fs::path(VELLUM_SOURCE_DIR) / "examples"});
+  addMathExModule(*this);
   addMathModule(*this);
   openDoc(kUsesMathDot);
   analyze();
