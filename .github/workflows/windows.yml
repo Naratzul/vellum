@@ -98,7 +98,7 @@ jobs:
           ls -la "${build_dir}"
 
           sentry-cli releases new "${release}" --org "${SENTRY_ORG}" --project "${SENTRY_PROJECT}"
-          sentry-cli releases set-commits "${release}" --auto --org "${SENTRY_ORG}" --project "${SENTRY_PROJECT}"
+          sentry-cli releases set-commits "${release}" --auto --ignore-missing --org "${SENTRY_ORG}" --project "${SENTRY_PROJECT}"
           sentry-cli debug-files upload \
             --org "${SENTRY_ORG}" \
             --project "${SENTRY_PROJECT}" \
