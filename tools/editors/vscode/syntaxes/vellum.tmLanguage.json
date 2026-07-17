@@ -12,6 +12,9 @@
             "include": "#numbers"
         },
         {
+            "include": "#interp-strings"
+        },
+        {
             "include": "#strings"
         },
         {
@@ -26,7 +29,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.vellum",
-                    "match": "\\b(import|script|state|fun|var|return|if|in|else|while|for|get|set|true|false|as|event|none)\\b"
+                    "match": "\\b(import|script|state|fun|var|return|if|in|else|while|for|match|get|set|true|false|as|is|event|none|static|native|hidden|conditional|break|continue|auto|self|super)\\b"
                 }
             ]
         },
@@ -43,6 +46,46 @@
                 {
                     "name": "constant.numeric.vellum",
                     "match": "\\b\\d+(\\.\\d+)?\\b"
+                }
+            ]
+        },
+        "interp-strings": {
+            "patterns": [
+                {
+                    "name": "string.interpolated.vellum",
+                    "begin": "\\$\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.vellum",
+                            "match": "\\{\\{|\\}\\}"
+                        },
+                        {
+                            "name": "meta.embedded.expression.vellum",
+                            "begin": "\\{",
+                            "end": "\\}",
+                            "patterns": [
+                                {
+                                    "include": "#keywords"
+                                },
+                                {
+                                    "include": "#types"
+                                },
+                                {
+                                    "include": "#numbers"
+                                },
+                                {
+                                    "include": "#interp-strings"
+                                },
+                                {
+                                    "include": "#strings"
+                                },
+                                {
+                                    "include": "#identifiers"
+                                }
+                            ]
+                        }
+                    ]
                 }
             ]
         },

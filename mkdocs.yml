@@ -25,16 +25,21 @@ nav:
   - Home: index.md
   - Download: download.md
   - Usage: compiler.md
+  - VS Code extension: vscode.md
   - Overview: overview.md
   - Examples: examples.md
   - Variables: variables.md
   - Properties: properties.md
   - Functions: functions.md
+  - Imports: imports.md
+  - Strings: strings.md
   - Control flow: control_flow.md
+  - Pattern matching: match.md
   - Arrays: arrays.md
   - Inheritance: inheritance.md
   - States: states.md
   - Casts: casts.md
+  - Modifiers: modifiers.md
 
 markdown_extensions:
   - pymdownx.highlight

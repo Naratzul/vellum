@@ -1,36 +1,38 @@
+import Debug
+import Utility
+
 // Place on a reference. Player activation shows total count of configured weapon types
-// in their inventory, then enters a short "busy" cooldown state (onBeginState).
+// in their inventory, then enters a short "busy" cooldown state (OnBeginState).
 script CountItems : ObjectReference {
 
     var itemsToCheck: [Weapon] { get set } // auto property
 
-    event onActivate(who: ObjectReference) {}
-
-    fun countItems(actor: Actor) -> Int {
+    fun CountItems(actor: Actor) -> Int {
         var result = 0
         for item in itemsToCheck {
-            result += actor.GetItemCount(item as Form)
+            result += actor.GetItemCount(item)
         }
         return result
     }
 }
 
 auto state InitialState {
-    event onActivate(who: ObjectReference) {
+    event OnActivate(who: ObjectReference) {
+        var who = who as Actor
         if who == Game.GetPlayer() {
-            Debug.MessageBox("Items of type " + itemsToCheck as String + " count: " + countItems(who as Actor) as String)
+            MessageBox($"Items of type {itemsToCheck} count {CountItems(who)}")
             GoToState("Busy")
         }
     }
 }
 
 state Busy {
-    event onBeginState() {
-        Utility.Wait(10)
+    event OnBeginState() {
+        Wait(10)
         GoToState("InitialState")
     }
 
-    event onActivate(who: ObjectReference) {
-        Debug.Notification("I'm busy, please wait.")
+    event OnActivate(who: ObjectReference) {
+        Notification("I'm busy, please wait.")
     }
 }

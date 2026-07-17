@@ -6,7 +6,9 @@ For now, only the Skyrim PEX subset is supported and tested. Support for other C
 
 ## Documentation
 
-Full docs (language, usage, examples): https://naratzul.github.io/vellum/
+Full docs (language, usage, examples, VS Code extension): https://naratzul.github.io/vellum/
+
+Compiler changelog: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Quick start
 
@@ -17,7 +19,7 @@ Full docs (language, usage, examples): https://naratzul.github.io/vellum/
    vellum.exe -f <path-to-your-script> -i <path-to-skyrim-scripts-folder>
    ```
 
-   On success you get a `.pex` next to your `.vel` file. Use `vellum.exe -h` for more options.
+   On success you get a `.pex` next to your `.vel` file, or in the output directory if you pass `-o`. Pass a directory to `-f` to compile all sources under it. Use `vellum.exe -h` for more options.
 
 3. Example scripts — [examples on GitHub](https://github.com/Naratzul/vellum/tree/main/examples).
 

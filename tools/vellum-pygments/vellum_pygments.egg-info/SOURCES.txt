@@ -1,4 +1,3 @@
-README.md
 pyproject.toml
 vellum_pygments/__init__.py
 vellum_pygments/lexer.py

@@ -1,6 +1,6 @@
 # Home
 
-Latest version: [v0.1.0](https://github.com/Naratzul/vellum/releases/tag/v0.1.0)
+Latest version: [v0.2.0](https://github.com/Naratzul/vellum/releases/tag/v0.2.0)
 
 Vellum is a scripting language for Creation Kit-era games. It compiles to **PEX**. It offers modern syntax and better compiler errors.
 
@@ -8,17 +8,20 @@ Today Vellum targets the Skyrim PEX subset only and has been tested with Skyrim.
 
 ## Why Vellum?
 
-- Clean modern syntax
-- Case-sensitive naming
+- Clean modern syntax and case-sensitive naming
 - Type inference for variables
-- `for` loop support
-- Ternary operator support
-- More features planned.
+- Interpolated strings (`$"…"`)
+- `match` pattern matching
+- `for` over arrays, FormLists, and Int ranges
+- Array initializer lists
+- `is` operator support, ternary conditional operator support
+- [VS Code extension](vscode.md) with diagnostics, completion, go-to-definition, and compile
 
 ## Getting started
 
 - [Download the compiler](download.md)
 - [How to use the compiler](compiler.md)
+- [VS Code extension](vscode.md)
 - [Basic syntax overview](overview.md)
 
 For language details see articles on the left sidebar.
@@ -31,4 +34,4 @@ Vellum is fully compatible with Skyrim Papyrus. They share the same runtime / PE
 
 ## Examples
 
-Sample Vellum scripts are in the [examples folder](https://github.com/Naratzul/vellum/tree/main/examples) on GitHub.
+Sample Vellum scripts are in the [examples folder](https://github.com/Naratzul/vellum/tree/main/examples) on GitHub. See also [Examples](examples.md).

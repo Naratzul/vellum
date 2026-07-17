@@ -4,6 +4,8 @@ Vellum is a scripting language created for the Creation Kit. Vellum keeps compat
 
 For now, only the Skyrim PEX subset is supported. Support for Fallout 4 and Starfield is planned.
 
+Vellum is **case-sensitive**. Prefer **PascalCase** for `fun` and `event` names (`OnActivate`, `CountItems`). When you override Papyrus parents, matching is still case-insensitive for compatibility.
+
 ## Script declaration
 
 See [Inheritance](inheritance.md) for extending base scripts and script attachment.
@@ -11,9 +13,11 @@ See [Inheritance](inheritance.md) for extending base scripts and script attachme
 Put your script inside a **`.vel`** file. Classic hello world example in Vellum:
 
 ```vellum
+import Debug
+
 script HelloWorld : ObjectReference {
-    event onActivate(actionRef: ObjectReference) {
-        Debug.MessageBox("Hello, World!")
+    event OnActivate(actionRef: ObjectReference) {
+        MessageBox("Hello, World!")
     }
 }
 ```
@@ -25,7 +29,7 @@ See [Functions](functions.md).
 You can define a function using the `fun` keyword. A function that takes two `Int` parameters and returns an `Int`:
 
 ```vellum
-fun sum(a: Int, b: Int) -> Int {
+fun Sum(a: Int, b: Int) -> Int {
     return a + b
 }
 ```
@@ -35,6 +39,20 @@ Event definitions start with the `event` keyword:
 ```vellum
 event OnActivate(activator: ObjectReference) {
   PlayAnimation("CoolStuff")
+}
+```
+
+## Imports
+
+See [Imports](imports.md).
+
+```vellum
+import Debug
+
+script MyScript {
+    fun Foo() {
+        Notification("bare static call")
+    }
 }
 ```
 
@@ -67,6 +85,15 @@ var myProperty: String {get set} // defines auto property myProperty with type S
 var anotherProperty: Float {get} // defines readonly property anotherProperty with type Float
 ```
 
+## Strings
+
+See [Strings](strings.md).
+
+```vellum
+var name = "Vellum"
+Debug.Notification($"Hello, {name}")
+```
+
 ## Arrays
 
 See [Arrays](arrays.md).
@@ -87,6 +114,8 @@ You can use the `length` property to get the number of elements:
 var numbersCount = numbers.length
 ```
 
+Initializer lists work too: `var nums = [1, 2, 3, 4]`.
+
 ## For loop
 
 See [Control flow](control_flow.md).
@@ -101,9 +130,11 @@ var messages = [String; 5] // array of 5 String objects
 // ...
 
 for message in messages {
-    processMessage(message)
+    ProcessMessage(message)
 }
 ```
+
+You can also iterate FormLists, bind an index (`for x, i in …`), or loop over an Int range (`for i in 0..n`).
 
 ## While loop
 
@@ -134,6 +165,17 @@ if value > 10 {
 }
 ```
 
+## Pattern matching
+
+See [Pattern matching](match.md).
+
+```vellum
+match kind {
+    1 | 2 => return "blade"
+    else => return "other"
+}
+```
+
 ## Ternary conditional operator
 
 See [Control flow](control_flow.md).
@@ -148,7 +190,7 @@ var x = value > 10 ? 1 : 0
 You can also use it in a return statement:
 
 ```vellum
-fun max(a: Int, b: Int) -> Int {
+fun Max(a: Int, b: Int) -> Int {
     return a > b ? a : b
 }
 ```
@@ -163,11 +205,11 @@ script MyScript {
 }
 
 state MyState {
-    event onInit() {
+    event OnInit() {
 
     }
 
-    fun foo() {
+    fun Foo() {
 
     }
 }
@@ -189,4 +231,8 @@ auto state InitialState {
 
 See [Casts](casts.md).
 
-Write **`expression as Type`** when the compiler allows that conversion, for example `obj as Actor` to narrow a reference.
+Write **`expression as Type`** to convert when allowed (for example `obj as Actor`). Use **`expression is Type`** for a `Bool` type test.
+
+## Modifiers
+
+See [Modifiers](modifiers.md) for `hidden` / `conditional` on scripts, properties, and variables.

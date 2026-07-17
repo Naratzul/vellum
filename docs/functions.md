@@ -6,9 +6,11 @@ To declare a function in Vellum:
 - Specify parameters in `()`
 - Include the return type if needed
 
+Vellum is **case-sensitive**. Prefer **PascalCase** for function and event names (`OnActivate`, `CountItems`). Parent Papyrus members still resolve case-insensitively when you override them.
+
 ```vellum
 script MyScript {
-    fun foo(i: Int) -> Int {
+    fun Foo(i: Int) -> Int {
         return i * 5
     }
 }
@@ -20,7 +22,7 @@ Use `Name: Type` syntax to specify function parameters, for example:
 
 ```vellum
 script MyScript {
-    fun foo(i: Int, f: Float, s: String, actor: Actor) {
+    fun Foo(i: Int, f: Float, s: String, actor: Actor) {
         // do something
     }
 }
@@ -32,12 +34,12 @@ Function parameters can have default values (literal values or none for objects 
 
 ```vellum
 script MyScript {
-    fun bar(s: String, i: Int = 10) {
+    fun Bar(s: String, i: Int = 10) {
 
     }
 
-    fun foo() {
-        bar("Hello") // second parameter will use default value 10
+    fun Foo() {
+        Bar("Hello") // second parameter will use default value 10
     }
 }
 ```
@@ -48,12 +50,12 @@ To return a specific value from a function, you have to specify the function's r
 
 ```vellum
 script MyScript {
-    fun concat(a: String, b: String) -> String {
+    fun Concat(a: String, b: String) -> String {
         return a + b
     }
 
-    fun foo() {
-        var result = concat("Hello", ", world")
+    fun Foo() {
+        var result = Concat("Hello", ", world")
     }
 }
 ```
@@ -66,18 +68,31 @@ You can mark a function as `static` to indicate that it can be called without an
 
 ```vellum
 script MyUtility {
-    static fun getRandomInt() -> Int {
+    static fun GetRandomInt() -> Int {
         return 4
     }
 }
 
 script MyScript {
-    fun foo() {
-        var i = MyUtility.getRandomInt()
+    fun Foo() {
+        var i = MyUtility.GetRandomInt()
     }
 }
-
 ```
+
+After `import MyUtility`, you can also call `GetRandomInt()` bare — see [Imports](imports.md).
+
+## Native functions
+
+Mark a function `native` when the implementation lives in the game engine (same idea as Papyrus `Native`). The body must be empty:
+
+```vellum
+script Game {
+    native static fun GetPlayer() -> Actor
+}
+```
+
+You can combine modifiers: `native static fun …`. `native` is only valid on **functions**, not on events. See also [Modifiers](modifiers.md) for `hidden` / `conditional` on scripts and properties.
 
 ## Self expression
 
@@ -88,15 +103,15 @@ script MyScript {
 
     var f: Float {get set} = 2.72
 
-    fun foo() {
-        bar(self)
+    fun Foo() {
+        Bar(self)
     }
 
-    fun bar(obj: MyScript) {
-        obj.baz()
+    fun Bar(obj: MyScript) {
+        obj.Baz()
     }
 
-    fun baz() {
+    fun Baz() {
         var local = self.f
     }
 }
@@ -109,7 +124,7 @@ Events are a special kind of function. You don't call them directly, it's done b
 ```vellum
 script MyScript : ObjectReference {
 
-    event onActivate(obj: ObjectReference) {
+    event OnActivate(obj: ObjectReference) {
         // do something
     }
 }

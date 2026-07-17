@@ -15,25 +15,25 @@ script MyScript {
     var i = 42
     var x: String {get set} = "Some text"
 
-    fun foo() {
+    fun Foo() {
 
     }
 }
 
 state MyState {
-    fun foo() {
+    fun Foo() {
         var local = i
     }
 }
 
 auto state InitialState {
-    fun foo() {
+    fun Foo() {
         var local = x
     }
 }
 ```
 
-Note: The functions and events must be defined in the empty state with the same signature (name, parameter types, return type).
+Note: The functions and events must be defined in the empty state with the same signature (name, parameter types, return type). That empty-state declaration may live on **this script or any ancestor** (for example, `ObjectReference` already defines `OnActivate`, so a child script only needs named-state overrides).
 
 ## Switching states
 
@@ -41,13 +41,13 @@ You can use `GetState` to get current state and `GoToState` to change the state:
 
 ```vellum
 script MyScript : ObjectReference {
-    event onActivate(obj: ObjectReference) {
+    event OnActivate(obj: ObjectReference) {
         GoToState("Busy")
     }
 }
 
 state Busy {
-    event onActivate(obj: ObjectReference) {
+    event OnActivate(obj: ObjectReference) {
         // do nothing, just wait
         Utility.Wait(5)
         // and switch back to empty state

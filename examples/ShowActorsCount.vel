@@ -4,24 +4,22 @@ script ShowActorsCount : ObjectReference {
 
 	var actorsCounter : CountActorsEntered {get set}
 
-	event onActivate(who: ObjectReference) {
+	event OnActivate(who: ObjectReference) {
 		if who != Game.GetPlayer() {
 			return
 		}
 
 		var count = actorsCounter.count
-		var message = "Entered actors: " + count as String
+		var message = $"Entered actors: {count}"
 
 		if (actorsCounter.count > 0) {
 			message += " | "
 		}
 
-		var i = 0
 		var actors = actorsCounter.actorsEntered
-		while i < count {
-			message += (actors.GetAt(i) as Actor) as String
+		for actorForm in actors {
+			message += $"{actorForm as Actor}"
 			message += " | "
-			i += 1
 		}
 
 		Debug.MessageBox(message)

@@ -4,6 +4,8 @@ As with [variables](variables.md) properties hold a value. They provide a mechan
 
 To declare a property, use the `var` keyword followed by name, type annotation and accessors. Optionally you can specify an initial value (literals only), otherwise the property will be default-initialized (same defaults as in [variables](variables.md)).
 
+For `hidden` / `conditional` on properties, see [Modifiers](modifiers.md).
+
 ```vellum
 script GreetingsHelper {
     // default-initialized (to empty string) auto property
@@ -25,7 +27,7 @@ Another script can access our properties:
 script AnotherScript : Quest {
     var greetingsHelper: GreetingsHelper {get set}
 
-    event onInit() {
+    event OnInit() {
         Debug.MessageBox(greetingsHelper.greetingsCompute)
     }
 }

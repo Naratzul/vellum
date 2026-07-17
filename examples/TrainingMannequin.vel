@@ -1,5 +1,6 @@
 // Archery practice dummy: when the player hits with a bow, advances Marksman with
-// randomized critical and mastery-based gain helpers (see MathEx.chance).
+// randomized critical and mastery-based gain helpers (see MathEx.Chance).
+
 script TrainingMannequin : ObjectReference {
 	var itemTypeBow = 7
 	var skillMarksman = "Marksman"
@@ -13,7 +14,7 @@ script TrainingMannequin : ObjectReference {
 	var masteryExpertMult = 1.4
 	var masteryMasterMult = 1.0
 
-	event onHit(aggressor: ObjectReference, source: Form, p: Projectile,
+	event OnHit(aggressor: ObjectReference, source: Form, p: Projectile,
 	 			pa: Bool, sa: Bool, ba: Bool, hb: Bool) {
         var player = Game.GetPlayer()
 
@@ -25,29 +26,29 @@ script TrainingMannequin : ObjectReference {
 
 		var itemType = player.GetEquippedItemType(1)
 
-		if (source as Weapon) as Bool && itemType == itemTypeBow {
-			advanceSkill(skillMarksman, skillGainRanged)
+		if source is Weapon && itemType == itemTypeBow {
+			AdvanceSkill(skillMarksman, skillGainRanged)
 		}
 
 		GoToState("")
 	}
 
-	fun advanceSkill(skill: String, gain: Float) {
-		gain = advanceSkillStable(skill, gain)
+	fun AdvanceSkill(skill: String, gain: Float) {
+		gain = AdvanceSkillStable(skill, gain)
 		if gain > 0.0 {
 			Game.AdvanceSkill(skill, gain)
-			Debug.Notification("Advancing skill " + skill + " by " + gain as String + " gain.")
+			Debug.Notification($"Advancing skill {skill} by gain {gain}.")
 		}
 	}
 
-	fun advanceSkillStable(skill: String, gain: Float) -> Float {
-		return skillGainFormular(skill, gain)
+	fun AdvanceSkillStable(skill: String, gain: Float) -> Float {
+		return SkillGainFormular(skill, gain)
 	}
 
-	fun skillGainFormular(skill: String, gain: Float) -> Float {
+	fun SkillGainFormular(skill: String, gain: Float) -> Float {
 		var out = gain
 
-		if MathEx.chance(criticalBonusChange) == 1 {
+		if MathEx.Chance(criticalBonusChange) == 1 {
 			out *= criticalBonusMult
 			Debug.Notification("Critical Hit!")
 		}

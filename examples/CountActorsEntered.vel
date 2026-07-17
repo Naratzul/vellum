@@ -10,13 +10,13 @@ script CountActorsEntered : ObjectReference {
 		get { return actorsEntered.GetSize() }
 	}
 
-	event onTriggerEnter(actor: ObjectReference) {
+	event OnTriggerEnter(actor: ObjectReference) {
 		if actor == Game.GetPlayer() {
 			return
 		}
 
-		if !actorsEntered.HasForm(actor as Form) {
-			actorsEntered.AddForm(actor as Form)
+		if !actorsEntered.HasForm(actor) {
+			actorsEntered.AddForm(actor)
 		}
 	}
 }

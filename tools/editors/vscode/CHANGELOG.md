@@ -2,18 +2,13 @@
 
 All notable changes to the Vellum VS Code extension are documented in this file.
 
-## Unreleased
+## 0.1.0 — 2026-07-16
 
-- **Vellum: Compile** command — runs the `vellum` CLI with workspace settings
-- Setting: `vellum.compilerPath` for the compiler executable
-- Setting: `vellum.outputDirectory` for compile output (`-o`)
-- Task examples in the extension README
-
-## 0.1.0 — 2025-06-25
-
-Initial release.
+First public release.
 
 - Vellum language support for `.vel` and `.vellum` files (syntax highlighting, semantic tokens)
 - Language server features: diagnostics, completion, go-to-definition
 - Bundled `vellum-lsp` binary for Windows x64
-- Settings: `vellum.importPaths`, `vellum.trace.server`, `vellum.languageServerPath`
+- **Vellum: Compile** command — runs the `vellum` CLI with workspace settings
+- Settings: `vellum.importPaths`, `vellum.compilerPath`, `vellum.outputDirectory`, `vellum.trace.server`, `vellum.languageServerPath`
+- Task examples in the extension README

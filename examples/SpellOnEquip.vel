@@ -3,13 +3,13 @@
 script SpellOnEquip : ObjectReference {
   var spell: Spell {get set}
 
-  event onEquipped(actor: Actor) {
+  event OnEquipped(actor: Actor) {
     if actor == Game.GetPlayer() {
       actor.AddSpell(spell)
     }
   }
 
-  event onUnequipped(actor: Actor) {
+  event OnUnequipped(actor: Actor) {
     if actor == Game.GetPlayer() {
       actor.RemoveSpell(spell)
     }
