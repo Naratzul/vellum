@@ -11,9 +11,12 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    environment: ${{ (startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/vscode-')) && 'production' || null }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set build parameters
         id: build
@@ -64,17 +67,43 @@ jobs:
           curl -sL https://sentry.io/get-cli/ | bash
           echo "$INSTALL_DIR" >> "$GITHUB_PATH"
 
-      - name: Upload debug symbols to Sentry
+      - name: Create Sentry release and upload debug symbols
         if: steps.build.outputs.is_release == 'true'
-        shell: pwsh
+        shell: bash
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_CLI_PROJECT }}
         run: |
-          sentry-cli debug-files upload `
-            --org "${{ secrets.SENTRY_ORG }}" `
-            --project "${{ secrets.SENTRY_CLI_PROJECT }}" `
-            --release "${{ steps.sentry_release.outputs.name }}" `
-            "${{ github.workspace }}/build/apps/vellum/${{ steps.build.outputs.config }}"
+          set -euo pipefail
+
+          release="${{ steps.sentry_release.outputs.name }}"
+          build_dir="${{ github.workspace }}/build/apps/vellum/${{ steps.build.outputs.config }}"
+
+          if [ -z "${SENTRY_ORG}" ] || [ -z "${SENTRY_PROJECT}" ] || [ -z "${SENTRY_AUTH_TOKEN}" ]; then
+            echo "::error::Sentry secrets missing (SENTRY_ORG / SENTRY_CLI_PROJECT / SENTRY_AUTH_TOKEN). Check the production environment."
+            exit 1
+          fi
+
+          if ! command -v sentry-cli >/dev/null 2>&1; then
+            echo "::error::sentry-cli not found on PATH"
+            echo "PATH=${PATH}"
+            ls -la "${GITHUB_WORKSPACE}/.sentry-cli" || true
+            exit 1
+          fi
+
+          echo "sentry-cli: $(command -v sentry-cli)"
+          sentry-cli --version
+          echo "Build dir: ${build_dir}"
+          ls -la "${build_dir}"
+
+          sentry-cli releases new "${release}" --org "${SENTRY_ORG}" --project "${SENTRY_PROJECT}"
+          sentry-cli releases set-commits "${release}" --auto --org "${SENTRY_ORG}" --project "${SENTRY_PROJECT}"
+          sentry-cli debug-files upload \
+            --org "${SENTRY_ORG}" \
+            --project "${SENTRY_PROJECT}" \
+            "${build_dir}"
+          sentry-cli releases finalize "${release}" --org "${SENTRY_ORG}" --project "${SENTRY_PROJECT}"
 
       - name: Upload CLI artifact
         if: steps.build.outputs.is_release == 'true'
