@@ -52,8 +52,6 @@ script GreetOnActivate : ObjectReference {
 }
 ```
 
-(Full sample: [examples/compare/greet](https://github.com/Naratzul/vellum/tree/main/examples/compare/greet).)
-
 ## Int and Float arms
 
 If some arms use `Int` patterns and others use `Float` (or the scrutinee is the other numeric type), the compiler promotes as needed so comparisons stay consistent. Mixing Int and Float patterns in one `match` is allowed.

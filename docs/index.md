@@ -10,7 +10,7 @@ Today Vellum targets the Skyrim PEX subset only and has been tested with Skyrim.
 
 - Clean modern syntax and case-sensitive naming
 - Type inference for variables
-- Interpolated strings (`$"…"`)
+- Interpolated strings (`$"Hello, {name}"`)
 - `match` pattern matching
 - `for` over arrays, FormLists, and Int ranges
 - Array initializer lists
@@ -25,8 +25,6 @@ Today Vellum targets the Skyrim PEX subset only and has been tested with Skyrim.
 - [Basic syntax overview](overview.md)
 
 For language details see articles on the left sidebar.
-
-Code samples use the **`vellum`** fenced-code language tag so the docs site can apply Vellum-specific syntax highlighting.
 
 ## Interop with Papyrus
 
