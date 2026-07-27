@@ -61,7 +61,8 @@ Vec<fs::path> discoverVelSources(const fs::path& directory, bool recursive) {
 
   Vec<fs::path> files;
   const auto collectFile = [&](const fs::directory_entry& entry) {
-    if (!entry.is_regular_file()) {
+    std::error_code ec;
+    if (!entry.is_regular_file(ec) || ec) {
       return;
     }
     if (!isVelSourceFile(entry.path())) {
@@ -71,11 +72,13 @@ Vec<fs::path> discoverVelSources(const fs::path& directory, bool recursive) {
   };
 
   if (recursive) {
-    for (const auto& entry : fs::recursive_directory_iterator(directory)) {
+    for (const auto& entry : fs::recursive_directory_iterator(
+             directory, fs::directory_options::skip_permission_denied)) {
       collectFile(entry);
     }
   } else {
-    for (const auto& entry : fs::directory_iterator(directory)) {
+    for (const auto& entry : fs::directory_iterator(
+             directory, fs::directory_options::skip_permission_denied)) {
       collectFile(entry);
     }
   }

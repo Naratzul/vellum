@@ -11,7 +11,7 @@ namespace vellum {
 using namespace common;
 
 ImportLibrary::ImportLibrary(const Vec<fs::path>& importPaths,
-                               bool strictDuplicates)
+                             bool strictDuplicates)
     : strictDuplicates(strictDuplicates) {
   scanImportPaths(importPaths);
 }
@@ -28,8 +28,10 @@ void ImportLibrary::scanImportPaths(const Vec<fs::path>& importPaths) {
       continue;
     }
 
-    for (const auto& entry : fs::recursive_directory_iterator(path)) {
-      if (!fs::is_regular_file(entry.path())) {
+    for (const auto& entry : fs::recursive_directory_iterator(
+             path, fs::directory_options::skip_permission_denied)) {
+      std::error_code ec;
+      if (!entry.is_regular_file(ec) || ec) {
         continue;
       }
 
@@ -65,8 +67,7 @@ void ImportLibrary::scanImportPaths(const Vec<fs::path>& importPaths) {
   }
 }
 
-void ImportLibrary::registerModule(VellumIdentifier name,
-                                   ImportModuleType type,
+void ImportLibrary::registerModule(VellumIdentifier name, ImportModuleType type,
                                    const fs::path& filePath) {
   importNameToModule[name] = makeShared<ImportModule>(name, type, filePath);
 }
