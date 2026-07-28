@@ -1,5 +1,6 @@
 # CLI build, test, release (v* tags), and Sentry symbol upload.
-name: windows
+# macOS: build + test only for now (release artifacts remain Windows).
+name: cli
 
 on:
   push:
@@ -10,7 +11,11 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     environment: ${{ (startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/vscode-')) && 'production' || null }}
 
     steps:
@@ -50,7 +55,7 @@ jobs:
         run: ctest -C ${{ steps.build.outputs.config }}
 
       - name: Read Sentry release
-        if: steps.build.outputs.is_release == 'true'
+        if: runner.os == 'Windows' && steps.build.outputs.is_release == 'true'
         id: sentry_release
         shell: pwsh
         run: |
@@ -59,7 +64,7 @@ jobs:
           "name=vellum@$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Install sentry-cli
-        if: steps.build.outputs.is_release == 'true'
+        if: runner.os == 'Windows' && steps.build.outputs.is_release == 'true'
         shell: bash
         run: |
           export INSTALL_DIR="$GITHUB_WORKSPACE/.sentry-cli"
@@ -68,7 +73,7 @@ jobs:
           echo "$INSTALL_DIR" >> "$GITHUB_PATH"
 
       - name: Create Sentry release and upload debug symbols
-        if: steps.build.outputs.is_release == 'true'
+        if: runner.os == 'Windows' && steps.build.outputs.is_release == 'true'
         shell: bash
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -106,7 +111,7 @@ jobs:
           sentry-cli releases finalize "${release}" --org "${SENTRY_ORG}" --project "${SENTRY_PROJECT}"
 
       - name: Upload CLI artifact
-        if: steps.build.outputs.is_release == 'true'
+        if: runner.os == 'Windows' && steps.build.outputs.is_release == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: vellum-cli
