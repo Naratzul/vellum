@@ -1,10 +1,10 @@
 # VS Code extension
 
-The **Vellum** extension adds language support for `.vel` / `.vellum` files in Visual Studio Code. It bundles the `vellum-lsp` language server.
+The **Vellum** extension adds language support for `.vel` files in Visual Studio Code. It bundles the `vellum-lsp` language server.
 
 **Windows x64 only** for the initial public release. Linux and macOS binaries are not bundled yet.
 
-Latest extension version: **0.1.0**.
+Latest extension version: **0.1.1**.
 
 ## Features
 
@@ -16,12 +16,11 @@ Latest extension version: **0.1.0**.
 
 ## Installation
 
-Not published on the VS Code Marketplace yet. Install from a VSIX:
+1. In VS Code, open **Extensions** and search for **Vellum**, or install [naratzul.vellum-lsp](https://marketplace.visualstudio.com/items?itemName=naratzul.vellum-lsp) from the Marketplace.
+2. Open a `.vel` file.
+3. Install the [Vellum compiler](download.md) and set `vellum.compilerPath` if `vellum` is not on your `PATH`.
 
-1. Download `vellum-<version>.vsix` from a [GitHub Release](https://github.com/Naratzul/vellum/releases) (extension releases use `vscode-v*` tags) or [build one locally](https://github.com/Naratzul/vellum/tree/main/tools/editors/vscode).
-2. In VS Code, run **Extensions: Install from VSIX…** and select the file.
-3. Open a `.vel` or `.vellum` file.
-4. Install the [Vellum compiler](download.md) and set `vellum.compilerPath` if `vellum` is not on your `PATH`.
+Alternatively, download `vellum-<version>.vsix` from a [GitHub Release](https://github.com/Naratzul/vellum/releases) (`vscode-v*` tags) or [build one locally](https://github.com/Naratzul/vellum/tree/main/tools/editors/vscode), then run **Extensions: Install from VSIX…**.
 
 ## Compile
 

@@ -1,6 +1,6 @@
 # Vellum
 
-[Vellum](https://github.com/Naratzul/vellum) is a scripting language for Creation Kit–era games. This extension adds editor support for Vellum (`.vel`, `.vellum`) in Visual Studio Code via the bundled `vellum-lsp` language server.
+[Vellum](https://github.com/Naratzul/vellum) is a scripting language for Creation Kit–era games. This extension adds editor support for Vellum (`.vel`) in Visual Studio Code via the bundled `vellum-lsp` language server.
 
 **Windows x64 only** for the initial release. Linux and macOS binaries are not bundled yet.
 
@@ -14,12 +14,11 @@
 
 ## Installation
 
-Install from a VSIX (not published on the VS Code Marketplace yet):
+1. In VS Code, open **Extensions** and search for **Vellum**, or install [naratzul.vellum-lsp](https://marketplace.visualstudio.com/items?itemName=naratzul.vellum-lsp) from the Marketplace.
+2. Open a `.vel` file.
+3. Install the [Vellum compiler](https://naratzul.github.io/vellum/download/) and set `vellum.compilerPath` if `vellum` is not on your `PATH`.
 
-1. Download `vellum-<version>.vsix` from a [GitHub Release](https://github.com/Naratzul/vellum/releases) or build one locally (see below).
-2. In VS Code, run **Extensions: Install from VSIX…** and select the file.
-3. Open a `.vel` or `.vellum` file.
-4. Install the [Vellum compiler](https://naratzul.github.io/vellum/download/) and set `vellum.compilerPath` if `vellum` is not on your `PATH`.
+Alternatively, download `vellum-<version>.vsix` from a [GitHub Release](https://github.com/Naratzul/vellum/releases) (`vscode-v*` tags) or [build one locally](#building-a-vsix), then run **Extensions: Install from VSIX…**.
 
 ## Compile
 

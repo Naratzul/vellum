@@ -273,7 +273,7 @@ int entryPoint(int argc, char* argv[]) {
 
           Vec<fs::path> files = discoverVelSources(inputPath, recursive);
           if (files.empty()) {
-            std::cerr << "No .vel or .vellum files found in "
+            std::cerr << "No .vel files found in "
                       << inputPath.relative_path() << std::endl;
             return;
           }
