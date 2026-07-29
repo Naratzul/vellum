@@ -1,5 +1,4 @@
 # CLI build, test, release (v* tags), and Sentry symbol upload.
-# macOS: build + test only for now (release artifacts remain Windows).
 name: cli
 
 on:
@@ -14,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     environment: ${{ (startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/vscode-')) && 'production' || null }}
 

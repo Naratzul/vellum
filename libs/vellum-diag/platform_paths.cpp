@@ -5,10 +5,8 @@
 
 #ifdef _WIN32
 #include <shlobj_core.h>
-#elif defined __APPLE__
-#include <cstdlib>
 #else
-#error "Unsupported platform."
+#include <cstdlib>
 #endif
 
 namespace vellum::diag {
@@ -45,17 +43,28 @@ std::wstring sentryDatabasePathW(std::wstring_view appName) {
 }
 
 std::string sentryDatabasePath(std::string_view appName) {
-  return pathToUtf8(
-      fs::path(sentryDatabasePathW(fs::path(appName).wstring())));
+  return pathToUtf8(fs::path(sentryDatabasePathW(fs::path(appName).wstring())));
 }
 
 #elif defined __APPLE__
 std::string sentryDatabasePath(std::string_view appName) {
-  if (const char* home = getenv("HOME")) {
+  if (const char* home = getenv("HOME"); home && *home) {
     return pathToUtf8(fs::path(home) / "Library" / "Caches" / "Vellum" /
                       appName / ".sentry-native");
   }
   return pathToUtf8(fs::path(".") / ".sentry-native");
+}
+#else
+std::string sentryDatabasePath(std::string_view appName) {
+  fs::path root(".");
+
+  if (const char* home = getenv("XDG_STATE_HOME"); home && *home) {
+    root = fs::path(home);
+  } else if (const char* home = getenv("HOME"); home && *home) {
+    root = fs::path(home) / ".local" / "state";
+  }
+
+  return pathToUtf8(root / "Vellum" / appName / ".sentry-native");
 }
 #endif
 

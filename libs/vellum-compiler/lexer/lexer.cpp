@@ -2,6 +2,7 @@
 
 #include <charconv>
 #include <string>
+#include <cstring>
 
 #include "common/string_set.h"
 #include "token.h"

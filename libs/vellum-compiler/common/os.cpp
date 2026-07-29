@@ -9,6 +9,8 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#else
+#include <signal.h>
 #endif
 
 #include "os.h"
@@ -80,7 +82,10 @@ bool isDebuggerPresent() {
 }
 
 #else
-#error "Unsupported platform."
+std::string getUserName() { return std::string(); }
+std::string getComputerName() { return std::string(); }
+void debugBreak() { raise(SIGTRAP); }
+bool isDebuggerPresent() { return false; }
 #endif
 }  // namespace common
 }  // namespace vellum
