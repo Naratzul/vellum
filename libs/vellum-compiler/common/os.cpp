@@ -6,11 +6,14 @@
 #include <debugapi.h>
 #include <lmcons.h>
 #elif defined __APPLE__
+#include <pwd.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <unistd.h>
 #else
+#include <pwd.h>
 #include <signal.h>
+#include <unistd.h>
 #endif
 
 #include "os.h"
@@ -46,10 +49,39 @@ std::string getComputerName() {
 void debugBreak() { DebugBreak(); }
 bool isDebuggerPresent() { return IsDebuggerPresent(); }
 
-#elif defined __APPLE__
-std::string getUserName() { return std::string(); }
-std::string getComputerName() { return std::string(); }
+#else
+std::string getUserName() {
+  static std::string cached;
+  static bool once = false;
+  if (!once) {
+    once = true;
+    if (const passwd* pw = getpwuid(geteuid())) {
+      if (pw->pw_name && pw->pw_name[0])
+        cached = pw->pw_name;
+    }
+    if (cached.empty()) {
+      if (const char* env = std::getenv("USER"))
+        cached = env;
+    }
+  }
+  return cached;
+}
 
+std::string getComputerName() {
+  static std::string cached;
+  static bool once = false;
+  if (!once) {
+    once = true;
+    char buf[256];
+    if (gethostname(buf, sizeof(buf)) == 0) {
+      buf[sizeof(buf) - 1] = '\0';
+      cached = buf;
+    }
+  }
+  return cached;
+}
+
+#if defined __APPLE__
 void debugBreak() { __builtin_trap(); }
 bool isDebuggerPresent() {
   int junk;
@@ -80,12 +112,10 @@ bool isDebuggerPresent() {
 
   return ((info.kp_proc.p_flag & P_TRACED) != 0);
 }
-
 #else
-std::string getUserName() { return std::string(); }
-std::string getComputerName() { return std::string(); }
 void debugBreak() { raise(SIGTRAP); }
 bool isDebuggerPresent() { return false; }
+#endif
 #endif
 }  // namespace common
 }  // namespace vellum
